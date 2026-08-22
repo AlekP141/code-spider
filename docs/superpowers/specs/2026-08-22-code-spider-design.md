@@ -143,14 +143,16 @@ type Range = {
 }
 
 type GraphNode = {
-  id:        NodeId
-  kind:      'function' | 'component' | 'external' | 'unknown'
-  name:      string
-  file:      string          // repo-relative; empty for external/unknown
-  range:     Range           // declaration range, for click-to-jump
-  signature: string          // rendered param list and return type
-  isAsync:   boolean
-  excerpt:   string          // source text shown in the node, capped at 25 lines
+  id:         NodeId
+  kind:       'function' | 'component' | 'external' | 'unknown'
+  name:       string
+  file:       string          // repo-relative; empty for external/unknown
+  range:      Range           // declaration range, for click-to-jump
+  inputType:  string          // header right slot; '' when there are no params
+  returnType: string          // promise-unwrapped; edge labels read this
+  isAsync:    boolean
+  lineCount:  number          // pre-clamp source line count, for analytic sizing
+  excerpt:    string          // source text shown in the node, capped at 25 lines
 }
 
 type GraphEdge = {
@@ -173,7 +175,7 @@ type GraphSlice = {
 
 ### 5.4 Edge labels
 
-`supplies` is the return type of the `from` node, resolved by the type checker
+`supplies` is the `returnType` of the `from` node, resolved by the type checker
 and formatted for humans. `Promise<User>` displays as `User` with the source
 node flagged `isAsync` — the promise wrapper is noise on every edge in an async
 codebase.
@@ -234,9 +236,14 @@ focus must not hang the panel.
 chip; unresolvable becomes `unknown`. Labels come from `getReturnType()`,
 formatted per section 5.4.
 
-**5. Attach node metadata.** Signature text, the input (parameter) type for the
-node header, declaration range for click-to-jump, and a source excerpt capped at
-25 lines for the node's code region.
+**5. Attach node metadata.** The input type for the header's right slot, the
+promise-unwrapped return type, the declaration range for click-to-jump, the
+pre-clamp line count that section 7.6 sizing needs, and a source excerpt capped
+at 25 lines for the node's code region.
+
+There is no combined `signature` field. The header renders `name` and
+`inputType`; the outgoing edge renders `returnType`. A single concatenated
+signature string would duplicate both and be rendered nowhere.
 
 `findReferences` is the single performance risk in the design. Analysis therefore
 runs in a worker thread, and every slice carries `truncated` rather than silently
