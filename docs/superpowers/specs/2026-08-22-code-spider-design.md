@@ -38,7 +38,7 @@ Recorded explicitly so they do not creep back in:
 - Rename tracking across edits.
 - Any language other than TypeScript, TSX, JavaScript, JSX.
 - Graph-to-code editing (the bidirectional vision).
-- Syntax highlighting inside hover previews.
+- Syntax highlighting inside node code regions.
 - Types and schemas as nodes.
 - Class methods as nodes.
 - An entry-point-rooted trace mode.
@@ -150,7 +150,7 @@ type GraphNode = {
   range:     Range           // declaration range, for click-to-jump
   signature: string          // rendered param list and return type
   isAsync:   boolean
-  excerpt:   string          // source text for hover, capped at 60 lines
+  excerpt:   string          // source text shown in the node, capped at 25 lines
 }
 
 type GraphEdge = {
@@ -234,8 +234,9 @@ focus must not hang the panel.
 chip; unresolvable becomes `unknown`. Labels come from `getReturnType()`,
 formatted per section 5.4.
 
-**5. Attach node metadata.** Signature text, declaration range for click-to-jump,
-and a source excerpt capped at 60 lines for hover.
+**5. Attach node metadata.** Signature text, the input (parameter) type for the
+node header, declaration range for click-to-jump, and a source excerpt capped at
+25 lines for the node's code region.
 
 `findReferences` is the single performance risk in the design. Analysis therefore
 runs in a worker thread, and every slice carries `truncated` rather than silently
@@ -296,16 +297,85 @@ destroys the user's mental map. Already-placed nodes are pinned, ELK runs only
 over the newly added subgraph, and insertions animate in. This is expected to
 take a couple of iterations to feel right.
 
-### 7.6 Editor integration
+### 7.6 Node rendering
+
+Every node renders as a box: a two-part header — name on the left, input type on
+the right — above a code region.
+
+```
+┌──────────────────────────────────────────┐
+│ validateUser                  UserInput  │
+├──────────────────────────────────────────┤
+│ export function validateUser(            │
+│   input: UserInput                       │
+│ ): ValidUserData {                       │
+│   if (!input.email) throw new Error(…)   │
+│   return { ...input, verified: false }   │
+│ }                                        │
+└──────────────────────────────────────────┘
+                   │ ValidUserData
+                   ▼
+```
+
+The header's right slot resolves the asymmetry noted in section 4.4. Arguments
+travel against the arrow, so a node displays what it *received* while its
+outgoing edge displays what it *returns*. Both directions are legible at once,
+and a callee's header makes visible what the focus function passed down into it.
+
+For a `component`, the input type is the props type. For an `external` chip there
+is often no useful signature, so the right slot is left empty rather than showing
+`any`. Long parameter lists truncate with an ellipsis and carry the full text in
+a `title` attribute.
+
+**Sizing.** Width is uniform across all nodes: the layered left-to-right layout
+arranges nodes in columns, and ragged widths make those columns read as broken.
+Height varies per node:
+
+```
+height = header + clamp(lineCount, 3, 25) × lineHeight
+```
+
+Functions longer than 25 lines clip with a fade at the bottom edge; the full
+source is one click away in the editor. This is what sets the 25-line excerpt cap.
+
+Dimensions are computed **analytically, never measured from the DOM**. The font
+is monospace, the width is uniform, and the content is clipped, so height is pure
+arithmetic and is available before ELK runs. Rendering offscreen to measure is
+slower, asynchronous, and a well-known source of layout race conditions.
+
+A side benefit: variable heights make a zoomed-out graph encode complexity
+visually. A tall box is a long function, spotted without reading anything.
+
+**Zoom as level of detail.** Below a zoom threshold the code region renders as
+greyed placeholder lines; above it, as real monospace text. Two implementation
+constraints:
+
+- Subscribe to viewport zoom **once** at the canvas container and toggle a CSS
+  class. Per-node zoom subscriptions re-render every node on every wheel tick,
+  which is how these canvases become janky.
+- Keep the code text in the DOM at all times and hide it with CSS. Mounting and
+  unmounting dozens of code blocks at the threshold causes a visible hitch.
+
+Because node dimensions never change on zoom, level-of-detail never triggers
+re-layout.
+
+**No scrolling inside nodes.** In-node scrolling creates a wheel conflict —
+scroll the code, or zoom the canvas? — with no comfortable resolution. The code
+region clips instead.
+
+**Sizing and refresh.** If a function grows, refreshing changes its node's height
+and the layout shifts accordingly. That is correct: the code changed. Position
+pinning still applies during expansion, where existing nodes do not change size.
+
+### 7.7 Editor integration
 
 Clicking a node calls `showTextDocument` and reveals its declaration range.
 Clicking an edge jumps to the exact call site, which the edge already carries.
 Theming derives from VS Code's CSS variables so the graph matches the active
 theme.
 
-Hover previews render the excerpt as plain monospace in theme colours. Syntax
-highlighting would mean bundling Shiki, which is real weight for a nicety, and
-is deferred.
+There is no separate hover preview. The node's own code region does that job, so
+a hover tooltip would duplicate it and add a positioning problem for no gain.
 
 ## 8. Interaction and refresh
 
@@ -400,8 +470,8 @@ testable before a single pixel exists.
 **M2 — First graph on screen.** React Flow and ELK render a radius-1 slice.
 Command, `Shift+Alt+Q`, CodeLens and context menu wired. Click-to-jump works.
 
-**M3 — Interaction.** Expand-on-demand with position pinning, refresh button,
-hover previews.
+**M3 — Interaction.** Expand-on-demand with position pinning, the refresh
+button, and zoom-based level of detail in node code regions.
 
 **M4 — Polish and package.** Theming, truncation and unknown-node states, error
 handling, `.vsix`.
