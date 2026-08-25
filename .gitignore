@@ -1,19 +1,19 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
+# NOTE: /node_modules is root-anchored on purpose. fixtures/*/node_modules is
+# committed test data (see plan Task 6) and must NOT be ignored.
 /node_modules
-/.pnp
-.pnp.js
+/packages/*/node_modules
 
 # testing
 /coverage
+.vscode-test/
 
-# next.js
-/.next/
-/out/
-
-# production
+# build output
+/packages/*/dist
 /build
+*.vsix
 
 # misc
 .DS_Store
@@ -28,9 +28,5 @@ yarn-error.log*
 .env*.local
 .env
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
-next-env.d.ts
