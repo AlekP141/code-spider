@@ -8,5 +8,5 @@ export type {
   EdgeType,
   GraphEdge,
   GraphSlice,
-} from "./types";
-export { makeNodeId, parseNodeId } from "./node-id";
+} from "./types.js";
+export { makeNodeId, parseNodeId, toPosixPath } from "./node-id.js";
