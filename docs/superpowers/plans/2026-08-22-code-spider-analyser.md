@@ -284,7 +284,7 @@ git commit -m "chore: pnpm workspace skeleton with core package"
 - Consumes: nothing.
 - Produces:
   - `type NodeId = string`
-  - `type Range = { startLine: number; startCol: number; endLine: number; endCol: number }`
+  - `type Range = { startLine: number; startColumn: number; endLine: number; endColumn: number }`
   - `type GraphNode`, `type GraphEdge`, `type GraphSlice` (spec §5.3)
   - `makeNodeId(relPath: string, name: string, index?: number): NodeId`
   - `parseNodeId(id: NodeId): { file: string; name: string; index: number }`
@@ -375,9 +375,9 @@ export type NodeId = string
 
 export type Range = {
   startLine: number
-  startCol: number
+  startColumn: number
   endLine: number
-  endCol: number
+  endColumn: number
 }
 
 export type NodeKind = 'function' | 'component' | 'external' | 'unknown'
@@ -398,11 +398,11 @@ export type GraphNode = {
   isAsync: boolean
   /** Pre-clamp source line count, used for analytic node sizing. */
   lineCount: number
-  /** Source text for the node's code region, capped at EXCERPT_MAX_LINES. */
-  excerpt: string
+  /** Source text for the node's code region, capped at CODE_PREVIEW_MAX_LINES. */
+  codePreview: string
 }
 
-export type EdgeKind = 'call' | 'jsx' | 'external'
+export type EdgeType = 'call' | 'jsx' | 'external'
 
 export type GraphEdge = {
   id: string
@@ -410,7 +410,7 @@ export type GraphEdge = {
   from: NodeId
   /** Consumer — the caller. */
   to: NodeId
-  kind: EdgeKind
+  kind: EdgeType
   /** Payload label: the `from` node's returnType, or props type for JSX edges. */
   supplies: string
   callSite: Range
@@ -463,7 +463,7 @@ export function parseNodeId(id: NodeId): { file: string; name: string; index: nu
 export const VERSION = '0.0.0'
 
 export type {
-  NodeId, Range, NodeKind, GraphNode, EdgeKind, GraphEdge, GraphSlice,
+  NodeId, Range, NodeKind, GraphNode, EdgeType, GraphEdge, GraphSlice,
 } from './types.js'
 export { makeNodeId, parseNodeId, toPosixPath } from './node-id.js'
 ```
@@ -962,7 +962,7 @@ git commit -m "feat(core): resolve a focus target from file and offset"
   - `unwrapPromise(type: Type): { type: Type; isAsync: boolean }`
   - `returnTypeLabel(decl: CallableDeclaration): { text: string; isAsync: boolean }`
   - `inputTypeLabel(decl: CallableDeclaration): string`
-  - `EXCERPT_MAX_LINES = 25`
+  - `CODE_PREVIEW_MAX_LINES = 25`
   - `type BuildContext = { repoRoot: string }`
   - `buildGraphNode(target: FocusTarget, kind: NodeKind, ctx: BuildContext): GraphNode`
   - `rangeOf(node: Node): Range`
@@ -1096,7 +1096,7 @@ actually reports.
 ```ts
 import { describe, expect, it } from 'vitest'
 import { SyntaxKind } from 'ts-morph'
-import { buildGraphNode, EXCERPT_MAX_LINES } from '../src/node-builder.js'
+import { buildGraphNode, CODE_PREVIEW_MAX_LINES } from '../src/node-builder.js'
 import { toFocusTarget } from '../src/focus.js'
 import { fixturePath, loadFixture } from './helpers.js'
 
@@ -1129,7 +1129,7 @@ describe('buildGraphNode', () => {
     const node = buildGraphNode(target, 'function', ctx)
 
     expect(node.range.startLine).toBeGreaterThan(0)
-    expect(node.range.startCol).toBe(1)
+    expect(node.range.startColumn).toBe(1)
     expect(node.range.endLine).toBeGreaterThan(node.range.startLine)
   })
 
@@ -1140,17 +1140,17 @@ describe('buildGraphNode', () => {
     const target = toFocusTarget(decl, signup)
     const node = buildGraphNode(target, 'function', ctx)
 
-    expect(node.excerpt).toMatch(/^export const auditSignup/)
+    expect(node.codePreview).toMatch(/^export const auditSignup/)
   })
 
-  it('caps the excerpt at EXCERPT_MAX_LINES and reports the pre-clamp count', () => {
+  it('caps the excerpt at CODE_PREVIEW_MAX_LINES and reports the pre-clamp count', () => {
     const body = Array.from({ length: 40 }, (_, i) => `  const x${i} = ${i}`).join('\n')
     const long = project.createSourceFile('tmp-long.ts', `export function big() {\n${body}\n}`)
     const target = toFocusTarget(long.getFunctionOrThrow('big'), long)
     const node = buildGraphNode(target, 'function', { repoRoot: fixturePath('basic') })
 
     expect(node.lineCount).toBe(42)
-    expect(node.excerpt.split('\n')).toHaveLength(EXCERPT_MAX_LINES)
+    expect(node.codePreview.split('\n')).toHaveLength(CODE_PREVIEW_MAX_LINES)
   })
 })
 ```
@@ -1170,7 +1170,7 @@ import { inputTypeLabel, returnTypeLabel } from './labels.js'
 import { makeNodeId, toPosixPath } from './node-id.js'
 import type { GraphNode, NodeKind, Range } from './types.js'
 
-export const EXCERPT_MAX_LINES = 25
+export const CODE_PREVIEW_MAX_LINES = 25
 
 export type BuildContext = {
   /** Absolute path that NodeIds and `file` fields are relative to. */
@@ -1183,9 +1183,9 @@ export function rangeOf(node: Node): Range {
   const end = sourceFile.getLineAndColumnAtPos(node.getEnd())
   return {
     startLine: start.line,
-    startCol: start.column,
+    startColumn: start.column,
     endLine: end.line,
-    endCol: end.column,
+    endColumn: end.column,
   }
 }
 
@@ -1211,7 +1211,7 @@ export function buildGraphNode(
     returnType,
     isAsync,
     lineCount: lines.length,
-    excerpt: lines.slice(0, EXCERPT_MAX_LINES).join('\n'),
+    codePreview: lines.slice(0, CODE_PREVIEW_MAX_LINES).join('\n'),
   }
 }
 ```
@@ -1608,7 +1608,7 @@ import { returnTypeLabel } from './labels.js'
 import { buildGraphNode, rangeOf, type BuildContext } from './node-builder.js'
 import type { GraphEdge, GraphNode, NodeId, Range } from './types.js'
 
-const EMPTY_RANGE: Range = { startLine: 0, startCol: 0, endLine: 0, endCol: 0 }
+const EMPTY_RANGE: Range = { startLine: 0, startColumn: 0, endLine: 0, endColumn: 0 }
 
 /** Follow import aliases to the real declaration. Returns undefined when unresolvable. */
 export function resolveCallTarget(call: CallExpression): Node | undefined {
@@ -1650,7 +1650,7 @@ export function collectCalleeEdges(
         returnType: safeReturnType(declaration),
         isAsync: false,
         lineCount: 0,
-        excerpt: '',
+        codePreview: '',
       })
       putEdge(edges, {
         id: `${id}->${focusId}`,
@@ -1709,7 +1709,7 @@ function addUnknown(
     returnType: '',
     isAsync: false,
     lineCount: 0,
-    excerpt: '',
+    codePreview: '',
   })
   putEdge(edges, {
     id: `${id}->${focusId}`,
@@ -2358,7 +2358,7 @@ Append to `packages/core/src/index.ts`:
 ```ts
 export { analyzeFocus, type AnalyzeRequest } from './analyze.js'
 export { findNearestTsconfig, loadProject, Project } from './project.js'
-export { EXCERPT_MAX_LINES } from './node-builder.js'
+export { CODE_PREVIEW_MAX_LINES } from './node-builder.js'
 export { MAX_CALLERS } from './callers.js'
 ```
 

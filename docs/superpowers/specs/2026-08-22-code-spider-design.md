@@ -138,8 +138,8 @@ across edits is real work for a cosmetic gain and is deferred.
 type NodeId = string   // "src/app/api/users/route.ts#POST"
 
 type Range = {
-  startLine: number; startCol: number
-  endLine:   number; endCol:   number
+  startLine: number; startColumn: number
+  endLine:   number; endColumn:   number
 }
 
 type GraphNode = {
@@ -152,7 +152,7 @@ type GraphNode = {
   returnType: string          // promise-unwrapped; edge labels read this
   isAsync:    boolean
   lineCount:  number          // pre-clamp source line count, for analytic sizing
-  excerpt:    string          // source text shown in the node, capped at 25 lines
+  codePreview:    string          // source text shown in the node, capped at 25 lines
 }
 
 type GraphEdge = {
