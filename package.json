@@ -1,0 +1,27 @@
+{
+  "name": "code-spider",
+  "private": true,
+  "version": "1.0.0",
+  "description": "VS code plugin for visualising code in a diagramatic manner.",
+  "homepage": "https://github.com/AlekP141/code-spider#readme",
+  "bugs": {
+    "url": "https://github.com/AlekP141/code-spider/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlekP141/code-spider.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
