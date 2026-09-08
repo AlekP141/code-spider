@@ -739,7 +739,7 @@ uses this text for the node excerpt and range, `FocusTarget` carries a separate
 `nameNode` is typed as `Identifier` specifically because Task 8 needs
 `findReferencesAsNodes()`, which only exists on reference-findable nodes.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `packages/core/test/focus.test.ts`:
 
@@ -811,12 +811,12 @@ describe('resolveFocus', () => {
 })
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 Run: `pnpm --filter @code-spider/core test focus`
 Expected: FAIL — cannot resolve `../src/focus.js`.
 
-- [ ] **Step 3: Write `focus.ts`**
+- [x] **Step 3: Write `focus.ts`**
 
 ```ts
 import {
@@ -928,7 +928,7 @@ export function toFocusTarget(
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `pnpm --filter @code-spider/core test focus`
 Expected: PASS — 6 tests.
@@ -937,7 +937,7 @@ If the "cursor on the function name" case fails, check whether
 `getDescendantAtPos` returned the identifier or the whitespace before it;
 offsets are zero-based and point *before* the character.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/core
