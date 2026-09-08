@@ -87,7 +87,7 @@ packages/cli/
   package.json
   src/index.ts                      line:col -> offset, prints a slice
 
-fixtures/
+test-code/
   basic/                            plain call chain, async, a lib.d.ts call
   jsx/                              React component tree with a local type shim
   externals/                        a checked-in node_modules package
@@ -485,10 +485,10 @@ git commit -m "feat(core): graph types and node identity"
 ### Task 3: Fixture project, tsconfig discovery, project loading
 
 **Files:**
-- Create: `fixtures/basic/tsconfig.json`
-- Create: `fixtures/basic/src/types.ts`
-- Create: `fixtures/basic/src/signup.ts`
-- Create: `fixtures/basic/src/app.ts`
+- Create: `test-code/basic/tsconfig.json`
+- Create: `test-code/basic/src/types.ts`
+- Create: `test-code/basic/src/signup.ts`
+- Create: `test-code/basic/src/app.ts`
 - Create: `packages/core/src/project.ts`
 - Create: `packages/core/test/helpers.ts`
 - Test: `packages/core/test/project.test.ts`
@@ -498,7 +498,7 @@ git commit -m "feat(core): graph types and node identity"
 - Produces:
   - `findNearestTsconfig(startFile: string): string`
   - `loadProject(tsConfigFilePath: string): Project` (re-exports ts-morph's `Project`)
-  - test helper `loadFixture(name: string): { project: Project; root: string }`
+  - test helper `loadTestCode(name: string): { project: Project; root: string }`
 
 **Background.** `ts-morph`'s `Project` is a wrapper around a TypeScript
 *program* — the compiler's view of a set of files plus their resolved types.
@@ -514,7 +514,7 @@ accepts the nearest one.
 
 - [ ] **Step 1: Create the basic fixture**
 
-`fixtures/basic/tsconfig.json`:
+`test-code/basic/tsconfig.json`:
 
 ```json
 {
@@ -535,7 +535,7 @@ find in the repo, which would make fixture behaviour depend on what happens to
 be installed. `"DOM"` is in `lib` so that `console.log` resolves — that gives
 you a `lib.*.d.ts` call to classify as external in Task 6.
 
-`fixtures/basic/src/types.ts`:
+`test-code/basic/src/types.ts`:
 
 ```ts
 export type UserInput = { email: string; name: string }
@@ -543,7 +543,7 @@ export type ValidUserData = UserInput & { verified: boolean }
 export type User = ValidUserData & { id: string }
 ```
 
-`fixtures/basic/src/signup.ts`:
+`test-code/basic/src/signup.ts`:
 
 ```ts
 import type { UserInput, ValidUserData, User } from './types.js'
@@ -573,7 +573,7 @@ export const auditSignup = async (user: User): Promise<void> => {
 }
 ```
 
-`fixtures/basic/src/app.ts`:
+`test-code/basic/src/app.ts`:
 
 ```ts
 import { handleSignup } from './signup.js'
@@ -599,12 +599,12 @@ Task 4 and Task 5's cases in one fixture.
 ```ts
 import { describe, expect, it } from 'vitest'
 import { findNearestTsconfig, loadProject } from '../src/project.js'
-import { fixturePath } from './helpers.js'
+import { testCodePath } from './helpers.js'
 
 describe('findNearestTsconfig', () => {
   it('finds the tsconfig above a source file', () => {
-    const found = findNearestTsconfig(fixturePath('basic', 'src/signup.ts'))
-    expect(found.replace(/\\/g, '/')).toMatch(/fixtures\/basic\/tsconfig\.json$/)
+    const found = findNearestTsconfig(testCodePath('basic', 'src/signup.ts'))
+    expect(found.replace(/\\/g, '/')).toMatch(/test-code\/basic\/tsconfig\.json$/)
   })
 
   it('throws when there is no tsconfig above the file', () => {
@@ -614,13 +614,13 @@ describe('findNearestTsconfig', () => {
 
 describe('loadProject', () => {
   it('loads the fixture source files', () => {
-    const project = loadProject(findNearestTsconfig(fixturePath('basic', 'src/signup.ts')))
+    const project = loadProject(findNearestTsconfig(testCodePath('basic', 'src/signup.ts')))
     const names = project.getSourceFiles().map((f) => f.getBaseName()).sort()
     expect(names).toEqual(['app.ts', 'signup.ts', 'types.ts'])
   })
 
   it('resolves real types across files', () => {
-    const project = loadProject(findNearestTsconfig(fixturePath('basic', 'src/signup.ts')))
+    const project = loadProject(findNearestTsconfig(testCodePath('basic', 'src/signup.ts')))
     const fn = project.getSourceFileOrThrow('signup.ts').getFunctionOrThrow('validateUser')
     expect(fn.getReturnType().getText()).toContain('ValidUserData')
   })
@@ -637,14 +637,14 @@ import type { Project } from 'ts-morph'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
-/** Absolute path to a file inside a fixture project. */
-export function fixturePath(fixture: string, rel = ''): string {
-  return resolve(here, '../../../fixtures', fixture, rel)
+/** Absolute path to a file inside a test-code project. */
+export function testCodePath(name: string, rel = ''): string {
+  return resolve(here, '../../../test-code', name, rel)
 }
 
-/** Load a fixture as a Project, plus its root directory (the repo root for IDs). */
-export function loadFixture(fixture: string): { project: Project; root: string } {
-  const root = fixturePath(fixture)
+/** Load a test-code project as a Project, plus its root directory (the repo root for IDs). */
+export function loadTestCode(name: string): { project: Project; root: string } {
+  const root = testCodePath(name)
   const project = loadProject(join(root, 'tsconfig.json'))
   return { project, root }
 }
@@ -699,7 +699,7 @@ If `getSourceFiles()` returns more than the three files, check that
 - [ ] **Step 6: Commit**
 
 ```bash
-git add fixtures packages/core
+git add test-code packages/core
 git commit -m "feat(core): tsconfig discovery, project loading, basic fixture"
 ```
 
@@ -746,10 +746,10 @@ uses this text for the node excerpt and range, `FocusTarget` carries a separate
 ```ts
 import { describe, expect, it } from 'vitest'
 import { resolveFocus } from '../src/focus.js'
-import { fixturePath, loadFixture } from './helpers.js'
+import { testCodePath, loadTestCode } from './helpers.js'
 
 /** Offset of the first occurrence of `needle` in a fixture file. */
-function offsetOf(project: ReturnType<typeof loadFixture>['project'], file: string, needle: string) {
+function offsetOf(project: ReturnType<typeof loadTestCode>['project'], file: string, needle: string) {
   const text = project.getSourceFileOrThrow(file).getFullText()
   const at = text.indexOf(needle)
   if (at === -1) throw new Error(`needle not found: ${needle}`)
@@ -757,8 +757,8 @@ function offsetOf(project: ReturnType<typeof loadFixture>['project'], file: stri
 }
 
 describe('resolveFocus', () => {
-  const { project } = loadFixture('basic')
-  const signup = fixturePath('basic', 'src/signup.ts')
+  const { project } = loadTestCode('basic')
+  const signup = testCodePath('basic', 'src/signup.ts')
 
   it('resolves a function declaration from a cursor inside its body', () => {
     const offset = offsetOf(project, 'signup.ts', 'const valid = validateUser')
@@ -990,10 +990,10 @@ draw the clipping fade.
 ```ts
 import { describe, expect, it } from 'vitest'
 import { inputTypeLabel, returnTypeLabel } from '../src/labels.js'
-import { loadFixture } from './helpers.js'
+import { loadTestCode } from './helpers.js'
 
 describe('returnTypeLabel', () => {
-  const { project } = loadFixture('basic')
+  const { project } = loadTestCode('basic')
   const signup = project.getSourceFileOrThrow('signup.ts')
 
   it('reads a plain return type', () => {
@@ -1013,7 +1013,7 @@ describe('returnTypeLabel', () => {
 })
 
 describe('inputTypeLabel', () => {
-  const { project } = loadFixture('basic')
+  const { project } = loadTestCode('basic')
   const signup = project.getSourceFileOrThrow('signup.ts')
 
   it('reads a single parameter type', () => {
@@ -1098,10 +1098,10 @@ import { describe, expect, it } from 'vitest'
 import { SyntaxKind } from 'ts-morph'
 import { buildGraphNode, CODE_PREVIEW_MAX_LINES } from '../src/node-builder.js'
 import { toFocusTarget } from '../src/focus.js'
-import { fixturePath, loadFixture } from './helpers.js'
+import { testCodePath, loadTestCode } from './helpers.js'
 
 describe('buildGraphNode', () => {
-  const { project, root } = loadFixture('basic')
+  const { project, root } = loadTestCode('basic')
   const signup = project.getSourceFileOrThrow('signup.ts')
   const ctx = { repoRoot: root }
 
@@ -1147,7 +1147,7 @@ describe('buildGraphNode', () => {
     const body = Array.from({ length: 40 }, (_, i) => `  const x${i} = ${i}`).join('\n')
     const long = project.createSourceFile('tmp-long.ts', `export function big() {\n${body}\n}`)
     const target = toFocusTarget(long.getFunctionOrThrow('big'), long)
-    const node = buildGraphNode(target, 'function', { repoRoot: fixturePath('basic') })
+    const node = buildGraphNode(target, 'function', { repoRoot: testCodePath('basic') })
 
     expect(node.lineCount).toBe(42)
     expect(node.codePreview.split('\n')).toHaveLength(CODE_PREVIEW_MAX_LINES)
@@ -1237,10 +1237,10 @@ git commit -m "feat(core): type labels and GraphNode construction"
 ### Task 6: Declaration classification
 
 **Files:**
-- Create: `fixtures/externals/tsconfig.json`
-- Create: `fixtures/externals/src/uses.ts`
-- Create: `fixtures/externals/node_modules/tiny-lib/package.json`
-- Create: `fixtures/externals/node_modules/tiny-lib/index.d.ts`
+- Create: `test-code/externals/tsconfig.json`
+- Create: `test-code/externals/src/uses.ts`
+- Create: `test-code/externals/node_modules/tiny-lib/package.json`
+- Create: `test-code/externals/node_modules/tiny-lib/index.d.ts`
 - Create: `packages/core/src/classify.ts`
 - Test: `packages/core/test/classify.test.ts`
 
@@ -1262,15 +1262,15 @@ components by "is used as a JSX tag somewhere" would need caller-side
 information the classifier does not have, and detecting by "starts with a
 capital letter" would misfire on classes and factories.
 
-Note that `fixtures/externals/node_modules` is checked into git deliberately.
+Note that `test-code/externals/node_modules` is checked into git deliberately.
 The root `.gitignore` has `/node_modules` with a leading slash, which anchors it
 to the repo root, so nested fixture copies are not ignored. Verify this with
-`git check-ignore -v fixtures/externals/node_modules/tiny-lib/index.d.ts`
+`git check-ignore -v test-code/externals/node_modules/tiny-lib/index.d.ts`
 before committing — if it reports a match, add a `!` negation rule.
 
 - [ ] **Step 1: Create the externals fixture**
 
-`fixtures/externals/tsconfig.json`:
+`test-code/externals/tsconfig.json`:
 
 ```json
 {
@@ -1286,19 +1286,19 @@ before committing — if it reports a match, add a `!` negation rule.
 }
 ```
 
-`fixtures/externals/node_modules/tiny-lib/package.json`:
+`test-code/externals/node_modules/tiny-lib/package.json`:
 
 ```json
 { "name": "tiny-lib", "version": "1.0.0", "types": "./index.d.ts" }
 ```
 
-`fixtures/externals/node_modules/tiny-lib/index.d.ts`:
+`test-code/externals/node_modules/tiny-lib/index.d.ts`:
 
 ```ts
 export declare function persist(value: string): Promise<void>
 ```
 
-`fixtures/externals/src/uses.ts`:
+`test-code/externals/src/uses.ts`:
 
 ```ts
 import { persist } from 'tiny-lib'
@@ -1321,7 +1321,7 @@ export async function usesExternals(value: string): Promise<void> {
 ```ts
 import { describe, expect, it } from 'vitest'
 import { classifyDeclaration, externalModuleOf, isExternalPath } from '../src/classify.js'
-import { loadFixture } from './helpers.js'
+import { loadTestCode } from './helpers.js'
 
 describe('isExternalPath', () => {
   it('treats node_modules paths as external', () => {
@@ -1360,7 +1360,7 @@ describe('externalModuleOf', () => {
 })
 
 describe('classifyDeclaration', () => {
-  const { project } = loadFixture('externals')
+  const { project } = loadTestCode('externals')
   const uses = project.getSourceFileOrThrow('uses.ts')
 
   it('classifies a repo function as function', () => {
@@ -1430,14 +1430,14 @@ Expected: PASS — 10 tests.
 
 - [ ] **Step 6: Verify the fixture node_modules is tracked**
 
-Run: `git check-ignore -v fixtures/externals/node_modules/tiny-lib/index.d.ts`
+Run: `git check-ignore -v test-code/externals/node_modules/tiny-lib/index.d.ts`
 Expected: no output and exit code 1 — meaning the file is *not* ignored. If it
-prints a rule, add `!fixtures/**/node_modules/**` to `.gitignore`.
+prints a rule, add `!test-code/**/node_modules/**` to `.gitignore`.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add fixtures packages/core .gitignore
+git add test-code packages/core .gitignore
 git commit -m "feat(core): classify declarations as function, component or external"
 ```
 
@@ -1487,10 +1487,10 @@ times in one function should draw one arrow, not three overlapping ones.
 import { describe, expect, it } from 'vitest'
 import { collectCalleeEdges } from '../src/callees.js'
 import { toFocusTarget } from '../src/focus.js'
-import { loadFixture } from './helpers.js'
+import { loadTestCode } from './helpers.js'
 
 describe('collectCalleeEdges', () => {
-  const { project, root } = loadFixture('basic')
+  const { project, root } = loadTestCode('basic')
   const signup = project.getSourceFileOrThrow('signup.ts')
   const ctx = { repoRoot: root }
   const focusId = 'src/signup.ts#handleSignup'
@@ -1532,7 +1532,7 @@ describe('collectCalleeEdges', () => {
 })
 
 describe('collectCalleeEdges — externals', () => {
-  const { project, root } = loadFixture('externals')
+  const { project, root } = loadTestCode('externals')
   const uses = project.getSourceFileOrThrow('uses.ts')
   const ctx = { repoRoot: root }
   const focusId = 'src/uses.ts#usesExternals'
@@ -1560,7 +1560,7 @@ describe('collectCalleeEdges — externals', () => {
 })
 
 describe('collectCalleeEdges — unresolved', () => {
-  const { project, root } = loadFixture('basic')
+  const { project, root } = loadTestCode('basic')
   const dynamic = project.createSourceFile(
     'tmp-dynamic.ts',
     `const handlers: Record<string, (x: number) => number> = {}
@@ -1578,7 +1578,7 @@ describe('collectCalleeEdges — unresolved', () => {
 })
 
 describe('collectCalleeEdges — deduplication', () => {
-  const { project, root } = loadFixture('basic')
+  const { project, root } = loadTestCode('basic')
   const dupes = project.createSourceFile(
     'tmp-dupes.ts',
     `function helper(n: number): number { return n }
@@ -1756,9 +1756,9 @@ git commit -m "feat(core): extract callee edges with external and unknown handli
 ### Task 8: Caller extraction
 
 **Files:**
-- Create: `fixtures/hub/tsconfig.json`
-- Create: `fixtures/hub/src/log.ts`
-- Create: `fixtures/hub/src/callers.ts`
+- Create: `test-code/hub/tsconfig.json`
+- Create: `test-code/hub/src/log.ts`
+- Create: `test-code/hub/src/callers.ts`
 - Create: `packages/core/src/callers.ts`
 - Test: `packages/core/test/callers.test.ts`
 
@@ -1790,7 +1790,7 @@ truncation path is exercised rather than assumed.
 
 - [ ] **Step 1: Create the hub fixture**
 
-`fixtures/hub/tsconfig.json`:
+`test-code/hub/tsconfig.json`:
 
 ```json
 {
@@ -1806,7 +1806,7 @@ truncation path is exercised rather than assumed.
 }
 ```
 
-`fixtures/hub/src/log.ts`:
+`test-code/hub/src/log.ts`:
 
 ```ts
 export function log(message: string): void {
@@ -1814,17 +1814,17 @@ export function log(message: string): void {
 }
 ```
 
-`fixtures/hub/src/callers.ts` — generate it rather than typing it out:
+`test-code/hub/src/callers.ts` — generate it rather than typing it out:
 
 ```bash
-mkdir -p fixtures/hub/src
+mkdir -p test-code/hub/src
 {
   echo "import { log } from './log.js'"
   echo
   for i in $(seq 1 60); do
     echo "export function caller$i(): void { log('m$i') }"
   done
-} > fixtures/hub/src/callers.ts
+} > test-code/hub/src/callers.ts
 ```
 
 - [ ] **Step 2: Write the failing tests**
@@ -1835,10 +1835,10 @@ mkdir -p fixtures/hub/src
 import { describe, expect, it } from 'vitest'
 import { collectCallerEdges, MAX_CALLERS } from '../src/callers.js'
 import { toFocusTarget } from '../src/focus.js'
-import { loadFixture } from './helpers.js'
+import { loadTestCode } from './helpers.js'
 
 describe('collectCallerEdges', () => {
-  const { project, root } = loadFixture('basic')
+  const { project, root } = loadTestCode('basic')
   const signup = project.getSourceFileOrThrow('signup.ts')
   const focusId = 'src/signup.ts#handleSignup'
   const target = toFocusTarget(signup.getFunctionOrThrow('handleSignup'), signup)
@@ -1866,7 +1866,7 @@ describe('collectCallerEdges', () => {
 })
 
 describe('collectCallerEdges — hub', () => {
-  const { project, root } = loadFixture('hub')
+  const { project, root } = loadTestCode('hub')
   const logFile = project.getSourceFileOrThrow('log.ts')
   const target = toFocusTarget(logFile.getFunctionOrThrow('log'), logFile)
   const { edges, truncated } = collectCallerEdges(target, 'src/log.ts#log', { repoRoot: root })
@@ -1978,7 +1978,7 @@ guard.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add fixtures packages/core
+git add test-code packages/core
 git commit -m "feat(core): caller edges via the language service reference index"
 ```
 
@@ -1987,9 +1987,9 @@ git commit -m "feat(core): caller edges via the language service reference index
 ### Task 9: JSX edges and props labels
 
 **Files:**
-- Create: `fixtures/jsx/tsconfig.json`
-- Create: `fixtures/jsx/src/jsx-shim.d.ts`
-- Create: `fixtures/jsx/src/components.tsx`
+- Create: `test-code/jsx/tsconfig.json`
+- Create: `test-code/jsx/src/jsx-shim.d.ts`
+- Create: `test-code/jsx/src/components.tsx`
 - Modify: `packages/core/src/callees.ts`
 - Test: `packages/core/test/jsx.test.ts`
 
@@ -2015,7 +2015,7 @@ exercising real JSX type-checking.
 
 - [ ] **Step 1: Create the JSX fixture**
 
-`fixtures/jsx/tsconfig.json`:
+`test-code/jsx/tsconfig.json`:
 
 ```json
 {
@@ -2032,7 +2032,7 @@ exercising real JSX type-checking.
 }
 ```
 
-`fixtures/jsx/src/jsx-shim.d.ts`:
+`test-code/jsx/src/jsx-shim.d.ts`:
 
 ```ts
 declare namespace JSX {
@@ -2049,7 +2049,7 @@ declare namespace JSX {
 }
 ```
 
-`fixtures/jsx/src/components.tsx`:
+`test-code/jsx/src/components.tsx`:
 
 ```tsx
 export type SignupFormProps = { onSubmit: (email: string) => void }
@@ -2075,10 +2075,10 @@ export function Page(): JSX.Element {
 import { describe, expect, it } from 'vitest'
 import { collectCalleeEdges } from '../src/callees.js'
 import { toFocusTarget } from '../src/focus.js'
-import { loadFixture } from './helpers.js'
+import { loadTestCode } from './helpers.js'
 
 describe('JSX edges', () => {
-  const { project, root } = loadFixture('jsx')
+  const { project, root } = loadTestCode('jsx')
   const file = project.getSourceFileOrThrow('components.tsx')
   const focusId = 'src/components.tsx#Page'
   const target = toFocusTarget(file.getFunctionOrThrow('Page'), file)
@@ -2172,7 +2172,7 @@ If `supplies` comes back as `{ onSubmit: (email: string) => void; }` rather than
 - [ ] **Step 6: Commit**
 
 ```bash
-git add fixtures packages/core
+git add test-code packages/core
 git commit -m "feat(core): JSX edges labelled with props types"
 ```
 
@@ -2211,20 +2211,20 @@ for every later task.
 ```ts
 import { describe, expect, it } from 'vitest'
 import { analyzeFocus } from '../src/analyze.js'
-import { fixturePath, loadFixture } from './helpers.js'
+import { testCodePath, loadTestCode } from './helpers.js'
 
-function offsetOf(project: ReturnType<typeof loadFixture>['project'], file: string, needle: string) {
+function offsetOf(project: ReturnType<typeof loadTestCode>['project'], file: string, needle: string) {
   const at = project.getSourceFileOrThrow(file).getFullText().indexOf(needle)
   if (at === -1) throw new Error(`needle not found: ${needle}`)
   return at
 }
 
 describe('analyzeFocus', () => {
-  const { project, root } = loadFixture('basic')
+  const { project, root } = loadTestCode('basic')
 
   it('produces a slice focused on the enclosing function', () => {
     const slice = analyzeFocus(project, {
-      file: fixturePath('basic', 'src/signup.ts'),
+      file: testCodePath('basic', 'src/signup.ts'),
       offset: offsetOf(project, 'signup.ts', 'const valid = validateUser'),
       repoRoot: root,
     })
@@ -2235,7 +2235,7 @@ describe('analyzeFocus', () => {
 
   it('includes the focus node itself exactly once', () => {
     const slice = analyzeFocus(project, {
-      file: fixturePath('basic', 'src/signup.ts'),
+      file: testCodePath('basic', 'src/signup.ts'),
       offset: offsetOf(project, 'signup.ts', 'const valid = validateUser'),
       repoRoot: root,
     })
@@ -2245,7 +2245,7 @@ describe('analyzeFocus', () => {
 
   it('includes both callers and all callees', () => {
     const slice = analyzeFocus(project, {
-      file: fixturePath('basic', 'src/signup.ts'),
+      file: testCodePath('basic', 'src/signup.ts'),
       offset: offsetOf(project, 'signup.ts', 'const valid = validateUser'),
       repoRoot: root,
     })
@@ -2262,7 +2262,7 @@ describe('analyzeFocus', () => {
 
   it('returns nodes and edges in a stable order', () => {
     const req = {
-      file: fixturePath('basic', 'src/signup.ts'),
+      file: testCodePath('basic', 'src/signup.ts'),
       offset: offsetOf(project, 'signup.ts', 'const valid = validateUser'),
       repoRoot: root,
     }
@@ -2271,7 +2271,7 @@ describe('analyzeFocus', () => {
 
   it('matches the golden slice', async () => {
     const slice = analyzeFocus(project, {
-      file: fixturePath('basic', 'src/signup.ts'),
+      file: testCodePath('basic', 'src/signup.ts'),
       offset: offsetOf(project, 'signup.ts', 'const valid = validateUser'),
       repoRoot: root,
     })
@@ -2283,11 +2283,11 @@ describe('analyzeFocus', () => {
 })
 
 describe('analyzeFocus — jsx golden', () => {
-  const { project, root } = loadFixture('jsx')
+  const { project, root } = loadTestCode('jsx')
 
   it('matches the golden slice', async () => {
     const slice = analyzeFocus(project, {
-      file: fixturePath('jsx', 'src/components.tsx'),
+      file: testCodePath('jsx', 'src/components.tsx'),
       offset: offsetOf(project, 'components.tsx', '<SignupForm'),
       repoRoot: root,
     })
@@ -2411,10 +2411,10 @@ rejects them explicitly rather than failing obscurely somewhere downstream.
 ```ts
 import { describe, expect, it } from 'vitest'
 import { expandNode } from '../src/analyze.js'
-import { loadFixture } from './helpers.js'
+import { loadTestCode } from './helpers.js'
 
 describe('expandNode', () => {
-  const { project, root } = loadFixture('basic')
+  const { project, root } = loadTestCode('basic')
 
   it('produces a slice focused on the named node', () => {
     const slice = expandNode(project, 'src/signup.ts#createUser', root)
@@ -2541,10 +2541,10 @@ git commit -m "feat(core): expandNode sharing analyzeFocus's slice logic"
 ### Task 12: Barrel-file re-export resolution
 
 **Files:**
-- Create: `fixtures/barrel/tsconfig.json`
-- Create: `fixtures/barrel/src/inner/math.ts`
-- Create: `fixtures/barrel/src/inner/index.ts`
-- Create: `fixtures/barrel/src/consumer.ts`
+- Create: `test-code/barrel/tsconfig.json`
+- Create: `test-code/barrel/src/inner/math.ts`
+- Create: `test-code/barrel/src/inner/index.ts`
+- Create: `test-code/barrel/src/consumer.ts`
 - Test: `packages/core/test/barrel.test.ts`
 
 **Interfaces:**
@@ -2566,7 +2566,7 @@ If the test passes on the first run, that is a valid outcome — commit it.
 
 - [ ] **Step 1: Create the barrel fixture**
 
-`fixtures/barrel/tsconfig.json`:
+`test-code/barrel/tsconfig.json`:
 
 ```json
 {
@@ -2582,7 +2582,7 @@ If the test passes on the first run, that is a valid outcome — commit it.
 }
 ```
 
-`fixtures/barrel/src/inner/math.ts`:
+`test-code/barrel/src/inner/math.ts`:
 
 ```ts
 export function add(a: number, b: number): number {
@@ -2590,13 +2590,13 @@ export function add(a: number, b: number): number {
 }
 ```
 
-`fixtures/barrel/src/inner/index.ts`:
+`test-code/barrel/src/inner/index.ts`:
 
 ```ts
 export * from './math.js'
 ```
 
-`fixtures/barrel/src/consumer.ts`:
+`test-code/barrel/src/consumer.ts`:
 
 ```ts
 import { add } from './inner/index.js'
@@ -2613,14 +2613,14 @@ export function total(values: number[]): number {
 ```ts
 import { describe, expect, it } from 'vitest'
 import { analyzeFocus } from '../src/analyze.js'
-import { fixturePath, loadFixture } from './helpers.js'
+import { testCodePath, loadTestCode } from './helpers.js'
 
 describe('barrel re-exports', () => {
-  const { project, root } = loadFixture('barrel')
+  const { project, root } = loadTestCode('barrel')
   const text = project.getSourceFileOrThrow('consumer.ts').getFullText()
 
   const slice = analyzeFocus(project, {
-    file: fixturePath('barrel', 'src/consumer.ts'),
+    file: testCodePath('barrel', 'src/consumer.ts'),
     offset: text.indexOf('values.reduce'),
     repoRoot: root,
   })
@@ -2651,7 +2651,7 @@ nested callbacks are attributed to the enclosing focus function.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add fixtures packages/core
+git add test-code packages/core
 git commit -m "test(core): barrel re-export resolution regression test"
 ```
 
@@ -2861,7 +2861,7 @@ Run:
 
 ```bash
 pnpm --filter @code-spider/cli exec tsx src/index.ts \
-  ../../fixtures/basic/src/signup.ts:19:3
+  ../../test-code/basic/src/signup.ts:19:3
 ```
 
 Expected: the `handleSignup` slice as JSON, matching the Task 10 golden.

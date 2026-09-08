@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-# NOTE: /node_modules is root-anchored on purpose. fixtures/*/node_modules is
+# NOTE: /node_modules is root-anchored on purpose. test-code/*/node_modules is
 # committed test data (see plan Task 6) and must NOT be ignored.
 /node_modules
 /packages/*/node_modules

@@ -431,7 +431,7 @@ multi-second cold start and a fast subsequent focus.
 
 The `core` boundary exists so that this section is possible.
 
-**Fixture repos.** `fixtures/` holds several small but *real* TypeScript
+**Fixture repos.** `test-code/` holds several small but *real* TypeScript
 projects, each with its own `tsconfig.json`, because the type checker needs
 genuine module resolution to produce genuine types. Mock ASTs would test nothing
 worth testing.
@@ -450,7 +450,7 @@ which doubles as the TDD plan for the analyser:
 8. An arrow-function const.
 9. A default export.
 
-**The CLI is the test harness.** `code-spider fixtures/basic/src/index.ts:12:5`
+**The CLI is the test harness.** `code-spider test-code/basic/src/index.ts:12:5`
 prints a slice as JSON. It accepts `line:col` for human convenience and converts
 to the character offset that `analyzeFocus` expects. It generates the goldens and
 provides the development loop: sub-second, no extension host, no clicking.
