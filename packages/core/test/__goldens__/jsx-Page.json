@@ -1,0 +1,56 @@
+{
+  "focusId": "src/components.tsx#Page",
+  "nodes": [
+    {
+      "id": "src/components.tsx#Page",
+      "kind": "component",
+      "name": "Page",
+      "file": "src/components.tsx",
+      "range": {
+        "startLine": 7,
+        "startColumn": 1,
+        "endLine": 13,
+        "endColumn": 2
+      },
+      "inputType": "",
+      "returnType": "JSX.Element",
+      "isAsync": false,
+      "lineCount": 7,
+      "codePreview": "export function Page(): JSX.Element {\n  return (\n    <div>\n      <SignupForm onSubmit={() => undefined} />\n    </div>\n  )\n}"
+    },
+    {
+      "id": "src/components.tsx#SignupForm",
+      "kind": "component",
+      "name": "SignupForm",
+      "file": "src/components.tsx",
+      "range": {
+        "startLine": 3,
+        "startColumn": 1,
+        "endLine": 5,
+        "endColumn": 2
+      },
+      "inputType": "SignupFormProps",
+      "returnType": "JSX.Element",
+      "isAsync": false,
+      "lineCount": 3,
+      "codePreview": "export function SignupForm(props: SignupFormProps): JSX.Element {\n  return <button onClick={() => props.onSubmit('a@b.c')}>Sign up</button>\n}"
+    }
+  ],
+  "edges": [
+    {
+      "id": "src/components.tsx#SignupForm->src/components.tsx#Page",
+      "from": "src/components.tsx#SignupForm",
+      "to": "src/components.tsx#Page",
+      "kind": "jsx",
+      "supplies": "SignupFormProps",
+      "callSite": {
+        "startLine": 10,
+        "startColumn": 7,
+        "endLine": 10,
+        "endColumn": 48
+      },
+      "resolved": true
+    }
+  ],
+  "truncated": false
+}

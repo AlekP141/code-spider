@@ -1,0 +1,180 @@
+{
+  "focusId": "src/signup.ts#handleSignup",
+  "nodes": [
+    {
+      "id": "src/app.ts#main",
+      "kind": "function",
+      "name": "main",
+      "file": "src/app.ts",
+      "range": {
+        "startLine": 4,
+        "startColumn": 1,
+        "endLine": 6,
+        "endColumn": 2
+      },
+      "inputType": "UserInput",
+      "returnType": "User",
+      "isAsync": true,
+      "lineCount": 3,
+      "codePreview": "export async function main(input: UserInput): Promise<User> {\n  return handleSignup(input)\n}"
+    },
+    {
+      "id": "src/app.ts#retry",
+      "kind": "function",
+      "name": "retry",
+      "file": "src/app.ts",
+      "range": {
+        "startLine": 8,
+        "startColumn": 1,
+        "endLine": 10,
+        "endColumn": 2
+      },
+      "inputType": "UserInput",
+      "returnType": "User",
+      "isAsync": true,
+      "lineCount": 3,
+      "codePreview": "export async function retry(input: UserInput): Promise<User> {\n  return handleSignup(input)\n}"
+    },
+    {
+      "id": "src/signup.ts#createUser",
+      "kind": "function",
+      "name": "createUser",
+      "file": "src/signup.ts",
+      "range": {
+        "startLine": 8,
+        "startColumn": 1,
+        "endLine": 10,
+        "endColumn": 2
+      },
+      "inputType": "ValidUserData",
+      "returnType": "User",
+      "isAsync": true,
+      "lineCount": 3,
+      "codePreview": "export async function createUser(valid: ValidUserData): Promise<User> {\n  return { ...valid, id: 'u_1' }\n}"
+    },
+    {
+      "id": "src/signup.ts#handleSignup",
+      "kind": "function",
+      "name": "handleSignup",
+      "file": "src/signup.ts",
+      "range": {
+        "startLine": 16,
+        "startColumn": 1,
+        "endLine": 21,
+        "endColumn": 2
+      },
+      "inputType": "UserInput",
+      "returnType": "User",
+      "isAsync": true,
+      "lineCount": 6,
+      "codePreview": "export async function handleSignup(input: UserInput): Promise<User> {\n  const valid = validateUser(input)\n  const user = await createUser(valid)\n  await sendWelcome(user)\n  return user\n}"
+    },
+    {
+      "id": "src/signup.ts#sendWelcome",
+      "kind": "function",
+      "name": "sendWelcome",
+      "file": "src/signup.ts",
+      "range": {
+        "startLine": 12,
+        "startColumn": 1,
+        "endLine": 14,
+        "endColumn": 2
+      },
+      "inputType": "User",
+      "returnType": "void",
+      "isAsync": true,
+      "lineCount": 3,
+      "codePreview": "export async function sendWelcome(user: User): Promise<void> {\n  console.log(`welcome ${user.name}`)\n}"
+    },
+    {
+      "id": "src/signup.ts#validateUser",
+      "kind": "function",
+      "name": "validateUser",
+      "file": "src/signup.ts",
+      "range": {
+        "startLine": 3,
+        "startColumn": 1,
+        "endLine": 6,
+        "endColumn": 2
+      },
+      "inputType": "UserInput",
+      "returnType": "ValidUserData",
+      "isAsync": false,
+      "lineCount": 4,
+      "codePreview": "export function validateUser(input: UserInput): ValidUserData {\n  if (!input.email) throw new Error('email required')\n  return { ...input, verified: false }\n}"
+    }
+  ],
+  "edges": [
+    {
+      "id": "src/signup.ts#createUser->src/signup.ts#handleSignup",
+      "from": "src/signup.ts#createUser",
+      "to": "src/signup.ts#handleSignup",
+      "kind": "call",
+      "supplies": "User",
+      "callSite": {
+        "startLine": 18,
+        "startColumn": 22,
+        "endLine": 18,
+        "endColumn": 39
+      },
+      "resolved": true
+    },
+    {
+      "id": "src/signup.ts#handleSignup->src/app.ts#main",
+      "from": "src/signup.ts#handleSignup",
+      "to": "src/app.ts#main",
+      "kind": "call",
+      "supplies": "User",
+      "callSite": {
+        "startLine": 5,
+        "startColumn": 10,
+        "endLine": 5,
+        "endColumn": 22
+      },
+      "resolved": true
+    },
+    {
+      "id": "src/signup.ts#handleSignup->src/app.ts#retry",
+      "from": "src/signup.ts#handleSignup",
+      "to": "src/app.ts#retry",
+      "kind": "call",
+      "supplies": "User",
+      "callSite": {
+        "startLine": 9,
+        "startColumn": 10,
+        "endLine": 9,
+        "endColumn": 22
+      },
+      "resolved": true
+    },
+    {
+      "id": "src/signup.ts#sendWelcome->src/signup.ts#handleSignup",
+      "from": "src/signup.ts#sendWelcome",
+      "to": "src/signup.ts#handleSignup",
+      "kind": "call",
+      "supplies": "void",
+      "callSite": {
+        "startLine": 19,
+        "startColumn": 9,
+        "endLine": 19,
+        "endColumn": 26
+      },
+      "resolved": true
+    },
+    {
+      "id": "src/signup.ts#validateUser->src/signup.ts#handleSignup",
+      "from": "src/signup.ts#validateUser",
+      "to": "src/signup.ts#handleSignup",
+      "kind": "call",
+      "supplies": "ValidUserData",
+      "callSite": {
+        "startLine": 17,
+        "startColumn": 17,
+        "endLine": 17,
+        "endColumn": 36
+      },
+      "resolved": true
+    }
+  ],
+  "truncated": false
+}
