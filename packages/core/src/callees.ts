@@ -5,6 +5,7 @@ import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
 import {
   addNodeEdge,
   addUnknown,
+  displayNameOf,
   externalNode,
   resolveDeclaration,
   type Graph,
@@ -42,7 +43,7 @@ function addCallEdge(
   ctx: BuildContext,
 ): void {
   const callSite = rangeOf(call);
-  const displayName = call.getExpression().getText();
+  const displayName = displayNameOf(call.getExpression());
   const declaration = resolveCallTarget(call);
 
   if (!declaration) {

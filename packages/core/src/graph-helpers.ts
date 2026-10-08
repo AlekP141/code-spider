@@ -25,6 +25,19 @@ const EMPTY_RANGE: Range = {
   endColumn: 0,
 };
 
+const MAX_NAME_LENGTH = 60;
+
+/** Callee or tag text as a one-line name: `api\n  .list` becomes `api.list`. */
+export function displayNameOf(expression: Node): string {
+  const text = expression
+    .getText()
+    .replace(/\s*(\??\.)\s*/g, "$1")
+    .replace(/\s+/g, " ");
+  return text.length > MAX_NAME_LENGTH
+    ? `${text.slice(0, MAX_NAME_LENGTH - 1)}…`
+    : text;
+}
+
 /**
  * Follow import aliases to the real declaration. Returns undefined when unresolvable.
  * Consts resolve to the function they are bound to (see boundFunctionOf).

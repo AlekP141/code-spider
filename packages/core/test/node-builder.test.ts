@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { SyntaxKind } from "ts-morph";
 import { buildGraphNode, CODE_PREVIEW_MAX_LINES } from "../src/node-builder.js";
 import { toFocusTarget } from "../src/focus.js";
-import { testCodePath, loadTestCode } from "./helpers.js";
+import {
+  MEMORY_ROOT,
+  memoryProject,
+  testCodePath,
+  loadTestCode,
+} from "./helpers.js";
 
 describe("buildGraphNode", () => {
   const { project, root } = loadTestCode("basic");
@@ -68,5 +73,20 @@ describe("buildGraphNode", () => {
     expect(node.lineCount).toBe(42);
     const previewLines = node.codePreview.split("\n");
     expect(previewLines).toHaveLength(CODE_PREVIEW_MAX_LINES);
+  });
+});
+
+describe("buildGraphNode — CRLF sources", () => {
+  it("splits CRLF lines without leaving carriage returns", () => {
+    const file = memoryProject({
+      "src/crlf.ts": "export function crlf(): number {\r\n  return 1\r\n}\r\n",
+    }).getSourceFileOrThrow(`${MEMORY_ROOT}/src/crlf.ts`);
+    const target = toFocusTarget(file.getFunctionOrThrow("crlf"), file);
+    const node = buildGraphNode(target, "function", { repoRoot: MEMORY_ROOT });
+
+    expect(node.lineCount).toBe(3);
+    expect(node.codePreview).toBe(
+      "export function crlf(): number {\n  return 1\n}",
+    );
   });
 });

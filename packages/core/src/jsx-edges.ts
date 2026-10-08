@@ -9,6 +9,7 @@ import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
 import {
   addNodeEdge,
   addUnknown,
+  displayNameOf,
   externalNode,
   resolveDeclaration,
   type Graph,
@@ -53,7 +54,7 @@ function addJsxEdge(
   ctx: BuildContext,
 ): void {
   const tag = element.getTagNameNode();
-  const displayName = tag.getText();
+  const displayName = displayNameOf(tag);
   const callSite = rangeOf(element);
   const declaration = resolveDeclaration(tag);
 

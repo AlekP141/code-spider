@@ -1,11 +1,17 @@
 import { join } from "node:path";
-import { Node, type Project, type SourceFile } from "ts-morph";
-import { bindingOf, isFunctionValue } from "./bound-functions.js";
+import {
+  Node,
+  SyntaxKind,
+  type FunctionDeclaration,
+  type MethodDeclaration,
+  type Project,
+  type SourceFile,
+} from "ts-morph";
+import { boundFunctionOf } from "./bound-functions.js";
 import { collectCalleeEdges } from "./callees.js";
 import { collectCallerEdges } from "./callers.js";
 import { classifyDeclaration } from "./classify.js";
 import {
-  isCallable,
   resolveFocus,
   toFocusTarget,
   type CallableDeclaration,
@@ -83,28 +89,27 @@ function callablesNamed(
   sourceFile: SourceFile,
   name: string,
 ): CallableDeclaration[] {
-  return sourceFile
-    .getDescendants()
-    .filter(
-      (node): node is CallableDeclaration =>
-        isCallable(node) &&
-        declaredName(node) === name &&
-        !isOverloadSignature(node),
-    );
+  const isNamed = (declaration: { getNameNode(): Node | undefined }) => {
+    const nameNode = declaration.getNameNode();
+    return Node.isIdentifier(nameNode) && nameNode.getText() === name;
+  };
+  const declared = [
+    ...sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration),
+    ...sourceFile.getDescendantsOfKind(SyntaxKind.MethodDeclaration),
+  ].filter((d) => isNamed(d) && !isOverloadSignature(d));
+  const bound = sourceFile
+    .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+    .filter(isNamed)
+    .map(boundFunctionOf)
+    .filter((fn) => fn !== undefined);
+  return [...declared, ...bound].sort((a, b) => a.getStart() - b.getStart());
 }
 
 /** Bodiless, with an implementation alongside; a lone `declare` is not one. */
-function isOverloadSignature(callable: CallableDeclaration): boolean {
-  if (isFunctionValue(callable)) return false;
+function isOverloadSignature(
+  callable: FunctionDeclaration | MethodDeclaration,
+): boolean {
   return callable.isOverload() && callable.getImplementation() !== undefined;
-}
-
-function declaredName(callable: CallableDeclaration): string | undefined {
-  const named = isFunctionValue(callable) ? bindingOf(callable) : callable;
-  const nameNode = named?.getNameNode();
-  return nameNode && Node.isIdentifier(nameNode)
-    ? nameNode.getText()
-    : undefined;
 }
 
 function uniqueById<T extends { id: string }>(items: T[]): T[] {

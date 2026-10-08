@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { collectCalleeEdges } from "../src/callees.js";
 import { toFocusTarget } from "../src/focus.js";
-import { loadTestCode } from "./helpers.js";
+import { collectMemoryPage, loadTestCode } from "./helpers.js";
 
 describe("collectCalleeEdges", () => {
   const { project, root } = loadTestCode("basic");
@@ -165,5 +165,36 @@ describe("collectCalleeEdges — unnameable callees", () => {
 
     expect(nodes.some((n) => n.kind === "unknown")).toBe(true);
     expect(edges.some((e) => e.resolved === false)).toBe(true);
+  });
+});
+
+describe("collectCalleeEdges — call text as a name", () => {
+  const { nodes } = collectMemoryPage({
+    "src/page.tsx": [
+      "declare const api: any",
+      "export function Page(xs: string[]): void {",
+      "  api",
+      "    .users",
+      "    ?.list()",
+      "  xs",
+      '    .join(",")',
+      "  ;(function () {",
+      "    return 'a long immediately invoked function body that goes on'",
+      "  })()",
+      "}",
+      "",
+    ].join("\n"),
+  });
+  const ids = nodes.map((n) => n.id);
+
+  it("drops line breaks and indentation around member access", () => {
+    expect(ids).toContain("unknown#api.users?.list");
+    expect(ids).toContain("external:lib#xs.join");
+  });
+
+  it("collapses and caps a long callee expression", () => {
+    const iife = nodes.find((n) => n.id.startsWith("unknown#(function"));
+    expect(iife?.name).toMatch(/^\(function \(\) \{ return .*…$/);
+    expect(iife?.name.length).toBeLessThanOrEqual(60);
   });
 });

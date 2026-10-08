@@ -33,7 +33,7 @@ export function buildGraphNode(
   const file = toPosixPath(relative(ctx.repoRoot, absolute));
 
   const text = target.textNode.getText();
-  const lines = text.split("\n");
+  const lines = text.split(/\r?\n/);
   const { text: returnType, isAsync } = returnTypeLabel(target.declaration);
 
   return {
