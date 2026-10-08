@@ -1,4 +1,4 @@
-import type { Node } from "ts-morph";
+import { Node } from "ts-morph";
 import { externalModuleOf } from "./classify.js";
 import {
   isCallable,
@@ -28,12 +28,24 @@ const EMPTY_RANGE: Range = {
   endColumn: 0,
 };
 
-/** Follow import aliases to the real declaration. Returns undefined when unresolvable. */
+/**
+ * Follow import aliases to the real declaration. Returns undefined when unresolvable.
+ * Arrow and function-expression consts resolve to their initializer.
+ */
 export function resolveDeclaration(expression: Node): Node | undefined {
   const symbol = expression.getSymbol();
   if (!symbol) return undefined;
   const real = symbol.getAliasedSymbol() ?? symbol;
-  return real.getDeclarations()[0];
+  const declaration = real.getDeclarations()[0];
+  return declaration && functionInitializerOf(declaration);
+}
+
+function functionInitializerOf(declaration: Node): Node {
+  if (!Node.isVariableDeclaration(declaration)) return declaration;
+  const initializer = declaration.getInitializer();
+  const isFunction =
+    Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer);
+  return isFunction ? initializer : declaration;
 }
 
 /**
