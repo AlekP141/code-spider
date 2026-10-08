@@ -30,3 +30,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# agent workflow artifacts
+local-agent-docs/
