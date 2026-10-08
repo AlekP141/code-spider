@@ -1,4 +1,4 @@
-import type { NodeId } from "./types.js";
+import type { EdgeType, NodeId } from "./types.js";
 
 export function toPosixPath(p: string): string {
   return p.replace(/\\/g, "/").replace(/^\.\//, "");
@@ -7,6 +7,11 @@ export function toPosixPath(p: string): string {
 export function makeNodeId(relPath: string, name: string, index = 0): NodeId {
   const suffix = index > 0 ? `~${index}` : "";
   return `${toPosixPath(relPath)}#${name}${suffix}`;
+}
+
+export function edgeId(from: NodeId, to: NodeId, kind: EdgeType): string {
+  const base = `${from}->${to}`;
+  return kind === "call" ? base : `${base}#${kind}`;
 }
 
 export function parseNodeId(id: NodeId): {

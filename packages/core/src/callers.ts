@@ -1,4 +1,4 @@
-import { Node, type Identifier, type PropertyAccessExpression } from "ts-morph";
+import { Node, type CallExpression, type Identifier } from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
 import {
   isCallable,
@@ -7,6 +7,7 @@ import {
   type FocusTarget,
 } from "./focus.js";
 import { returnTypeLabel } from "./labels.js";
+import { edgeId } from "./node-id.js";
 import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
 import type { GraphEdge, GraphNode, NodeId } from "./types.js";
 
@@ -29,7 +30,9 @@ export function collectCallerEdges(
   let truncated = false;
 
   for (const ref of referencesInOrder(target.nameNode)) {
-    if (ref === target.nameNode || !isCallReference(ref)) continue;
+    if (ref === target.nameNode) continue;
+    const call = callOf(ref);
+    if (!call) continue;
 
     const caller = nameableCaller(ref);
     if (!caller) continue;
@@ -51,12 +54,12 @@ export function collectCallerEdges(
 
     nodes.set(node.id, node);
     edges.set(key, {
-      id: `${focusId}->${node.id}`,
+      id: edgeId(focusId, node.id, "call"),
       from: focusId,
       to: node.id,
       kind: "call",
       supplies,
-      callSite: rangeOf(ref),
+      callSite: rangeOf(call),
       resolved: true,
     });
   }
@@ -83,34 +86,36 @@ function compareLocation(a: Node, b: Node): number {
 const CALL_APPLY = new Set(["call", "apply"]);
 
 /**
- * True when the reference invokes the symbol: `f()`, `obj.f()`, `f.call(...)`,
- * `f.apply(...)` or `obj.f.call(...)`. Imports, type positions and other
- * members such as `f.toString()` or `f.bind(...)()` are not calls.
+ * The call a reference invokes: `f()`, `obj.f()`, `f.call(...)`, `f.apply(...)`
+ * or `obj.f.call(...)`. Imports, type positions and other members such as
+ * `f.toString()` or `f.bind(...)()` are not calls.
  */
-function isCallReference(ref: Node): boolean {
+function callOf(ref: Node): CallExpression | undefined {
+  const direct = invokerOf(ref) ?? callApplyOn(ref);
+  if (direct) return direct;
   const parent = ref.getParent();
-  if (Node.isCallExpression(parent)) return parent.getExpression() === ref;
-  if (!Node.isPropertyAccessExpression(parent)) return false;
-  if (parent.getExpression() === ref) return isCallApply(parent);
-  return isInvoked(parent) || isCallApplyOn(parent);
-}
-
-function isInvoked(expr: Node): boolean {
-  const parent = expr.getParent();
-  return Node.isCallExpression(parent) && parent.getExpression() === expr;
-}
-
-function isCallApply(access: PropertyAccessExpression): boolean {
-  return CALL_APPLY.has(access.getName()) && isInvoked(access);
-}
-
-function isCallApplyOn(expr: Node): boolean {
-  const parent = expr.getParent();
-  return (
+  if (
     Node.isPropertyAccessExpression(parent) &&
-    parent.getExpression() === expr &&
-    isCallApply(parent)
-  );
+    parent.getExpression() !== ref
+  ) {
+    return invokerOf(parent) ?? callApplyOn(parent);
+  }
+  return undefined;
+}
+
+/** The call that invokes `expr` directly, as in `expr()`. */
+function invokerOf(expr: Node): CallExpression | undefined {
+  const parent = expr.getParent();
+  if (!Node.isCallExpression(parent)) return undefined;
+  return parent.getExpression() === expr ? parent : undefined;
+}
+
+/** For `expr.call(...)` or `expr.apply(...)`, the call of that member. */
+function callApplyOn(expr: Node): CallExpression | undefined {
+  const parent = expr.getParent();
+  if (!Node.isPropertyAccessExpression(parent)) return undefined;
+  if (parent.getExpression() !== expr) return undefined;
+  return CALL_APPLY.has(parent.getName()) ? invokerOf(parent) : undefined;
 }
 
 /**

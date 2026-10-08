@@ -7,6 +7,7 @@ import {
   type FocusTarget,
 } from "./focus.js";
 import { returnTypeLabel } from "./labels.js";
+import { edgeId } from "./node-id.js";
 import type {
   EdgeType,
   GraphEdge,
@@ -74,7 +75,7 @@ export function addNodeEdge(
 ): void {
   putNode(graph.nodes, node);
   putEdge(graph.edges, {
-    id: `${node.id}->${focusId}`,
+    id: edgeId(node.id, focusId, kind),
     from: node.id,
     to: focusId,
     kind,

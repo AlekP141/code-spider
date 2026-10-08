@@ -38,7 +38,7 @@
   ],
   "edges": [
     {
-      "id": "src/components.tsx#SignupForm->src/components.tsx#Page",
+      "id": "src/components.tsx#SignupForm->src/components.tsx#Page#jsx",
       "from": "src/components.tsx#SignupForm",
       "to": "src/components.tsx#Page",
       "kind": "jsx",

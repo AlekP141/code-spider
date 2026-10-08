@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Project } from "ts-morph";
 import { collectCallerEdges, MAX_CALLERS } from "../src/callers.js";
 import { toFocusTarget } from "../src/focus.js";
+import type { Range } from "../src/types.js";
 
 const ROOT = "/proj";
 const LIB = "export function target(): number { return 1 }\n";
@@ -147,5 +148,71 @@ describe("collectCallerEdges — cap boundary and order", () => {
     ];
     expect(idsOf(edges)).toEqual(expected);
     expect(truncated).toBe(true);
+  });
+});
+
+/** The source text covered by a 1-based, end-exclusive range. */
+function spanText(text: string, range: Range): string {
+  const lines = text.split("\n");
+  const offsetOf = (line: number, column: number) =>
+    lines.slice(0, line - 1).reduce((sum, l) => sum + l.length + 1, 0) +
+    column -
+    1;
+  return text.slice(
+    offsetOf(range.startLine, range.startColumn),
+    offsetOf(range.endLine, range.endColumn),
+  );
+}
+
+describe("collectCallerEdges — callSite spans the whole call", () => {
+  const appLines = [
+    IMPORT + 'import * as lib from "./lib.js"',
+    "export function direct(): number { return target(1) }",
+    "export function viaNamespace(): number { return lib.target(1) }",
+    "export function viaCall(): number { return target.call(null, 1) }",
+    "export function viaApply(): number { return target.apply(null, [1]) }",
+    "export function viaNamespaceCall(): number {\n" +
+      "  return lib.target.call(null, 1)\n" +
+      "}",
+    "export function multiline(): number {",
+    "  return target(",
+    "    1,",
+    "  )",
+    "}",
+  ];
+  const app = appLines.join("\n") + "\n";
+  const { edges } = callersOf(
+    { "src/lib.ts": LIB, "src/app.ts": app },
+    "src/lib.ts",
+    "target",
+  );
+  const callSiteOf = (caller: string) => {
+    const edge = edges.find((e) => e.to === `src/app.ts#${caller}`);
+    if (!edge) throw new Error(`no edge from ${caller}`);
+    return spanText(app, edge.callSite);
+  };
+
+  it("spans f(x)", () => {
+    expect(callSiteOf("direct")).toBe("target(1)");
+  });
+
+  it("spans obj.f(x)", () => {
+    expect(callSiteOf("viaNamespace")).toBe("lib.target(1)");
+  });
+
+  it("spans f.call(null, x)", () => {
+    expect(callSiteOf("viaCall")).toBe("target.call(null, 1)");
+  });
+
+  it("spans f.apply(null, args)", () => {
+    expect(callSiteOf("viaApply")).toBe("target.apply(null, [1])");
+  });
+
+  it("spans obj.f.call(null, x)", () => {
+    expect(callSiteOf("viaNamespaceCall")).toBe("lib.target.call(null, 1)");
+  });
+
+  it("spans a multi-line call across lines", () => {
+    expect(callSiteOf("multiline")).toBe("target(\n    1,\n  )");
   });
 });
