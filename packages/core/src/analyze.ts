@@ -1,10 +1,18 @@
-import type { Project } from "ts-morph";
+import { join } from "node:path";
+import { Node, SyntaxKind, type Project, type SourceFile } from "ts-morph";
 import { collectCalleeEdges } from "./callees.js";
 import { collectCallerEdges } from "./callers.js";
 import { classifyDeclaration } from "./classify.js";
-import { resolveFocus } from "./focus.js";
+import {
+  isCallable,
+  resolveFocus,
+  toFocusTarget,
+  type CallableDeclaration,
+  type FocusTarget,
+} from "./focus.js";
 import { buildGraphNode, type BuildContext } from "./node-builder.js";
-import type { GraphSlice } from "./types.js";
+import { parseNodeId } from "./node-id.js";
+import type { GraphSlice, NodeId } from "./types.js";
 
 export type AnalyzeRequest = {
   /** Absolute path to the focused file. */
@@ -20,8 +28,31 @@ export function analyzeFocus(
   req: AnalyzeRequest,
 ): GraphSlice {
   const target = resolveFocus(project, req.file, req.offset);
-  const ctx: BuildContext = { repoRoot: req.repoRoot };
+  return sliceFor(target, { repoRoot: req.repoRoot });
+}
 
+/** A `~index` picks the Nth match, but the returned focusId omits it. */
+export function expandNode(
+  project: Project,
+  nodeId: NodeId,
+  repoRoot: string,
+): GraphSlice {
+  if (nodeId.startsWith("external:") || nodeId.startsWith("unknown#")) {
+    throw new Error(`Node is not expandable: ${nodeId}`);
+  }
+
+  const { file, name, index } = parseNodeId(nodeId);
+  const sourceFile = project.getSourceFile(join(repoRoot, file));
+  if (!sourceFile) throw new Error(`Node not found (missing file): ${nodeId}`);
+
+  const declaration = callablesNamed(sourceFile, name)[index];
+  if (!declaration) throw new Error(`Node not found: ${nodeId}`);
+
+  return sliceFor(toFocusTarget(declaration, sourceFile), { repoRoot });
+}
+
+/** The slice around a focus target; shared by analyzeFocus and expandNode. */
+function sliceFor(target: FocusTarget, ctx: BuildContext): GraphSlice {
   const focusNode = buildGraphNode(
     target,
     classifyDeclaration(target.declaration),
@@ -40,6 +71,44 @@ export function analyzeFocus(
     ),
     truncated: callers.truncated,
   };
+}
+
+/**
+ * NodeIds carry no class or scope, so every callable with this name matches,
+ * in document order; `~index` picks the Nth one. Overload signatures are
+ * skipped, since analyzeFocus focuses the implementation.
+ */
+function callablesNamed(
+  sourceFile: SourceFile,
+  name: string,
+): CallableDeclaration[] {
+  return sourceFile
+    .getDescendants()
+    .filter(
+      (node): node is CallableDeclaration =>
+        isCallable(node) &&
+        declaredName(node) === name &&
+        !isOverloadSignature(node),
+    );
+}
+
+/** Bodiless, with an implementation alongside; a lone `declare` is not one. */
+function isOverloadSignature(callable: CallableDeclaration): boolean {
+  if (Node.isArrowFunction(callable) || Node.isFunctionExpression(callable)) {
+    return false;
+  }
+  return callable.isOverload() && callable.getImplementation() !== undefined;
+}
+
+function declaredName(callable: CallableDeclaration): string | undefined {
+  const named =
+    Node.isArrowFunction(callable) || Node.isFunctionExpression(callable)
+      ? callable.getParentIfKind(SyntaxKind.VariableDeclaration)
+      : callable;
+  const nameNode = named?.getNameNode();
+  return nameNode && Node.isIdentifier(nameNode)
+    ? nameNode.getText()
+    : undefined;
 }
 
 function uniqueById<T extends { id: string }>(items: T[]): T[] {
