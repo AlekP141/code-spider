@@ -43,7 +43,7 @@ describe("collectCallerEdges — hub", () => {
   const { project, root } = loadTestCode("hub");
   const logFile = project.getSourceFileOrThrow("log.ts");
   const target = toFocusTarget(logFile.getFunctionOrThrow("log"), logFile);
-  const { edges, truncated } = collectCallerEdges(
+  const { nodes, edges, truncated } = collectCallerEdges(
     target,
     "src/log.ts#log",
     { repoRoot: root },
@@ -55,5 +55,20 @@ describe("collectCallerEdges — hub", () => {
 
   it("reports truncation", () => {
     expect(truncated).toBe(true);
+  });
+
+  it("keeps nodes aligned one-to-one with the capped edges", () => {
+    expect(nodes).toHaveLength(MAX_CALLERS);
+    expect(nodes.map((n) => n.id).sort()).toEqual(
+      edges.map((e) => e.to).sort(),
+    );
+  });
+
+  it("keeps the first MAX_CALLERS callers in source order", () => {
+    const expected = Array.from(
+      { length: MAX_CALLERS },
+      (_, i) => `src/callers.ts#caller${i + 1}`,
+    );
+    expect(edges.map((e) => e.to)).toEqual(expected);
   });
 });

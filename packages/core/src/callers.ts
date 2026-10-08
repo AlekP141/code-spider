@@ -1,4 +1,4 @@
-import { Node } from "ts-morph";
+import { Node, type Identifier, type PropertyAccessExpression } from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
 import {
   isCallable,
@@ -14,9 +14,8 @@ import type { GraphEdge, GraphNode, NodeId } from "./types.js";
 export const MAX_CALLERS = 50;
 
 /**
- * Callers of the focus node, found through the TypeScript language service's
- * reference index (the same data behind Find All References) rather than a
- * whole-project index of our own.
+ * Callers come from the language service's reference index (the data behind
+ * Find All References), not a whole-project index of our own.
  */
 export function collectCallerEdges(
   target: FocusTarget,
@@ -29,20 +28,15 @@ export function collectCallerEdges(
   const edges = new Map<string, GraphEdge>();
   let truncated = false;
 
-  for (const ref of target.nameNode.findReferencesAsNodes()) {
-    // The declaration's own name is not a caller.
-    if (ref === target.nameNode) continue;
-    if (!isCallReference(ref)) continue;
+  for (const ref of referencesInOrder(target.nameNode)) {
+    if (ref === target.nameNode || !isCallReference(ref)) continue;
 
-    const enclosing = ref.getFirstAncestor(isCallable);
-    if (!enclosing) continue;
-
-    const callerTarget = nameableCaller(enclosing);
-    if (!callerTarget) continue;
+    const caller = nameableCaller(ref);
+    if (!caller) continue;
 
     const node = buildGraphNode(
-      callerTarget,
-      classifyDeclaration(enclosing),
+      caller,
+      classifyDeclaration(caller.declaration),
       ctx,
     );
     if (node.id === focusId) continue;
@@ -74,24 +68,72 @@ export function collectCallerEdges(
   };
 }
 
-/** True when the reference is the callee, not an import or a type position. */
-function isCallReference(ref: Node): boolean {
-  const parent = ref.getParent();
-  if (!parent) return false;
-  if (Node.isCallExpression(parent)) return parent.getExpression() === ref;
-  if (Node.isPropertyAccessExpression(parent)) {
-    const grand = parent.getParent();
-    return Node.isCallExpression(grand) && grand.getExpression() === parent;
-  }
-  return false;
+/** Sorted by path then position, so the kept callers are deterministic. */
+function referencesInOrder(nameNode: Identifier): Node[] {
+  return nameNode.findReferencesAsNodes().sort(compareLocation);
 }
 
-/** Anonymous callbacks cannot be named in the graph, so they are skipped. */
-function nameableCaller(
-  enclosing: CallableDeclaration,
+function compareLocation(a: Node, b: Node): number {
+  const fileA = a.getSourceFile().getFilePath();
+  const fileB = b.getSourceFile().getFilePath();
+  if (fileA !== fileB) return fileA < fileB ? -1 : 1;
+  return a.getStart() - b.getStart();
+}
+
+const CALL_APPLY = new Set(["call", "apply"]);
+
+/**
+ * True when the reference invokes the symbol: `f()`, `obj.f()`, `f.call(...)`,
+ * `f.apply(...)` or `obj.f.call(...)`. Imports, type positions and other
+ * members such as `f.toString()` or `f.bind(...)()` are not calls.
+ */
+function isCallReference(ref: Node): boolean {
+  const parent = ref.getParent();
+  if (Node.isCallExpression(parent)) return parent.getExpression() === ref;
+  if (!Node.isPropertyAccessExpression(parent)) return false;
+  if (parent.getExpression() === ref) return isCallApply(parent);
+  return isInvoked(parent) || isCallApplyOn(parent);
+}
+
+function isInvoked(expr: Node): boolean {
+  const parent = expr.getParent();
+  return Node.isCallExpression(parent) && parent.getExpression() === expr;
+}
+
+function isCallApply(access: PropertyAccessExpression): boolean {
+  return CALL_APPLY.has(access.getName()) && isInvoked(access);
+}
+
+function isCallApplyOn(expr: Node): boolean {
+  const parent = expr.getParent();
+  return (
+    Node.isPropertyAccessExpression(parent) &&
+    parent.getExpression() === expr &&
+    isCallApply(parent)
+  );
+}
+
+/**
+ * The nearest enclosing callable that can be named in the graph. Anonymous
+ * callbacks are skipped, so their calls belong to the function passing them.
+ */
+function nameableCaller(ref: Node): FocusTarget | undefined {
+  for (
+    let fn = ref.getFirstAncestor(isCallable);
+    fn;
+    fn = fn.getFirstAncestor(isCallable)
+  ) {
+    const target = tryFocusTarget(fn);
+    if (target) return target;
+  }
+  return undefined;
+}
+
+function tryFocusTarget(
+  declaration: CallableDeclaration,
 ): FocusTarget | undefined {
   try {
-    return toFocusTarget(enclosing, enclosing.getSourceFile());
+    return toFocusTarget(declaration, declaration.getSourceFile());
   } catch {
     return undefined;
   }
