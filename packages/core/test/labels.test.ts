@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inputTypeLabel, returnTypeLabel } from "../src/labels.js";
-import { loadTestCode } from "./helpers.js";
+import { MEMORY_ROOT, loadTestCode, memoryProject } from "./helpers.js";
 
 describe("returnTypeLabel", () => {
   const { project } = loadTestCode("basic");
@@ -19,6 +19,18 @@ describe("returnTypeLabel", () => {
   it("unwraps Promise<void> to void", () => {
     const label = returnTypeLabel(signup.getFunctionOrThrow("sendWelcome"));
     expect(label).toEqual({ text: "void", isAsync: true });
+  });
+
+  it("does not unwrap a repo type that is merely named Promise", () => {
+    const file = memoryProject({
+      "src/own.ts": [
+        "class Promise<T> { constructor(readonly value: T) {} }",
+        "export function own(): Promise<number> { return new Promise(1) }",
+        "",
+      ].join("\n"),
+    }).getSourceFileOrThrow(`${MEMORY_ROOT}/src/own.ts`);
+    const label = returnTypeLabel(file.getFunctionOrThrow("own"));
+    expect(label).toEqual({ text: "Promise<number>", isAsync: false });
   });
 });
 

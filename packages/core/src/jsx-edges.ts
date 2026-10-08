@@ -4,7 +4,7 @@ import {
   type JsxOpeningElement,
   type JsxSelfClosingElement,
 } from "ts-morph";
-import { isExternalPath } from "./classify.js";
+import { isExternalFile } from "./externals.js";
 import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
 import {
   addNodeEdge,
@@ -64,7 +64,7 @@ function addJsxEdge(
 
   const supplies = isCallable(declaration) ? propsTypeLabel(declaration) : "";
 
-  if (isExternalPath(declaration.getSourceFile().getFilePath())) {
+  if (isExternalFile(declaration.getSourceFile())) {
     const node = externalNode(declaration, displayName);
     addNodeEdge(graph, node, focusId, "jsx", supplies, callSite);
     return;

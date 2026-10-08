@@ -1,5 +1,6 @@
 import { SyntaxKind, type CallExpression, type Node } from "ts-morph";
-import { classifyDeclaration, isExternalPath } from "./classify.js";
+import { classifyDeclaration } from "./classify.js";
+import { isExternalFile } from "./externals.js";
 import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
 import {
   addNodeEdge,
@@ -49,7 +50,7 @@ function addCallEdge(
     return;
   }
 
-  if (isExternalPath(declaration.getSourceFile().getFilePath())) {
+  if (isExternalFile(declaration.getSourceFile())) {
     const node = externalNode(declaration, displayName);
     addNodeEdge(graph, node, focusId, "external", node.returnType, callSite);
     return;

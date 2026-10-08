@@ -1,4 +1,5 @@
 import { TypeFormatFlags, type Node, type Type } from "ts-morph";
+import { isDefaultLibFile } from "./externals.js";
 import type { CallableDeclaration } from "./focus.js";
 
 const FORMAT_FLAGS =
@@ -11,14 +12,20 @@ export function formatType(type: Type, context: Node): string {
 
 /** Strip one Promise wrapper, per spec §5.4. */
 export function unwrapPromise(type: Type): { type: Type; isAsync: boolean } {
-  const symbolName =
-    type.getSymbol()?.getName() ?? type.getAliasSymbol()?.getName();
-  if (symbolName === "Promise") {
+  if (isLibPromise(type)) {
     const args = type.getTypeArguments();
     const inner = args[0];
     if (args.length === 1 && inner) return { type: inner, isAsync: true };
   }
   return { type, isAsync: false };
+}
+
+function isLibPromise(type: Type): boolean {
+  const symbol = type.getSymbol() ?? type.getAliasSymbol();
+  if (symbol?.getName() !== "Promise") return false;
+  return symbol
+    .getDeclarations()
+    .some((d) => isDefaultLibFile(d.getSourceFile()));
 }
 
 export function returnTypeLabel(decl: CallableDeclaration): {

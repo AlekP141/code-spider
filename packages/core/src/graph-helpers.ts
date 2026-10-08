@@ -1,6 +1,6 @@
 import { Node } from "ts-morph";
 import { boundFunctionOf } from "./bound-functions.js";
-import { externalModuleOf } from "./classify.js";
+import { externalModuleOf } from "./externals.js";
 import { isCallable } from "./focus.js";
 import { returnTypeLabel } from "./labels.js";
 import { edgeId } from "./node-id.js";
@@ -83,7 +83,7 @@ export function externalNode(
   declaration: Node,
   displayName: string,
 ): GraphNode {
-  const module = externalModuleOf(declaration.getSourceFile().getFilePath());
+  const module = externalModuleOf(declaration.getSourceFile());
   return placeholderNode(
     `external:${module}#${displayName}`,
     "external",
