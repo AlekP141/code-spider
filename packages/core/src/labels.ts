@@ -35,3 +35,8 @@ export function inputTypeLabel(decl: CallableDeclaration): string {
     .map((p) => formatType(p.getType(), p))
     .join(", ");
 }
+
+export function propsTypeLabel(decl: CallableDeclaration): string {
+  const props = decl.getParameters()[0];
+  return props ? formatType(props.getType(), props) : "";
+}

@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import { collectMemoryPage } from "./helpers.js";
+
+const component = (name: string, props: string, body: string) =>
+  `export function ${name}(${props}): JSX.Element {\n  return ${body}\n}\n`;
+
+const pageWith = (imports: string, jsx: string) => ({
+  "src/page.tsx": `${imports}\n${component("Page", "", jsx)}`,
+});
+
+const jsxEdgesFrom = (edges: { from: string; kind: string }[], from: string) =>
+  edges.filter((e) => e.from === from && e.kind === "jsx");
+
+describe("JSX edge cases", () => {
+  it("records an unresolvable tag as an unknown jsx edge", () => {
+    const { nodes, edges } = collectMemoryPage(pageWith("", "<Missing />"));
+    expect(nodes.find((n) => n.id === "unknown#Missing")?.kind).toBe("unknown");
+    const edge = edges.find((e) => e.from === "unknown#Missing");
+    expect(edge).toMatchObject({
+      kind: "jsx",
+      resolved: false,
+      to: "src/page.tsx#Page",
+    });
+  });
+
+  it("captures a wrapper and its nested child once each", () => {
+    const files = {
+      "src/wrap.tsx": component(
+        "Wrapper",
+        "props: { children: JSX.Element }",
+        "<div>{props.children}</div>",
+      ),
+      "src/child.tsx": component("Child", "", "<div />"),
+      ...pageWith(
+        `import { Wrapper } from "./wrap";\nimport { Child } from "./child";`,
+        "<Wrapper><Child /></Wrapper>",
+      ),
+    };
+    const { edges } = collectMemoryPage(files);
+    expect(jsxEdgesFrom(edges, "src/wrap.tsx#Wrapper")).toHaveLength(1);
+    expect(jsxEdgesFrom(edges, "src/child.tsx#Child")).toHaveLength(1);
+  });
+
+  it("dedupes a component rendered several times", () => {
+    const files = {
+      "src/child.tsx": component("Child", "", "<div />"),
+      ...pageWith(
+        `import { Child } from "./child";`,
+        "<div><Child /><Child></Child></div>",
+      ),
+    };
+    const { edges } = collectMemoryPage(files);
+    expect(jsxEdgesFrom(edges, "src/child.tsx#Child")).toHaveLength(1);
+  });
+
+  it("keeps an anonymous default-export component as unknown", () => {
+    const files = {
+      "src/anon.tsx":
+        "export default function (props: { a: number }): JSX.Element {\n  return <div>{props.a}</div>\n}\n",
+      ...pageWith(`import Anon from "./anon";`, "<Anon a={1} />"),
+    };
+    const { nodes, edges } = collectMemoryPage(files);
+    expect(nodes.find((n) => n.id === "unknown#Anon")?.kind).toBe("unknown");
+    expect(edges.find((e) => e.from === "unknown#Anon")).toMatchObject({
+      kind: "jsx",
+      resolved: false,
+    });
+  });
+
+  it("resolves a namespace member tag such as <ns.Bar />", () => {
+    const files = {
+      "src/ns.tsx": component("Bar", "props: { q: number }", "<div />"),
+      ...pageWith(`import * as ns from "./ns";`, "<ns.Bar q={1} />"),
+    };
+    const { nodes, edges } = collectMemoryPage(files);
+    expect(nodes.find((n) => n.id === "src/ns.tsx#Bar")?.kind).toBe(
+      "component",
+    );
+    expect(jsxEdgesFrom(edges, "src/ns.tsx#Bar")).toHaveLength(1);
+  });
+
+  it("treats a namespaced intrinsic tag such as <svg:rect /> as intrinsic", () => {
+    const { nodes, edges } = collectMemoryPage(pageWith("", "<svg:rect />"));
+    expect(nodes.some((n) => n.id.includes("svg"))).toBe(false);
+    expect(edges.some((e) => e.from.includes("svg"))).toBe(false);
+  });
+
+  it("forces the component kind for a non-JSX.Element return", () => {
+    const files = {
+      "src/maybe.tsx": `export function Maybe(): string | null {\n  return null\n}\n`,
+      ...pageWith(`import { Maybe } from "./maybe";`, "<Maybe />"),
+    };
+    const { nodes } = collectMemoryPage(files);
+    expect(nodes.find((n) => n.id === "src/maybe.tsx#Maybe")?.kind).toBe(
+      "component",
+    );
+  });
+});

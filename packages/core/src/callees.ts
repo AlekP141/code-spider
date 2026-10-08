@@ -1,32 +1,21 @@
 import { SyntaxKind, type CallExpression, type Node } from "ts-morph";
+import { classifyDeclaration, isExternalPath } from "./classify.js";
+import { isCallable, type FocusTarget } from "./focus.js";
 import {
-  classifyDeclaration,
-  externalModuleOf,
-  isExternalPath,
-} from "./classify.js";
-import {
-  isCallable,
-  toFocusTarget,
-  type CallableDeclaration,
-  type FocusTarget,
-} from "./focus.js";
-import { returnTypeLabel } from "./labels.js";
+  addNodeEdge,
+  addUnknown,
+  externalNode,
+  nameableTarget,
+  resolveDeclaration,
+  type Graph,
+} from "./graph-helpers.js";
+import { collectJsxEdges } from "./jsx-edges.js";
 import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
-import type { GraphEdge, GraphNode, NodeId, Range } from "./types.js";
-
-const EMPTY_RANGE: Range = {
-  startLine: 0,
-  startColumn: 0,
-  endLine: 0,
-  endColumn: 0,
-};
+import type { GraphEdge, GraphNode, NodeId } from "./types.js";
 
 /** Follow import aliases to the real declaration. Returns undefined when unresolvable. */
 export function resolveCallTarget(call: CallExpression): Node | undefined {
-  const symbol = call.getExpression().getSymbol();
-  if (!symbol) return undefined;
-  const real = symbol.getAliasedSymbol() ?? symbol;
-  return real.getDeclarations()[0];
+  return resolveDeclaration(call.getExpression());
 }
 
 export function collectCalleeEdges(
@@ -34,140 +23,51 @@ export function collectCalleeEdges(
   focusId: NodeId,
   ctx: BuildContext,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const nodes = new Map<NodeId, GraphNode>();
-  const edges = new Map<string, GraphEdge>();
+  const graph: Graph = { nodes: new Map(), edges: new Map() };
 
   for (const call of target.declaration.getDescendantsOfKind(
     SyntaxKind.CallExpression,
   )) {
-    const callSite = rangeOf(call);
-    const declaration = resolveCallTarget(call);
-
-    if (!declaration) {
-      addUnknown(nodes, edges, call, focusId, callSite);
-      continue;
-    }
-
-    const filePath = declaration.getSourceFile().getFilePath();
-
-    if (isExternalPath(filePath)) {
-      const displayName = call.getExpression().getText();
-      const id = `external:${externalModuleOf(filePath)}#${displayName}`;
-      const returnType = safeReturnType(declaration);
-      putNode(nodes, {
-        id,
-        kind: "external",
-        name: displayName,
-        file: "",
-        range: EMPTY_RANGE,
-        inputType: "",
-        returnType,
-        isAsync: false,
-        lineCount: 0,
-        codePreview: "",
-      });
-      putEdge(edges, {
-        id: `${id}->${focusId}`,
-        from: id,
-        to: focusId,
-        kind: "external",
-        supplies: returnType,
-        callSite,
-        resolved: true,
-      });
-      continue;
-    }
-
-    if (!isCallable(declaration)) {
-      addUnknown(nodes, edges, call, focusId, callSite);
-      continue;
-    }
-
-    const calleeTarget = nameableTarget(declaration);
-    if (!calleeTarget) {
-      addUnknown(nodes, edges, call, focusId, callSite);
-      continue;
-    }
-
-    const node = buildGraphNode(
-      calleeTarget,
-      classifyDeclaration(declaration),
-      ctx,
-    );
-    putNode(nodes, node);
-    putEdge(edges, {
-      id: `${node.id}->${focusId}`,
-      from: node.id,
-      to: focusId,
-      kind: "call",
-      supplies: node.returnType,
-      callSite,
-      resolved: true,
-    });
+    addCallEdge(graph, call, focusId, ctx);
   }
+  collectJsxEdges(target, focusId, ctx, graph);
 
-  return { nodes: [...nodes.values()], edges: [...edges.values()] };
+  return { nodes: [...graph.nodes.values()], edges: [...graph.edges.values()] };
 }
 
-/**
- * toFocusTarget throws for callables it cannot name (anonymous default
- * exports, private `#names`, computed keys). Those calls must still be kept
- * as unresolved nodes rather than aborting the whole graph.
- */
-function nameableTarget(
-  declaration: CallableDeclaration,
-): FocusTarget | undefined {
-  try {
-    return toFocusTarget(declaration, declaration.getSourceFile());
-  } catch {
-    return undefined;
-  }
-}
-
-function safeReturnType(declaration: Node): string {
-  return isCallable(declaration)
-    ? returnTypeLabel(declaration).text
-    : "unknown";
-}
-
-function addUnknown(
-  nodes: Map<NodeId, GraphNode>,
-  edges: Map<string, GraphEdge>,
+function addCallEdge(
+  graph: Graph,
   call: CallExpression,
   focusId: NodeId,
-  callSite: Range,
+  ctx: BuildContext,
 ): void {
+  const callSite = rangeOf(call);
   const displayName = call.getExpression().getText();
-  const id = `unknown#${displayName}`;
-  putNode(nodes, {
-    id,
-    kind: "unknown",
-    name: displayName,
-    file: "",
-    range: EMPTY_RANGE,
-    inputType: "",
-    returnType: "",
-    isAsync: false,
-    lineCount: 0,
-    codePreview: "",
-  });
-  putEdge(edges, {
-    id: `${id}->${focusId}`,
-    from: id,
-    to: focusId,
-    kind: "call",
-    supplies: "",
-    callSite,
-    resolved: false,
-  });
-}
+  const declaration = resolveCallTarget(call);
 
-function putNode(map: Map<NodeId, GraphNode>, node: GraphNode): void {
-  if (!map.has(node.id)) map.set(node.id, node);
-}
+  if (!declaration) {
+    addUnknown(graph, displayName, focusId, callSite, "call");
+    return;
+  }
 
-/** Dedupe on (from, to, kind) — the first call site wins. */
-function putEdge(map: Map<string, GraphEdge>, edge: GraphEdge): void {
-  const key = `${edge.from}|${edge.to}|${edge.kind}`;
-  if (!map.has(key)) map.set(key, edge);
+  if (isExternalPath(declaration.getSourceFile().getFilePath())) {
+    const node = externalNode(declaration, displayName);
+    addNodeEdge(graph, node, focusId, "external", node.returnType, callSite);
+    return;
+  }
+
+  const calleeTarget = isCallable(declaration)
+    ? nameableTarget(declaration)
+    : undefined;
+  if (!calleeTarget) {
+    addUnknown(graph, displayName, focusId, callSite, "call");
+    return;
+  }
+
+  const node = buildGraphNode(
+    calleeTarget,
+    classifyDeclaration(declaration),
+    ctx,
+  );
+  addNodeEdge(graph, node, focusId, "call", node.returnType, callSite);
 }
