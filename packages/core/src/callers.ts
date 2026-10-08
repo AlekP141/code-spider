@@ -1,7 +1,13 @@
-import { Node, type CallExpression, type Identifier } from "ts-morph";
+import {
+  Node,
+  type CallExpression,
+  type Identifier,
+  type JsxOpeningElement,
+  type JsxSelfClosingElement,
+} from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
 import { nearestNameableTarget, type FocusTarget } from "./focus.js";
-import { returnTypeLabel } from "./labels.js";
+import { propsTypeLabel, returnTypeLabel } from "./labels.js";
 import { edgeId } from "./node-id.js";
 import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
 import type { GraphEdge, GraphNode, NodeId } from "./types.js";
@@ -9,16 +15,22 @@ import type { GraphEdge, GraphNode, NodeId } from "./types.js";
 /** Spec §6: a logging helper can have hundreds of callers; cap the slice. */
 export const MAX_CALLERS = 50;
 
+type UseSite = { kind: "call" | "jsx"; node: Node };
+
 /**
  * Callers come from the language service's reference index (the data behind
- * Find All References), not a whole-project index of our own.
+ * Find All References), not a whole-project index of our own. A reference
+ * counts when it is a call target or a rendered JSX tag.
  */
 export function collectCallerEdges(
   target: FocusTarget,
   focusId: NodeId,
   ctx: BuildContext,
 ): { nodes: GraphNode[]; edges: GraphEdge[]; truncated: boolean } {
-  const supplies = returnTypeLabel(target.declaration).text;
+  const supplies = {
+    call: returnTypeLabel(target.declaration).text,
+    jsx: propsTypeLabel(target.declaration),
+  };
 
   const nodes = new Map<NodeId, GraphNode>();
   const edges = new Map<string, GraphEdge>();
@@ -26,8 +38,8 @@ export function collectCallerEdges(
 
   for (const ref of referencesInOrder(target.nameNode)) {
     if (ref === target.nameNode) continue;
-    const call = callOf(ref);
-    if (!call) continue;
+    const site = useSiteOf(ref);
+    if (!site) continue;
 
     const caller = nearestNameableTarget(ref);
     if (!caller) continue;
@@ -39,7 +51,7 @@ export function collectCallerEdges(
     );
     if (node.id === focusId) continue;
 
-    const key = `${focusId}|${node.id}`;
+    const key = `${node.id}|${site.kind}`;
     if (edges.has(key)) continue;
 
     if (edges.size >= MAX_CALLERS) {
@@ -49,12 +61,12 @@ export function collectCallerEdges(
 
     nodes.set(node.id, node);
     edges.set(key, {
-      id: edgeId(focusId, node.id, "call"),
+      id: edgeId(focusId, node.id, site.kind),
       from: focusId,
       to: node.id,
-      kind: "call",
-      supplies,
-      callSite: rangeOf(call),
+      kind: site.kind,
+      supplies: supplies[site.kind],
+      callSite: rangeOf(site.node),
       resolved: true,
     });
   }
@@ -64,6 +76,35 @@ export function collectCallerEdges(
     edges: [...edges.values()],
     truncated,
   };
+}
+
+function useSiteOf(ref: Node): UseSite | undefined {
+  const call = callOf(ref);
+  if (call) return { kind: "call", node: call };
+  const element = renderOf(ref);
+  return element && { kind: "jsx", node: element };
+}
+
+/**
+ * The element whose tag is `ref`, as in `<Ref />` or `<ns.Ref>`. Closing tags
+ * are not renders.
+ */
+function renderOf(
+  ref: Node,
+): JsxOpeningElement | JsxSelfClosingElement | undefined {
+  const parent = ref.getParent();
+  const tag =
+    Node.isPropertyAccessExpression(parent) && parent.getNameNode() === ref
+      ? parent
+      : ref;
+  const element = tag.getParent();
+  if (
+    !Node.isJsxOpeningElement(element) &&
+    !Node.isJsxSelfClosingElement(element)
+  ) {
+    return undefined;
+  }
+  return element.getTagNameNode() === tag ? element : undefined;
 }
 
 /** Sorted by path then position, so the kept callers are deterministic. */
