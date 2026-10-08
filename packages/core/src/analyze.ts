@@ -1,5 +1,6 @@
 import { join } from "node:path";
-import { Node, SyntaxKind, type Project, type SourceFile } from "ts-morph";
+import { Node, type Project, type SourceFile } from "ts-morph";
+import { bindingOf, isFunctionValue } from "./bound-functions.js";
 import { collectCalleeEdges } from "./callees.js";
 import { collectCallerEdges } from "./callers.js";
 import { classifyDeclaration } from "./classify.js";
@@ -94,17 +95,12 @@ function callablesNamed(
 
 /** Bodiless, with an implementation alongside; a lone `declare` is not one. */
 function isOverloadSignature(callable: CallableDeclaration): boolean {
-  if (Node.isArrowFunction(callable) || Node.isFunctionExpression(callable)) {
-    return false;
-  }
+  if (isFunctionValue(callable)) return false;
   return callable.isOverload() && callable.getImplementation() !== undefined;
 }
 
 function declaredName(callable: CallableDeclaration): string | undefined {
-  const named =
-    Node.isArrowFunction(callable) || Node.isFunctionExpression(callable)
-      ? callable.getParentIfKind(SyntaxKind.VariableDeclaration)
-      : callable;
+  const named = isFunctionValue(callable) ? bindingOf(callable) : callable;
   const nameNode = named?.getNameNode();
   return nameNode && Node.isIdentifier(nameNode)
     ? nameNode.getText()

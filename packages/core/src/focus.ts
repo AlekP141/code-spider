@@ -8,6 +8,7 @@ import {
   SourceFile,
   Project,
 } from "ts-morph";
+import { bindingOf } from "./bound-functions.js";
 
 export type CallableDeclaration =
   | FunctionDeclaration
@@ -130,10 +131,10 @@ export function toFocusTarget(
     };
   }
   // Arrow functions and function expressions are anonymous; the name (and the
-  // text worth showing) lives on the enclosing variable declaration.
-  const parent = declaration.getParent();
-  if (Node.isVariableDeclaration(parent)) {
-    const nameNode = parent.getNameNode();
+  // text worth showing) lives on the const they are bound to.
+  const binding = bindingOf(declaration);
+  if (binding) {
+    const nameNode = binding.getNameNode();
     if (!Node.isIdentifier(nameNode)) {
       throw new Error("Destructured declarations cannot be focused");
     }
@@ -141,7 +142,7 @@ export function toFocusTarget(
       declaration,
       // `const x = () => {}` — the arrow's own text omits `const x =`, so the
       // excerpt and jump range come from the enclosing statement.
-      textNode: parent.getFirstAncestor(Node.isVariableStatement) ?? parent,
+      textNode: binding.getFirstAncestor(Node.isVariableStatement) ?? binding,
       nameNode,
       name: nameNode.getText(),
       sourceFile,

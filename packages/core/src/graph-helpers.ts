@@ -1,4 +1,5 @@
 import { Node } from "ts-morph";
+import { boundFunctionOf } from "./bound-functions.js";
 import { externalModuleOf } from "./classify.js";
 import { isCallable } from "./focus.js";
 import { returnTypeLabel } from "./labels.js";
@@ -26,7 +27,7 @@ const EMPTY_RANGE: Range = {
 
 /**
  * Follow import aliases to the real declaration. Returns undefined when unresolvable.
- * Arrow and function-expression consts resolve to their initializer.
+ * Consts resolve to the function they are bound to (see boundFunctionOf).
  */
 export function resolveDeclaration(expression: Node): Node | undefined {
   const symbol = expression.getSymbol();
@@ -38,10 +39,7 @@ export function resolveDeclaration(expression: Node): Node | undefined {
 
 function functionInitializerOf(declaration: Node): Node {
   if (!Node.isVariableDeclaration(declaration)) return declaration;
-  const initializer = declaration.getInitializer();
-  const isFunction =
-    Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer);
-  return isFunction ? initializer : declaration;
+  return boundFunctionOf(declaration) ?? declaration;
 }
 
 export function addNodeEdge(

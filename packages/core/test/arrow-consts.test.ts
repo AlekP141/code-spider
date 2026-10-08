@@ -198,7 +198,7 @@ describe("arrow-const externals and unknown initializers", () => {
     );
   });
 
-  it("keeps a const initialised by a call expression as unknown", () => {
+  it("resolves a const bound through a wrapper call", () => {
     const { nodes, edges } = collectMemoryPage({
       "src/page.tsx": [
         "declare function useCallback<T>(fn: T, deps: unknown[]): T;",
@@ -209,10 +209,27 @@ describe("arrow-const externals and unknown initializers", () => {
         "",
       ].join("\n"),
     });
-    expect(nodes.find((n) => n.id === "unknown#memoised")?.kind).toBe(
-      "unknown",
+    expect(nodes.find((n) => n.id === "src/page.tsx#memoised")?.kind).toBe(
+      "function",
     );
-    expect(edges.find((e) => e.from === "unknown#memoised")).toMatchObject({
+    expect(
+      edges.find((e) => e.from === "src/page.tsx#memoised"),
+    ).toMatchObject({ kind: "call", resolved: true });
+  });
+
+  it("keeps a const returned by a call without a function argument as unknown", () => {
+    const { nodes, edges } = collectMemoryPage({
+      "src/page.tsx": [
+        "declare function make(): () => number;",
+        "const made = make();",
+        "export function Page(): number {",
+        "  return made()",
+        "}",
+        "",
+      ].join("\n"),
+    });
+    expect(nodes.find((n) => n.id === "unknown#made")?.kind).toBe("unknown");
+    expect(edges.find((e) => e.from === "unknown#made")).toMatchObject({
       kind: "call",
       resolved: false,
     });
