@@ -1,11 +1,10 @@
 import { SyntaxKind, type CallExpression, type Node } from "ts-morph";
 import { classifyDeclaration, isExternalPath } from "./classify.js";
-import { isCallable, type FocusTarget } from "./focus.js";
+import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
 import {
   addNodeEdge,
   addUnknown,
   externalNode,
-  nameableTarget,
   resolveDeclaration,
   type Graph,
 } from "./graph-helpers.js";

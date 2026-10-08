@@ -1,11 +1,6 @@
 import { Node } from "ts-morph";
 import { externalModuleOf } from "./classify.js";
-import {
-  isCallable,
-  toFocusTarget,
-  type CallableDeclaration,
-  type FocusTarget,
-} from "./focus.js";
+import { isCallable } from "./focus.js";
 import { returnTypeLabel } from "./labels.js";
 import { edgeId } from "./node-id.js";
 import type {
@@ -47,21 +42,6 @@ function functionInitializerOf(declaration: Node): Node {
   const isFunction =
     Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer);
   return isFunction ? initializer : declaration;
-}
-
-/**
- * toFocusTarget throws for callables it cannot name (anonymous default
- * exports, private `#names`, computed keys). Those must still be kept as
- * unresolved nodes rather than aborting the whole graph.
- */
-export function nameableTarget(
-  declaration: CallableDeclaration,
-): FocusTarget | undefined {
-  try {
-    return toFocusTarget(declaration, declaration.getSourceFile());
-  } catch {
-    return undefined;
-  }
 }
 
 export function addNodeEdge(

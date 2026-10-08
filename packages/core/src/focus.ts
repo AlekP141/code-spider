@@ -44,9 +44,8 @@ export const resolveFocus = (
   if (!sourceFile) throw new Error(`File is not in project: ${filePath}`);
 
   const at = sourceFile.getDescendantAtPos(offset);
-  const enclosing =
-    at && (isCallable(at) ? at : at.getFirstAncestor(isCallable));
-  if (enclosing) return toFocusTarget(enclosing, sourceFile);
+  const enclosing = at && nearestNameableTarget(at);
+  if (enclosing) return enclosing;
 
   // Spec §6 step 1: with no enclosing callable, fall back to the default export.
   const fallback = findDefaultExportCallable(sourceFile);
@@ -56,6 +55,36 @@ export const resolveFocus = (
     `No callable found at ${filePath}:${offset}, and no default export`,
   );
 };
+
+/**
+ * The innermost callable around `node` that can be named in the graph.
+ * Anonymous callbacks are skipped, so they belong to the function holding them.
+ */
+export function nearestNameableTarget(node: Node): FocusTarget | undefined {
+  for (
+    let fn = isCallable(node) ? node : node.getFirstAncestor(isCallable);
+    fn;
+    fn = fn.getFirstAncestor(isCallable)
+  ) {
+    const target = nameableTarget(fn);
+    if (target) return target;
+  }
+  return undefined;
+}
+
+/**
+ * toFocusTarget throws for callables it cannot name (anonymous functions,
+ * private `#names`, computed keys); this returns undefined instead.
+ */
+export function nameableTarget(
+  declaration: CallableDeclaration,
+): FocusTarget | undefined {
+  try {
+    return toFocusTarget(declaration, declaration.getSourceFile());
+  } catch {
+    return undefined;
+  }
+}
 
 function findDefaultExportCallable(
   sourceFile: SourceFile,

@@ -1,11 +1,6 @@
 import { Node, type CallExpression, type Identifier } from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
-import {
-  isCallable,
-  toFocusTarget,
-  type CallableDeclaration,
-  type FocusTarget,
-} from "./focus.js";
+import { nearestNameableTarget, type FocusTarget } from "./focus.js";
 import { returnTypeLabel } from "./labels.js";
 import { edgeId } from "./node-id.js";
 import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
@@ -34,7 +29,7 @@ export function collectCallerEdges(
     const call = callOf(ref);
     if (!call) continue;
 
-    const caller = nameableCaller(ref);
+    const caller = nearestNameableTarget(ref);
     if (!caller) continue;
 
     const node = buildGraphNode(
@@ -116,30 +111,4 @@ function callApplyOn(expr: Node): CallExpression | undefined {
   if (!Node.isPropertyAccessExpression(parent)) return undefined;
   if (parent.getExpression() !== expr) return undefined;
   return CALL_APPLY.has(parent.getName()) ? invokerOf(parent) : undefined;
-}
-
-/**
- * The nearest enclosing callable that can be named in the graph. Anonymous
- * callbacks are skipped, so their calls belong to the function passing them.
- */
-function nameableCaller(ref: Node): FocusTarget | undefined {
-  for (
-    let fn = ref.getFirstAncestor(isCallable);
-    fn;
-    fn = fn.getFirstAncestor(isCallable)
-  ) {
-    const target = tryFocusTarget(fn);
-    if (target) return target;
-  }
-  return undefined;
-}
-
-function tryFocusTarget(
-  declaration: CallableDeclaration,
-): FocusTarget | undefined {
-  try {
-    return toFocusTarget(declaration, declaration.getSourceFile());
-  } catch {
-    return undefined;
-  }
 }

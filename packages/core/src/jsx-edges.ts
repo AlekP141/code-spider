@@ -5,12 +5,11 @@ import {
   type JsxSelfClosingElement,
 } from "ts-morph";
 import { isExternalPath } from "./classify.js";
-import { isCallable, type FocusTarget } from "./focus.js";
+import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
 import {
   addNodeEdge,
   addUnknown,
   externalNode,
-  nameableTarget,
   resolveDeclaration,
   type Graph,
 } from "./graph-helpers.js";
