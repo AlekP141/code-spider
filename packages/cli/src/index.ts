@@ -8,8 +8,12 @@ import {
   loadProject,
   type GraphSlice,
 } from "@code-spider/core";
+import { parseRunOptions } from "./run-options.js";
+import { formatTiming } from "./timing.js";
 
-const USAGE = "usage: code-spider <file>:<line>[:<col>] [--root <dir>]";
+const USAGE =
+  "usage: code-spider <file>:<line>[:<col>] [--root <dir>] " +
+  "[--timing] [--repeat <n>]";
 const ROOT_FLAG = "--root";
 const TARGET_PATTERN = /^(.*?[^:]):([1-9]\d*)(?::([1-9]\d*))?$/;
 
@@ -91,7 +95,17 @@ export function parseArgs(argv: string[]): CliArgs {
   return { target, root };
 }
 
-export function analyzeTarget(target: string, rootFlag?: string): GraphSlice {
+export type RunResult = {
+  slice: GraphSlice;
+  loadMs: number;
+  analyzeMs: number[];
+};
+
+export function runTarget(
+  target: string,
+  rootFlag: string | undefined,
+  repeat: number,
+): RunResult {
   const { file, line, col } = parseTarget(target);
   const absolute = resolve(file);
   if (!existsSync(absolute)) {
@@ -102,12 +116,29 @@ export function analyzeTarget(target: string, rootFlag?: string): GraphSlice {
   const tsconfig = findNearestTsconfig(absolute);
   const repoRoot =
     rootFlag === undefined ? dirname(tsconfig) : resolve(rootFlag);
+  const input = { file: absolute, offset, repoRoot };
 
-  return analyzeFocus(loadProject(tsconfig), {
-    file: absolute,
-    offset,
-    repoRoot,
-  });
+  const loadStart = performance.now();
+  const project = loadProject(tsconfig);
+  const loadMs = performance.now() - loadStart;
+
+  const timedAnalyze = () => {
+    const start = performance.now();
+    const slice = analyzeFocus(project, input);
+    return { slice, ms: performance.now() - start };
+  };
+  const first = timedAnalyze();
+  const rest = Array.from({ length: repeat - 1 }, timedAnalyze);
+
+  return {
+    slice: first.slice,
+    loadMs,
+    analyzeMs: [first.ms, ...rest.map((run) => run.ms)],
+  };
+}
+
+export function analyzeTarget(target: string, rootFlag?: string): GraphSlice {
+  return runTarget(target, rootFlag, 1).slice;
 }
 
 export function main(argv: string[]): number {
@@ -117,8 +148,15 @@ export function main(argv: string[]): number {
   }
 
   try {
-    const { target, root } = parseArgs(argv);
-    console.log(JSON.stringify(analyzeTarget(target, root), null, 2));
+    const { timing, repeat, rest } = parseRunOptions(argv);
+    const { target, root } = parseArgs(rest);
+    const result = runTarget(target, root, repeat);
+    if (timing) {
+      for (const line of formatTiming(result.loadMs, result.analyzeMs)) {
+        console.error(line);
+      }
+    }
+    console.log(JSON.stringify(result.slice, null, 2));
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
