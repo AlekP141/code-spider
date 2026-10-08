@@ -1,0 +1,21 @@
+{
+  "name": "@code-spider/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "code-spider": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@code-spider/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
