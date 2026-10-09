@@ -1,4 +1,7 @@
-import type { ExtensionToWebview } from "@code-spider/webview/protocol";
+import type {
+  ExtensionToWebview,
+  WebviewToExtension,
+} from "@code-spider/webview/protocol";
 import * as vscode from "vscode";
 import { PANEL_TITLE, PANEL_VIEW_TYPE } from "../ids.js";
 import { buildWebviewHtml, createNonce } from "./html.js";
@@ -11,7 +14,10 @@ export class GraphPanel implements vscode.Disposable {
     void this.panel?.webview.postMessage(message);
   });
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly onMessage: (message: WebviewToExtension) => void,
+  ) {}
 
   /** Queued until the webview reports ready, then delivered. */
   post(message: ExtensionToWebview): void {
@@ -59,6 +65,8 @@ export class GraphPanel implements vscode.Disposable {
 
   private receive(raw: unknown): void {
     const message = parseWebviewMessage(raw);
-    if (message?.type === "ready") this.gate.markReady();
+    if (!message) return;
+    if (message.type === "ready") this.gate.markReady();
+    else this.onMessage(message);
   }
 }

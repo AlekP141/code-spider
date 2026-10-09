@@ -38,7 +38,7 @@ export function App() {
       ) : null}
       <section className="content">
         {state.slice ? (
-          <GraphView slice={state.slice} />
+          <GraphView slice={state.slice} onJump={postToExtension} />
         ) : (
           <p className="status">
             Place the cursor in a function and run Code Spider: Show Graph.

@@ -1,5 +1,7 @@
 import type { GraphSlice } from "@code-spider/core";
 import { Controls, MarkerType, ReactFlow, type NodeTypes } from "@xyflow/react";
+import type { WebviewToExtension } from "../protocol.js";
+import { edgeClickMessage, nodeClickMessage } from "./jump.js";
 import { SpiderNode } from "./SpiderNode.js";
 import { useLayout } from "./use-layout.js";
 
@@ -10,7 +12,12 @@ const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
 };
 
-export function GraphView({ slice }: { slice: GraphSlice }) {
+export type GraphViewProps = {
+  slice: GraphSlice;
+  onJump: (message: WebviewToExtension) => void;
+};
+
+export function GraphView({ slice, onJump }: GraphViewProps) {
   const { laid, error } = useLayout(slice);
 
   if (error) {
@@ -31,6 +38,11 @@ export function GraphView({ slice }: { slice: GraphSlice }) {
         minZoom={0.1}
         nodesDraggable={false}
         nodesConnectable={false}
+        onNodeClick={(_event, node) => {
+          const message = nodeClickMessage(node.data.node);
+          if (message) onJump(message);
+        }}
+        onEdgeClick={(_event, edge) => onJump(edgeClickMessage(edge.id))}
       >
         <Controls showInteractive={false} />
       </ReactFlow>

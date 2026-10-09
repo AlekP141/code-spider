@@ -93,6 +93,11 @@
   background: transparent;
 }
 
+.node-box.kind-external,
+.node-box.kind-unknown {
+  cursor: default;
+}
+
 .node-header {
   align-items: center;
   border-bottom: 1px solid
