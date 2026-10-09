@@ -5,7 +5,11 @@ import { collectCalleeEdges } from "./callees.js";
 import { collectCallerEdges } from "./callers.js";
 import { classifyDeclaration } from "./classify.js";
 import { resolveFocus, type FocusTarget } from "./focus.js";
-import { buildGraphNode, type BuildContext } from "./node-builder.js";
+import {
+  buildGraphNode,
+  MODULE_NAME,
+  type BuildContext,
+} from "./node-builder.js";
 import { parseNodeId } from "./node-id.js";
 import type { GraphSlice, NodeId } from "./types.js";
 
@@ -31,7 +35,9 @@ export function expandNode(
   nodeId: NodeId,
   repoRoot: string,
 ): GraphSlice {
-  if (nodeId.startsWith("external:") || nodeId.startsWith("unknown:")) {
+  const isPlaceholder =
+    nodeId.startsWith("external:") || nodeId.startsWith("unknown:");
+  if (isPlaceholder || nodeId.endsWith(`#${MODULE_NAME}`)) {
     throw new Error(`Node is not expandable: ${nodeId}`);
   }
 

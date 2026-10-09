@@ -116,6 +116,7 @@ arrow two contradictory labels.
 |---|---|---|
 | `function` | A callable declared in the repo: function declaration, arrow-function const, exported or local | Yes |
 | `component` | A function returning JSX, or one used as `<Foo/>` | Yes |
+| `module` | A file's top-level code, as the caller of anything called, rendered or passed outside every named function: `root.render(<App/>)`, route tables, `memo(Inner)`. ID `<path>#<module>`, named after the file | No |
 | `external` | Anything resolving into `node_modules` or a `lib.*.d.ts` builtin: `db.insert`, `fetch`, `stripe.charges.create` | No — the graph stops here by design |
 | `unknown` | A call site whose target could not be statically resolved | No |
 
@@ -150,7 +151,7 @@ type Range = {
 
 type GraphNode = {
   id:         NodeId
-  kind:       'function' | 'component' | 'external' | 'unknown'
+  kind:       'function' | 'component' | 'module' | 'external' | 'unknown'
   name:       string
   file:       string          // repo-relative; empty for external/unknown
   range:      Range           // declaration range, for click-to-jump

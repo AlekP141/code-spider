@@ -7,7 +7,12 @@ export type Range = {
   endColumn: number;
 };
 
-export type NodeKind = "function" | "component" | "external" | "unknown";
+export type NodeKind =
+  | "function"
+  | "component"
+  | "module"
+  | "external"
+  | "unknown";
 
 export type GraphNode = {
   id: NodeId;

@@ -73,9 +73,10 @@ describe("consts bound to a wrapped function", () => {
     );
   });
 
-  it("finds callers inside wrapped bodies, but not inside a .map callback", () => {
+  it("finds callers inside wrapped bodies; a top-level .map callback is the module's", () => {
     const slice = sliceAt("src/util.ts", "return x");
     expect(slice.edges.map((e) => e.to)).toEqual([
+      "src/page.tsx#<module>",
       "src/page.tsx#Button",
       "src/page.tsx#Card",
       "src/page.tsx#Shell.onClick",

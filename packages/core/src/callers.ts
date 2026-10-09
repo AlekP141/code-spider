@@ -8,7 +8,12 @@ import { classifyDeclaration } from "./classify.js";
 import { nearestNameableTarget, type FocusTarget } from "./focus.js";
 import { propsTypeLabel, returnTypeLabel, signatureLabel } from "./labels.js";
 import { edgeId } from "./node-id.js";
-import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
+import {
+  buildGraphNode,
+  buildModuleNode,
+  rangeOf,
+  type BuildContext,
+} from "./node-builder.js";
 import { passSiteOf } from "./passing.js";
 import { findReferenceNodes } from "./references.js";
 import type { GraphEdge, GraphNode, NodeId } from "./types.js";
@@ -45,13 +50,9 @@ export function collectCallerEdges(
     if (!site) continue;
 
     const caller = nearestNameableTarget(ref);
-    if (!caller) continue;
-
-    const node = buildGraphNode(
-      caller,
-      classifyDeclaration(caller.declaration),
-      ctx,
-    );
+    const node = caller
+      ? buildGraphNode(caller, classifyDeclaration(caller.declaration), ctx)
+      : buildModuleNode(ref.getSourceFile(), ctx);
     if (node.id === focusId) continue;
 
     const key = `${node.id}|${site.kind}`;
