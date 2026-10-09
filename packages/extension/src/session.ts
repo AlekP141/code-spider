@@ -38,6 +38,7 @@ export class GraphSession {
   private graph: CurrentGraph | undefined;
   private latest = 0;
   private outstanding = 0;
+  private warming = 0;
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -83,6 +84,7 @@ export class GraphSession {
   /** Loads and warms the project so the first focus is fast (perf note). */
   async warm(file: string): Promise<void> {
     const { worker, notifier, changes } = this.deps;
+    this.warming += 1;
     this.setIndexing(true);
     try {
       await worker.warm(file, changes.drain());
@@ -91,7 +93,8 @@ export class GraphSession {
         notifier.error(this.describeFailure(error));
       }
     } finally {
-      this.setIndexing(false);
+      this.warming -= 1;
+      if (this.warming === 0) this.setIndexing(false);
     }
   }
 

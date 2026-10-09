@@ -7750,8 +7750,8 @@ automated tests cannot see: how the graph looks and behaves inside the webview.
 1. Open the repo in VS Code, select "Run Code Spider" in Run and Debug and
    press F5. The launch task builds everything first, then an Extension
    Development Host opens on `test-code/basic`.
-2. Open `src/signup.ts`. The status bar briefly shows "Code Spider: indexing",
-   and a `⧉ Graph` CodeLens sits above each function.
+2. Open `src/signup.ts`. The status bar briefly shows "Code Spider: indexing".
+   (The `⧉ Graph` CodeLens was removed after M2; see spec §8.1.)
 3. Put the cursor inside `handleSignup` and press `Shift+Alt+Q`. A "Code Spider"
    panel opens beside the editor and shows `handleSignup` with a heavier outline.
    `validateUser`, `createUser` and `sendWelcome` sit to its left with edge
@@ -7759,10 +7759,11 @@ automated tests cannot see: how the graph looks and behaves inside the webview.
    right. Each node shows a header (name left, parameter type right, an `async`
    badge where it applies) above its source.
 4. Click the `validateUser` node: the editor jumps to line 3 with the
-   declaration selected. Click the edge labelled `ValidUserData`: the editor
-   jumps to the `validateUser(input)` call on line 17.
-5. Right-click inside a function and choose "Show in Code Spider". Click a
-   `⧉ Graph` lens above another function. Both refocus the same panel.
+   cursor at the start of the declaration (nothing selected). Click the edge
+   labelled `ValidUserData`: the editor jumps to the `validateUser(input)` call
+   on line 17.
+5. Right-click inside another function and choose "Show in Code Spider": the
+   same panel refocuses on it.
 6. Type a character in a function without saving and press `Shift+Alt+Q`: a
    warning asks you to save first and the panel does not change.
 7. Open `test-code/externals/src/uses.ts` (File > Open File) and focus
@@ -7770,7 +7771,7 @@ automated tests cannot see: how the graph looks and behaves inside the webview.
    empty right slot. Open `test-code/jsx/src/components.tsx` and focus `Page`:
    the `SignupForm` edge is purple and labelled `SignupFormProps`.
 8. Switch between a dark and a light colour theme: the graph follows the theme.
-9. In Settings, turn off `codeSpider.codeLens.enabled`: the lenses disappear.
+9. (Removed with the CodeLens.)
 10. Confirm `Shift+Alt+Q` is free in your own keybindings: open
     Keyboard Shortcuts (Ctrl+K Ctrl+S), search `shift+alt+q`, and check that
     only "Code Spider: Show Graph" is listed. (The default bindings were

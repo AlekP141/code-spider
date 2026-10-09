@@ -30,4 +30,14 @@ describe("WarmOnce", () => {
     expect(warm).toHaveBeenCalledOnce();
     expect(warm).toHaveBeenCalledWith("/repo/a.tsx");
   });
+
+  it("warms again after a reset", () => {
+    const warm = vi.fn();
+    const once = new WarmOnce(warm);
+    once.offer(file("typescript", "/repo/a.ts"));
+    once.reset();
+    once.offer(file("typescript", "/repo/b.ts"));
+    expect(warm).toHaveBeenCalledTimes(2);
+    expect(warm).toHaveBeenLastCalledWith("/repo/b.ts");
+  });
 });

@@ -414,16 +414,17 @@ a hover tooltip would duplicate it and add a positioning problem for no gain.
 VS Code extensions **cannot** bind modifier-plus-left-click in the text editor.
 There is no mouse event API for the editor: extensions observe selection
 *changes*, not clicks, and cannot read modifier state. `Ctrl+Click`, `Alt+Click`
-and `Shift+Click` are owned by the editor core. Three native gestures are
-provided instead, all firing the same command:
+and `Shift+Click` are owned by the editor core. Two native gestures are
+provided instead, both firing the same command:
 
 - **`Shift+Alt+Q`** with the cursor inside a function or component. Primary
   gesture. (Verify this is unbound in VS Code's defaults before shipping;
   `Shift+Alt+F`, `O` and `A` are taken.)
-- **A CodeLens** reading `⧉ Graph` above every function and component
-  declaration. The one-click version, discoverable without knowing the shortcut.
-  Toggleable via setting, since some users find CodeLens noisy.
 - **Right-click → "Show in Code Spider"** in the editor context menu.
+
+A `⧉ Graph` CodeLens above every declaration shipped in M2 and was removed: it
+cluttered the editor, and parsing every open file for it put the whole
+TypeScript compiler in the extension-host bundle. The shortcut is enough.
 
 The command reads the cursor position, runs `analyzeFocus`, opens the panel
 beside the code if it is not already open, and replaces its contents.
@@ -499,6 +500,7 @@ testable before a single pixel exists.
 
 **M2 — First graph on screen.** React Flow and ELK render a radius-1 slice.
 Command, `Shift+Alt+Q`, CodeLens and context menu wired. Click-to-jump works.
+(The CodeLens was removed after M2; see §8.1.)
 
 **M3 — Interaction.** Expand-on-demand with position pinning, the refresh
 button, and zoom-based level of detail in node code regions. Added after M2:

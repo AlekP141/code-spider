@@ -7,8 +7,7 @@ const NOT_SUPPORTED =
 
 /**
  * The document and position for a Show Graph invocation. Keybinding and
- * palette pass nothing, the context menu passes the document, and a CodeLens
- * passes the document and the declaration's position.
+ * palette pass nothing, and the context menu passes the document.
  */
 export async function resolveFocusRequest(
   uri?: vscode.Uri,

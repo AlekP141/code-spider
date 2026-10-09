@@ -11,6 +11,10 @@ export class WarmOnce {
 
   constructor(private readonly warm: (file: string) => void) {}
 
+  reset(): void {
+    this.done = false;
+  }
+
   offer(document: WarmCandidate | undefined): void {
     if (this.done || !document) return;
     if (document.uri.scheme !== "file") return;

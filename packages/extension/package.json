@@ -25,11 +25,6 @@
           "default": 8192,
           "minimum": 512,
           "description": "Maximum heap, in megabytes, of the analysis worker. Raise it if Code Spider reports running out of memory on a very large project. Changing it restarts the worker."
-        },
-        "codeSpider.codeLens.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show a ⧉ Graph CodeLens above function, component and class declarations."
         }
       }
     },

@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ANALYSABLE_LANGUAGE_IDS } from "../src/changes.js";
 import {
-  CODELENS_TITLE,
   COMMAND_SHOW_GRAPH,
   COMMAND_SHOW_IN_CODE_SPIDER,
-  SETTING_CODELENS_ENABLED,
   SETTING_MAX_HEAP_MB,
 } from "../src/ids.js";
 import {
@@ -85,12 +83,5 @@ describe("extension manifest", () => {
       default: DEFAULT_MAX_HEAP_MB,
       minimum: MIN_MAX_HEAP_MB,
     });
-  });
-
-  it("makes the CodeLens toggleable and on by default", () => {
-    const setting =
-      contributes.configuration?.properties[SETTING_CODELENS_ENABLED];
-    expect(setting).toMatchObject({ type: "boolean", default: true });
-    expect(CODELENS_TITLE).toBe("⧉ Graph");
   });
 });

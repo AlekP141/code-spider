@@ -5,14 +5,12 @@ import { ChangeTracker } from "./changes.js";
 import {
   COMMAND_SHOW_GRAPH,
   COMMAND_SHOW_IN_CODE_SPIDER,
-  SETTING_CODELENS_ENABLED,
   SETTING_MAX_HEAP_MB,
 } from "./ids.js";
 import { JumpHandler } from "./navigation.js";
 import { GraphPanel } from "./panel/graph-panel.js";
 import { GraphSession, type CurrentGraph } from "./session.js";
 import { WarmOnce } from "./warm-once.js";
-import { CODELENS_SELECTOR, GraphCodeLensProvider } from "./vscode/codelens.js";
 import { EditorRevealer } from "./vscode/editor.js";
 import { resolveFocusRequest } from "./vscode/focus-request.js";
 import { notifier } from "./vscode/notifier.js";
@@ -52,11 +50,12 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     maxHeapMb: getMaxHeapMb,
   });
   const jumps = new JumpHandler(() => session.currentGraph(), revealer);
-  const codeLens = new GraphCodeLensProvider();
   const showGraph = async (uri?: vscode.Uri, position?: vscode.Position) => {
     const request = await resolveFocusRequest(uri, position);
     if (request) await session.showGraph(request);
   };
+
+  const warmOnce = new WarmOnce((file) => void session.warm(file));
 
   context.subscriptions.push(
     { dispose: () => worker.dispose() },
@@ -65,20 +64,18 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     statusBar,
     vscode.commands.registerCommand(COMMAND_SHOW_GRAPH, showGraph),
     vscode.commands.registerCommand(COMMAND_SHOW_IN_CODE_SPIDER, showGraph),
-    codeLens,
-    vscode.languages.registerCodeLensProvider(CODELENS_SELECTOR, codeLens),
     vscode.workspace.onDidSaveTextDocument((document) =>
       changes.markSaved(document.languageId, document.uri.fsPath),
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration(SETTING_MAX_HEAP_MB)) worker.recycle();
-      if (event.affectsConfiguration(SETTING_CODELENS_ENABLED)) {
-        codeLens.refresh();
+      if (event.affectsConfiguration(SETTING_MAX_HEAP_MB)) {
+        worker.recycle();
+        warmOnce.reset();
+        warmOnce.offer(vscode.window.activeTextEditor?.document);
       }
     }),
   );
 
-  const warmOnce = new WarmOnce((file) => void session.warm(file));
   warmOnce.offer(vscode.window.activeTextEditor?.document);
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) =>

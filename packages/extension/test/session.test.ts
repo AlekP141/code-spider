@@ -255,6 +255,31 @@ describe("GraphSession.warm", () => {
     ]);
   });
 
+  it("keeps the indexing state on until the last overlapping warm-up settles", async () => {
+    const first = deferred<void>();
+    const second = deferred<void>();
+    const pending = [first, second];
+    const { session, indexing, posted } = setup({
+      warm: () => {
+        const next = pending.shift();
+        if (!next) throw new Error("unexpected warm");
+        return next.promise;
+      },
+    });
+
+    const one = session.warm("/repo/src/a.ts");
+    const two = session.warm("/repo/src/a.ts");
+    first.reject(new Error("worker recycled"));
+    await one;
+    expect(indexing.set).not.toHaveBeenCalledWith(false);
+    expect(posted).not.toContainEqual({ type: "indexing", indexing: false });
+
+    second.resolve();
+    await two;
+    expect(indexing.set).toHaveBeenLastCalledWith(false);
+    expect(posted.at(-1)).toEqual({ type: "indexing", indexing: false });
+  });
+
   it("stays quiet when the warm-up fails for an ordinary reason", async () => {
     const { session, notifier, indexing } = setup({
       warm: async () => {
