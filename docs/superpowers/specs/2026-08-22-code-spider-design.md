@@ -508,6 +508,7 @@ button, and zoom-based level of detail in node code regions. Added after M2:
   to the editor. A plain click still jumps to the code.
 - Draggable nodes. A node the user has moved stays pinned where it was put;
   expansion never moves it.
+- Add the ability to increase the distance between nodes on the x-axis to spread out nodes more and add legibility to longer labels. Preferably with a slider in the code-spider panel.
 - No overlap, ever: nodes placed by an expansion must not land on existing or
   dragged nodes, and edge labels must not stack on top of each other.
 - Saved-file tracking also picks up changes made outside VS Code (a file
