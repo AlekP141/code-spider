@@ -47,9 +47,9 @@ describe("expandNode", () => {
   });
 
   it("refuses to expand an unknown node", () => {
-    expect(() => expandNode(project, "unknown#handlers[key]", root)).toThrow(
-      /not expandable/,
-    );
+    expect(() =>
+      expandNode(project, "unknown:src/app.ts#run#handlers[key]", root),
+    ).toThrow(/not expandable/);
   });
 
   it("throws for a node that no longer exists", () => {

@@ -199,6 +199,11 @@ rendered dashed to an `unknown` node. A graph that silently omits what it could
 not work out is worse than one that admits the gap. This is also the natural
 insertion point for a future LLM-assisted resolution pass.
 
+Each `unknown` node belongs to the function making the call
+(`unknown:<caller id>#<call text>`), so two components that both call
+`props.onPick()` get separate nodes rather than one shared node implying a
+common callee.
+
 ## 6. Analysis pipeline
 
 **Governing decision: never build a whole-project graph.** Analysis is lazy and

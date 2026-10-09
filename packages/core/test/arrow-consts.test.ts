@@ -228,8 +228,8 @@ describe("arrow-const externals and unknown initializers", () => {
         "",
       ].join("\n"),
     });
-    expect(nodes.find((n) => n.id === "unknown#made")?.kind).toBe("unknown");
-    expect(edges.find((e) => e.from === "unknown#made")).toMatchObject({
+    expect(nodes.find((n) => n.id === "unknown:src/page.tsx#Page#made")?.kind).toBe("unknown");
+    expect(edges.find((e) => e.from === "unknown:src/page.tsx#Page#made")).toMatchObject({
       kind: "call",
       resolved: false,
     });

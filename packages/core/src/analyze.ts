@@ -31,7 +31,7 @@ export function expandNode(
   nodeId: NodeId,
   repoRoot: string,
 ): GraphSlice {
-  if (nodeId.startsWith("external:") || nodeId.startsWith("unknown#")) {
+  if (nodeId.startsWith("external:") || nodeId.startsWith("unknown:")) {
     throw new Error(`Node is not expandable: ${nodeId}`);
   }
 

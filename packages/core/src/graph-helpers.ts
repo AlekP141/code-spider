@@ -92,7 +92,7 @@ export function addUnknown(
   kind: EdgeType,
 ): void {
   const node = placeholderNode(
-    `unknown#${displayName}`,
+    `unknown:${focusId}#${displayName}`,
     "unknown",
     displayName,
     "",

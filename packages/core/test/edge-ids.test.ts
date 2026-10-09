@@ -104,6 +104,6 @@ describe("analyzeFocus — unique edge ids", () => {
     );
 
     expect(new Set(edges.map((e) => e.id)).size).toBe(edges.length);
-    expect(kindsFrom(edges, "unknown#Missing")).toEqual(["call", "jsx"]);
+    expect(kindsFrom(edges, "unknown:src/page.tsx#Page#Missing")).toEqual(["call", "jsx"]);
   });
 });

@@ -15,8 +15,8 @@ const jsxEdgesFrom = (edges: { from: string; kind: string }[], from: string) =>
 describe("JSX edge cases", () => {
   it("records an unresolvable tag as an unknown jsx edge", () => {
     const { nodes, edges } = collectMemoryPage(pageWith("", "<Missing />"));
-    expect(nodes.find((n) => n.id === "unknown#Missing")?.kind).toBe("unknown");
-    const edge = edges.find((e) => e.from === "unknown#Missing");
+    expect(nodes.find((n) => n.id === "unknown:src/page.tsx#Page#Missing")?.kind).toBe("unknown");
+    const edge = edges.find((e) => e.from === "unknown:src/page.tsx#Page#Missing");
     expect(edge).toMatchObject({
       kind: "jsx",
       resolved: false,
@@ -61,8 +61,8 @@ describe("JSX edge cases", () => {
       ...pageWith(`import Anon from "./anon";`, "<Anon a={1} />"),
     };
     const { nodes, edges } = collectMemoryPage(files);
-    expect(nodes.find((n) => n.id === "unknown#Anon")?.kind).toBe("unknown");
-    expect(edges.find((e) => e.from === "unknown#Anon")).toMatchObject({
+    expect(nodes.find((n) => n.id === "unknown:src/page.tsx#Page#Anon")?.kind).toBe("unknown");
+    expect(edges.find((e) => e.from === "unknown:src/page.tsx#Page#Anon")).toMatchObject({
       kind: "jsx",
       resolved: false,
     });

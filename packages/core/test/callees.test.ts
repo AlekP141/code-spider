@@ -188,12 +188,12 @@ describe("collectCalleeEdges — call text as a name", () => {
   const ids = nodes.map((n) => n.id);
 
   it("drops line breaks and indentation around member access", () => {
-    expect(ids).toContain("unknown#api.users?.list");
+    expect(ids).toContain("unknown:src/page.tsx#Page#api.users?.list");
     expect(ids).toContain("external:lib#xs.join");
   });
 
   it("collapses and caps a long callee expression", () => {
-    const iife = nodes.find((n) => n.id.startsWith("unknown#(function"));
+    const iife = nodes.find((n) => n.id.startsWith("unknown:src/page.tsx#Page#(function"));
     expect(iife?.name).toMatch(/^\(function \(\) \{ return .*…$/);
     expect(iife?.name.length).toBeLessThanOrEqual(60);
   });
