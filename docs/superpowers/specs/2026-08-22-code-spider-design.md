@@ -501,7 +501,19 @@ testable before a single pixel exists.
 Command, `Shift+Alt+Q`, CodeLens and context menu wired. Click-to-jump works.
 
 **M3 — Interaction.** Expand-on-demand with position pinning, the refresh
-button, and zoom-based level of detail in node code regions.
+button, and zoom-based level of detail in node code regions. Added after M2:
+
+- Re-centre from inside the graph: a gesture on a node (double-click or a
+  button) makes it the new focus, so the tree can be walked without returning
+  to the editor. A plain click still jumps to the code.
+- Draggable nodes. A node the user has moved stays pinned where it was put;
+  expansion never moves it.
+- No overlap, ever: nodes placed by an expansion must not land on existing or
+  dragged nodes, and edge labels must not stack on top of each other.
+- Saved-file tracking also picks up changes made outside VS Code (a file
+  watcher that only tells the worker which files changed; it never triggers
+  analysis or redraws by itself), so a `git switch` doesn't leave the warm
+  project reading stale files.
 
 **M4 — Polish and package.** Theming, truncation and unknown-node states, error
 handling, `.vsix`.
