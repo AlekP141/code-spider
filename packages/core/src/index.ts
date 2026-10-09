@@ -15,6 +15,11 @@ export {
   expandNode,
   type AnalyzeRequest,
 } from "./analyze.js";
-export { findNearestTsconfig, loadProject, Project } from "./project.js";
+export {
+  findNearestTsconfig,
+  loadProject,
+  warmProject,
+  Project,
+} from "./project.js";
 export { CODE_PREVIEW_MAX_LINES } from "./node-builder.js";
 export { MAX_CALLERS } from "./callers.js";

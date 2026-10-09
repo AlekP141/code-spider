@@ -26,3 +26,13 @@ export function findNearestTsconfig(startFile: string): string {
 export function loadProject(tsConfigFilePath: string): Project {
   return new Project({ tsConfigFilePath });
 }
+
+/**
+ * Builds what the first analysis would otherwise build: ts-morph's type
+ * checker, which binds every file, and the separate program inside the
+ * language service, which findReferences uses.
+ */
+export function warmProject(project: Project): void {
+  project.getProgram().compilerObject.getTypeChecker();
+  project.getLanguageService().compilerObject.getProgram();
+}

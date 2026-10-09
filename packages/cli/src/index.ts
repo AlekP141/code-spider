@@ -6,10 +6,11 @@ import {
   analyzeFocus,
   findNearestTsconfig,
   loadProject,
+  warmProject,
   type GraphSlice,
 } from "@code-spider/core";
 import { parseRunOptions } from "./run-options.js";
-import { formatTiming } from "./timing.js";
+import { formatTiming, type Timings } from "./timing.js";
 
 const USAGE =
   "usage: code-spider <file>:<line>[:<col>] [--root <dir>] " +
@@ -95,11 +96,7 @@ export function parseArgs(argv: string[]): CliArgs {
   return { target, root };
 }
 
-export type RunResult = {
-  slice: GraphSlice;
-  loadMs: number;
-  analyzeMs: number[];
-};
+export type RunResult = Timings & { slice: GraphSlice };
 
 export function runTarget(
   target: string,
@@ -122,6 +119,10 @@ export function runTarget(
   const project = loadProject(tsconfig);
   const loadMs = performance.now() - loadStart;
 
+  const warmStart = performance.now();
+  warmProject(project);
+  const warmMs = performance.now() - warmStart;
+
   const timedAnalyze = () => {
     const start = performance.now();
     const slice = analyzeFocus(project, input);
@@ -133,6 +134,7 @@ export function runTarget(
   return {
     slice: first.slice,
     loadMs,
+    warmMs,
     analyzeMs: [first.ms, ...rest.map((run) => run.ms)],
   };
 }
@@ -152,7 +154,7 @@ export function main(argv: string[]): number {
     const { target, root } = parseArgs(rest);
     const result = runTarget(target, root, repeat);
     if (timing) {
-      for (const line of formatTiming(result.loadMs, result.analyzeMs)) {
+      for (const line of formatTiming(result)) {
         console.error(line);
       }
     }

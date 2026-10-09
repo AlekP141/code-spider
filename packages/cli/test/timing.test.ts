@@ -15,15 +15,17 @@ const GOLDEN = fileURLToPath(
 );
 
 describe("formatTiming", () => {
-  it("prints load and analyze on one line for a single run", () => {
-    expect(formatTiming(1234.4, [56.6])).toEqual([
-      "load: 1234ms  analyze: 57ms",
-    ]);
+  it("prints load, warm and analyze on one line for a single run", () => {
+    expect(
+      formatTiming({ loadMs: 1234.4, warmMs: 800.2, analyzeMs: [56.6] }),
+    ).toEqual(["load: 1234ms  warm: 800ms  analyze: 57ms"]);
   });
 
-  it("prints load on its own line and one line per analyze run", () => {
-    expect(formatTiming(10, [9.5, 3.2, 2.4])).toEqual([
-      "load: 10ms",
+  it("prints setup on its own line and one line per analyze run", () => {
+    expect(
+      formatTiming({ loadMs: 10, warmMs: 4, analyzeMs: [9.5, 3.2, 2.4] }),
+    ).toEqual([
+      "load: 10ms  warm: 4ms",
       "analyze[1]: 10ms",
       "analyze[2]: 3ms",
       "analyze[3]: 2ms",
@@ -36,6 +38,7 @@ describe("runTarget", () => {
     const result = runTarget(`${SIGNUP}:19:3`, undefined, 3);
     expect(result.analyzeMs).toHaveLength(3);
     expect(result.loadMs).toBeGreaterThanOrEqual(0);
+    expect(result.warmMs).toBeGreaterThanOrEqual(0);
     expect(result.slice.focusId).toBe("src/signup.ts#handleSignup");
   });
 });
@@ -53,7 +56,7 @@ describe("main with --timing and --repeat", () => {
 
     const stderrLines = error.mock.calls.map((call) => String(call[0]));
     expect(stderrLines).toHaveLength(4);
-    expect(stderrLines[0]).toMatch(/^load: \d+ms$/);
+    expect(stderrLines[0]).toMatch(/^load: \d+ms {2}warm: \d+ms$/);
     expect(stderrLines[1]).toMatch(/^analyze\[1\]: \d+ms$/);
     expect(stderrLines[2]).toMatch(/^analyze\[2\]: \d+ms$/);
     expect(stderrLines[3]).toMatch(/^analyze\[3\]: \d+ms$/);
@@ -72,7 +75,7 @@ describe("main with --timing and --repeat", () => {
 
     expect(error).toHaveBeenCalledTimes(1);
     expect(String(error.mock.calls[0]?.[0])).toMatch(
-      /^load: \d+ms {2}analyze: \d+ms$/,
+      /^load: \d+ms {2}warm: \d+ms {2}analyze: \d+ms$/,
     );
     expect(log).toHaveBeenCalledTimes(1);
     expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toEqual(
