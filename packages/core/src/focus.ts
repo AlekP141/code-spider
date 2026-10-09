@@ -3,12 +3,16 @@ import {
   FunctionDeclaration,
   FunctionExpression,
   MethodDeclaration,
-  Identifier,
   Node,
   SourceFile,
   Project,
+  SyntaxKind,
 } from "ts-morph";
-import { bindingOf } from "./bound-functions.js";
+import {
+  bindingOf,
+  defaultExportOf,
+  exportedFunctionOf,
+} from "./bound-functions.js";
 
 export type CallableDeclaration =
   | FunctionDeclaration
@@ -21,11 +25,17 @@ export type FocusTarget = {
   declaration: CallableDeclaration;
   /** The node whose text becomes the excerpt and whose range is jumped to. */
   textNode: Node;
-  /** The identifier whose references are the callers. */
-  nameNode: Identifier;
+  /**
+   * Where the caller search starts: the name, or the `default` keyword of an
+   * anonymous default export.
+   */
+  nameNode: Node;
   name: string;
   sourceFile: SourceFile;
 };
+
+/** The name of an anonymous default export, as in `src/page.tsx#default`. */
+export const DEFAULT_EXPORT_NAME = "default";
 
 export const isCallable = (node: Node): node is CallableDeclaration => {
   return (
@@ -49,7 +59,7 @@ export const resolveFocus = (
   if (enclosing) return enclosing;
 
   // Spec §6 step 1: with no enclosing callable, fall back to the default export.
-  const fallback = findDefaultExportCallable(sourceFile);
+  const fallback = defaultExportCallable(sourceFile);
   if (fallback) return toFocusTarget(fallback, sourceFile);
 
   throw new Error(
@@ -87,7 +97,7 @@ export function nameableTarget(
   }
 }
 
-function findDefaultExportCallable(
+export function defaultExportCallable(
   sourceFile: SourceFile,
 ): CallableDeclaration | undefined {
   const declaration = sourceFile.getDefaultExportSymbol()?.getDeclarations()[0];
@@ -96,13 +106,14 @@ function findDefaultExportCallable(
   // `export default function entry() {}` — the declaration is the callable.
   if (isCallable(declaration)) return declaration;
 
-  // `export default entry` — an ExportAssignment pointing at an identifier.
+  // `export default entry`, `export default () => …`, `export default memo(fn)`
   if (Node.isExportAssignment(declaration)) {
     const target = declaration
       .getExpression()
       .getSymbol()
       ?.getDeclarations()[0];
     if (target && isCallable(target)) return target;
+    return exportedFunctionOf(declaration);
   }
 
   return undefined;
@@ -117,18 +128,23 @@ export function toFocusTarget(
     Node.isMethodDeclaration(declaration)
   ) {
     const nameNode = declaration.getNameNode();
-    if (!nameNode || !Node.isIdentifier(nameNode)) {
-      throw new Error(
-        "Anonymous or computed-name declaration cannot be focused",
-      );
+    if (nameNode && Node.isIdentifier(nameNode)) {
+      return {
+        declaration,
+        textNode: declaration,
+        nameNode,
+        name: nameNode.getText(),
+        sourceFile,
+      };
     }
-    return {
-      declaration,
-      textNode: declaration,
-      nameNode,
-      name: nameNode.getText(),
-      sourceFile,
-    };
+    // `export default function () {}`
+    const keyword = Node.isFunctionDeclaration(declaration)
+      ? declaration.getFirstModifierByKind(SyntaxKind.DefaultKeyword)
+      : undefined;
+    if (keyword) return defaultTarget(declaration, declaration, keyword);
+    throw new Error(
+      "Anonymous or computed-name declaration cannot be focused",
+    );
   }
   // Arrow functions and function expressions are anonymous; the name (and the
   // text worth showing) lives on the const or class property holding them.
@@ -151,5 +167,26 @@ export function toFocusTarget(
     };
   }
 
+  // `export default () => {}` or `export default memo(() => {})`
+  const assignment = defaultExportOf(declaration);
+  const keyword = assignment?.getFirstChildByKind(SyntaxKind.DefaultKeyword);
+  if (assignment && keyword) {
+    return defaultTarget(declaration, assignment, keyword);
+  }
+
   throw new Error("Anonymous function expression cannot be focused");
+}
+
+function defaultTarget(
+  declaration: CallableDeclaration,
+  textNode: Node,
+  keyword: Node,
+): FocusTarget {
+  return {
+    declaration,
+    textNode,
+    nameNode: keyword,
+    name: DEFAULT_EXPORT_NAME,
+    sourceFile: declaration.getSourceFile(),
+  };
 }

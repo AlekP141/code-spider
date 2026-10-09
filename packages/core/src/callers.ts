@@ -1,7 +1,6 @@
 import {
   Node,
   type CallExpression,
-  type Identifier,
   type JsxOpeningElement,
   type JsxSelfClosingElement,
 } from "ts-morph";
@@ -109,7 +108,7 @@ function renderOf(
 }
 
 /** Sorted by path then position, so the kept callers are deterministic. */
-function referencesInOrder(nameNode: Identifier): Node[] {
+function referencesInOrder(nameNode: Node): Node[] {
   return findReferenceNodes(nameNode).sort(compareLocation);
 }
 

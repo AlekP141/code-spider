@@ -1,6 +1,7 @@
 import {
   Node,
   type ArrowFunction,
+  type ExportAssignment,
   type FunctionExpression,
   type PropertyDeclaration,
   type VariableDeclaration,
@@ -19,11 +20,26 @@ export type Binding = VariableDeclaration | PropertyDeclaration;
  */
 export function boundFunctionOf(binding: Binding): FunctionValue | undefined {
   const initializer = binding.getInitializer();
-  if (!initializer) return undefined;
-  const value = skipTypeOnly(initializer);
-  if (isFunctionValue(value)) return value;
-  const wrapped = wrappedFunctionOf(value);
-  return wrapped && isCallableValue(binding) ? wrapped : undefined;
+  return initializer && functionHeldBy(initializer, binding);
+}
+
+/** The same for `export default () => …` or `export default memo(fn)`. */
+export function exportedFunctionOf(
+  assignment: ExportAssignment,
+): FunctionValue | undefined {
+  if (assignment.isExportEquals()) return undefined;
+  const expression = assignment.getExpression();
+  return functionHeldBy(expression, expression);
+}
+
+function functionHeldBy(
+  value: Node,
+  holder: Node,
+): FunctionValue | undefined {
+  const unwrapped = skipTypeOnly(value);
+  if (isFunctionValue(unwrapped)) return unwrapped;
+  const wrapped = wrappedFunctionOf(unwrapped);
+  return wrapped && isCallableValue(holder) ? wrapped : undefined;
 }
 
 export function isBinding(node: Node | undefined): node is Binding {
@@ -32,15 +48,31 @@ export function isBinding(node: Node | undefined): node is Binding {
 
 /** The binding that holds `fn`, per boundFunctionOf. */
 export function bindingOf(fn: FunctionValue): Binding | undefined {
+  const holder = holderOf(fn);
+  return isBinding(holder) && boundFunctionOf(holder) === fn
+    ? holder
+    : undefined;
+}
+
+/** The `export default` that holds `fn`, per exportedFunctionOf. */
+export function defaultExportOf(
+  fn: FunctionValue,
+): ExportAssignment | undefined {
+  const holder = holderOf(fn);
+  return Node.isExportAssignment(holder) && exportedFunctionOf(holder) === fn
+    ? holder
+    : undefined;
+}
+
+/** The first node above `fn` that is not a type assertion or wrapper call. */
+function holderOf(fn: FunctionValue): Node | undefined {
   let node: Node = fn;
   let parent = node.getParent();
   while (parent && (isTypeOnly(parent) || isArgumentOf(parent, node))) {
     node = parent;
     parent = node.getParent();
   }
-  return isBinding(parent) && boundFunctionOf(parent) === fn
-    ? parent
-    : undefined;
+  return parent;
 }
 
 export function isFunctionValue(
@@ -60,8 +92,8 @@ function wrappedFunctionOf(call: Node): FunctionValue | undefined {
   return undefined;
 }
 
-function isCallableValue(binding: Binding): boolean {
-  return binding.getType().getCallSignatures().length > 0;
+function isCallableValue(holder: Node): boolean {
+  return holder.getType().getCallSignatures().length > 0;
 }
 
 function isArgumentOf(parent: Node, node: Node): boolean {

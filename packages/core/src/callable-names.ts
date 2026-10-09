@@ -10,6 +10,8 @@ import {
 } from "ts-morph";
 import { boundFunctionOf, isBinding } from "./bound-functions.js";
 import {
+  DEFAULT_EXPORT_NAME,
+  defaultExportCallable,
   isCallable,
   nameableTarget,
   type CallableDeclaration,
@@ -85,6 +87,10 @@ function callablesNamed(
   sourceFile: SourceFile,
   name: string,
 ): CallableDeclaration[] {
+  if (name === DEFAULT_EXPORT_NAME) {
+    const exported = defaultExportCallable(sourceFile);
+    return exported ? [exported] : [];
+  }
   return declarationsNamed(sourceFile, name).flatMap((declaration) => {
     if (isBinding(declaration)) return boundFunctionOf(declaration) ?? [];
     const isDeclared =

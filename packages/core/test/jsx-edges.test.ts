@@ -54,17 +54,21 @@ describe("JSX edge cases", () => {
     expect(jsxEdgesFrom(edges, "src/child.tsx#Child")).toHaveLength(1);
   });
 
-  it("keeps an anonymous default-export component as unknown", () => {
+  it("resolves an anonymous default-export component as default", () => {
     const files = {
       "src/anon.tsx":
         "export default function (props: { a: number }): JSX.Element {\n  return <div>{props.a}</div>\n}\n",
       ...pageWith(`import Anon from "./anon";`, "<Anon a={1} />"),
     };
     const { nodes, edges } = collectMemoryPage(files);
-    expect(nodes.find((n) => n.id === "unknown:src/page.tsx#Page#Anon")?.kind).toBe("unknown");
-    expect(edges.find((e) => e.from === "unknown:src/page.tsx#Page#Anon")).toMatchObject({
+    expect(nodes.find((n) => n.id === "src/anon.tsx#default")).toMatchObject({
+      kind: "component",
+      name: "default",
+    });
+    expect(edges.find((e) => e.from === "src/anon.tsx#default")).toMatchObject({
       kind: "jsx",
-      resolved: false,
+      resolved: true,
+      supplies: "{ a: number; }",
     });
   });
 

@@ -124,7 +124,9 @@ arrow two contradictory labels.
 A node's ID is `<repo-relative-path>#<qualified-name>`. The qualified name is
 the symbol's name behind each named class and function that holds it:
 `src/repo.ts#Repo.save`, `src/page.tsx#Shell.onClick`. Anonymous callbacks add
-nothing, and an anonymous default-exported class reads as `default`. The node's
+nothing. An anonymous default export reads as `default`, whether it is a class,
+a function or a component (`export default () => <div/>` is
+`src/page.tsx#default`). The node's
 `name` field stays the short name.
 
 Path-based rather than position-based, so a node survives edits made above it in

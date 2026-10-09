@@ -119,7 +119,7 @@ describe("collectCalleeEdges — deduplication", () => {
 describe("collectCalleeEdges — unnameable callees", () => {
   const { project, root } = loadTestCode("basic");
 
-  it("keeps a call to an anonymous default export as unresolved", () => {
+  it("resolves a call to an anonymous default export as default", () => {
     project.createSourceFile(
       "tmp-anon-default.ts",
       `export default function () { return 1 }`,
@@ -140,8 +140,9 @@ describe("collectCalleeEdges — unnameable callees", () => {
       { repoRoot: root },
     );
 
-    expect(nodes.some((n) => n.kind === "unknown")).toBe(true);
-    expect(edges.some((e) => e.resolved === false)).toBe(true);
+    const callee = nodes.find((n) => n.name === "default");
+    expect(callee?.id).toMatch(/tmp-anon-default\.ts#default$/);
+    expect(edges.find((e) => e.from === callee?.id)?.resolved).toBe(true);
   });
 
   it("keeps a call to a private-name method as unresolved", () => {

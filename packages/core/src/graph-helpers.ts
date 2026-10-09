@@ -1,5 +1,9 @@
 import { Node } from "ts-morph";
-import { boundFunctionOf, isBinding } from "./bound-functions.js";
+import {
+  boundFunctionOf,
+  exportedFunctionOf,
+  isBinding,
+} from "./bound-functions.js";
 import { externalModuleOf } from "./externals.js";
 import { isCallable } from "./focus.js";
 import { returnTypeLabel } from "./labels.js";
@@ -40,8 +44,8 @@ export function displayNameOf(expression: Node): string {
 
 /**
  * Follow import aliases to the real declaration. Returns undefined when unresolvable.
- * Consts resolve to the function they are bound to (see boundFunctionOf), and
- * overload signatures to their implementation.
+ * Consts and `export default` resolve to the function they hold (see
+ * boundFunctionOf), and overload signatures to their implementation.
  */
 export function resolveDeclaration(expression: Node): Node | undefined {
   const symbol = expression.getSymbol();
@@ -54,6 +58,9 @@ export function resolveDeclaration(expression: Node): Node | undefined {
 function definitionOf(declaration: Node): Node {
   if (isBinding(declaration)) {
     return boundFunctionOf(declaration) ?? declaration;
+  }
+  if (Node.isExportAssignment(declaration)) {
+    return exportedFunctionOf(declaration) ?? declaration;
   }
   const overloadable =
     Node.isFunctionDeclaration(declaration) ||

@@ -1,4 +1,4 @@
-import { ts, type Identifier, type Node, type SourceFile } from "ts-morph";
+import { ts, type Node, type SourceFile } from "ts-morph";
 
 type ReferenceEntry = {
   fileName: string;
@@ -38,7 +38,7 @@ const NEVER_CANCELLED: ts.CancellationToken = {
  * Same result as ts-morph's `findReferencesAsNodes`, without its language
  * service.
  */
-export function findReferenceNodes(nameNode: Identifier): Node[] {
+export function findReferenceNodes(nameNode: Node): Node[] {
   if (!finder) {
     throw new Error("This TypeScript version has no FindAllReferences API");
   }
