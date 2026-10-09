@@ -540,15 +540,16 @@ Ordered roughly by expected value:
 
 ## 13. Working agreement
 
-The repository owner writes the implementation code. This is a learning project:
-the VS Code extension APIs, the TypeScript compiler API, React Flow and ELK are
-all new to them.
+Agents build the implementation. Each plan task gets one implementer agent and
+one independent reviewer agent; the repository owner reviews the result and
+makes every commit, one task at a time. Nothing is staged, committed or pushed
+without the owner asking.
 
-The implementation plan must therefore be written **for a human learner, not for
-an agent**. Each step needs enough context to be built from first principles:
-what the API being used actually does, why this approach was chosen over the
-alternatives, what the step should look like when it works, and how to verify it
-before moving on. Steps should be small enough to complete and check in one
-sitting.
+Plans are therefore written **for an agent with no context on this codebase**:
+exact files, interfaces between tasks, test code, commands and expected output
+for every step. The analyser plan (M0 + M1) predates this and was written for a
+human learner; plans from M2 onward follow this agreement.
 
-Claude's role is to produce that plan and then review completed work against it.
+Claude coordinates: it writes each plan through an author agent, checks it
+against this spec, dispatches the per-task agents, and stops after every task so
+the owner can commit.
