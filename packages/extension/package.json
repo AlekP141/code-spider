@@ -10,8 +10,24 @@
   "engines": { "vscode": "^1.140.0" },
   "categories": ["Visualization"],
   "main": "./dist/extension.cjs",
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact"
+  ],
   "contributes": {
+    "configuration": {
+      "title": "Code Spider",
+      "properties": {
+        "codeSpider.worker.maxHeapMb": {
+          "type": "number",
+          "default": 8192,
+          "minimum": 512,
+          "description": "Maximum heap, in megabytes, of the analysis worker. Raise it if Code Spider reports running out of memory on a very large project. Changing it restarts the worker."
+        }
+      }
+    },
     "commands": [
       {
         "command": "codeSpider.showGraph",

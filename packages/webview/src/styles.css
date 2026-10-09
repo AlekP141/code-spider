@@ -13,11 +13,50 @@ body {
   font-size: var(--vscode-font-size);
 }
 
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
 .status {
+  margin: 0;
   padding: 16px;
 }
 
-.status h1 {
-  font-size: 1.2em;
-  margin: 0 0 8px;
+.banner {
+  background: var(--vscode-editorWidget-background);
+  border-bottom: 1px solid var(--vscode-panel-border);
+  padding: 6px 12px;
+}
+
+.banner-error {
+  border-bottom-color: var(--vscode-errorForeground);
+  color: var(--vscode-errorForeground);
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+  border: 2px solid var(--vscode-progressBar-background);
+  border-radius: 50%;
+  border-right-color: transparent;
+  height: 18px;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 18px;
+  z-index: 10;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

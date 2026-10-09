@@ -8,6 +8,12 @@ export type Manifest = {
   activationEvents: string[];
   contributes: {
     commands: { command: string; title: string; category: string }[];
+    configuration?: {
+      properties: Record<
+        string,
+        { type: string; default: unknown; minimum?: number }
+      >;
+    };
   };
 };
 
