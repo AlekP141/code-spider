@@ -1,0 +1,178 @@
+.graph-canvas {
+  inset: 0;
+  position: absolute;
+}
+
+.react-flow {
+  --xy-background-color: var(--vscode-editor-background);
+  --xy-edge-stroke: var(--vscode-editorLineNumber-foreground);
+  --xy-edge-stroke-selected: var(--vscode-focusBorder);
+  --xy-edge-label-background-color: var(--vscode-editor-background);
+  --xy-edge-label-color: var(--vscode-descriptionForeground);
+  --xy-controls-button-background-color: var(--vscode-editorWidget-background);
+  --xy-controls-button-background-color-hover: var(
+    --vscode-toolbar-hoverBackground
+  );
+  --xy-controls-button-color: var(--vscode-editor-foreground);
+  --xy-controls-button-border-color: var(
+    --vscode-editorWidget-border,
+    var(--vscode-panel-border)
+  );
+  --xy-attribution-background-color: var(--vscode-editorWidget-background);
+  --xy-controls-box-shadow: none;
+}
+
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.react-flow__edge-text {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+}
+
+.react-flow__edge.edge-call .react-flow__edge-path {
+  stroke: var(--vscode-editor-foreground);
+  opacity: 0.6;
+}
+
+.react-flow__edge.edge-external .react-flow__edge-path {
+  stroke: var(--vscode-editor-foreground);
+  opacity: 0.35;
+}
+
+.react-flow__edge.edge-jsx .react-flow__edge-path {
+  stroke: var(--vscode-charts-purple);
+}
+
+.react-flow__edge.edge-passes .react-flow__edge-path {
+  stroke: var(--vscode-charts-blue);
+  stroke-linecap: round;
+}
+
+.react-flow__edge.edge-unresolved .react-flow__edge-path {
+  stroke: var(--vscode-editorWarning-foreground);
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--vscode-focusBorder);
+}
+
+.node-box {
+  background: var(
+    --vscode-editorWidget-background,
+    var(--vscode-editor-background)
+  );
+  border-radius: 4px;
+  box-sizing: border-box;
+  color: var(--vscode-editor-foreground);
+  height: 100%;
+  outline: 1px solid
+    var(--vscode-editorWidget-border, var(--vscode-panel-border));
+  outline-offset: -1px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.node-box.is-focus {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+
+.node-box.kind-unknown {
+  outline-color: var(--vscode-editorWarning-foreground);
+  outline-style: dashed;
+}
+
+.node-box.kind-external {
+  background: transparent;
+}
+
+.node-header {
+  align-items: center;
+  border-bottom: 1px solid
+    var(--vscode-editorWidget-border, var(--vscode-panel-border));
+  box-sizing: border-box;
+  display: flex;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.node-box.kind-component .node-header {
+  border-left: 3px solid var(--vscode-charts-blue);
+}
+
+.node-box.kind-external .node-header,
+.node-box.kind-unknown .node-header,
+.node-box.kind-module .node-header {
+  border-bottom: none;
+}
+
+.node-name {
+  flex: 1 1 auto;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-box.kind-module .node-name {
+  font-style: italic;
+}
+
+.node-box.kind-unknown .node-name::before {
+  content: "? ";
+}
+
+.node-async {
+  background: var(--vscode-badge-background);
+  border-radius: 3px;
+  color: var(--vscode-badge-foreground);
+  flex: none;
+  font-size: 10px;
+  padding: 0 4px;
+}
+
+.node-input {
+  color: var(--vscode-descriptionForeground);
+  flex: 0 1 45%;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-code {
+  box-sizing: border-box;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+  margin: 0;
+  overflow: hidden;
+  position: relative;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.node-code.is-clipped::after {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--vscode-editorWidget-background, var(--vscode-editor-background))
+  );
+  bottom: 0;
+  content: "";
+  height: 40px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}

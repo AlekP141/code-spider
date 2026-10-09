@@ -1,5 +1,6 @@
 import { useEffect, useReducer } from "react";
 import { initialState, reduceMessage } from "./app-state.js";
+import { GraphView } from "./graph/GraphView.js";
 import { isExtensionMessage } from "./messages.js";
 import { useDelayedFlag } from "./use-delayed-flag.js";
 import { postToExtension } from "./vscode-api.js";
@@ -37,10 +38,7 @@ export function App() {
       ) : null}
       <section className="content">
         {state.slice ? (
-          <p className="status">
-            Graph for {state.slice.focusId}: {state.slice.nodes.length} nodes,{" "}
-            {state.slice.edges.length} edges.
-          </p>
+          <GraphView slice={state.slice} />
         ) : (
           <p className="status">
             Place the cursor in a function and run Code Spider: Show Graph.

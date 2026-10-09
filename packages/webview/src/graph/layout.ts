@@ -30,6 +30,16 @@ export function buildElkGraph(
   };
 }
 
+export function applyPositions(
+  nodes: readonly SpiderFlowNode[],
+  positions: Positions,
+): SpiderFlowNode[] {
+  return nodes.map((node) => ({
+    ...node,
+    position: positions.get(node.id) ?? node.position,
+  }));
+}
+
 export async function layoutPositions(
   nodes: readonly SpiderFlowNode[],
   edges: readonly SpiderFlowEdge[],
