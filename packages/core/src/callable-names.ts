@@ -66,10 +66,10 @@ function qualifiedNameOf(target: FocusTarget): string {
 }
 
 function containerName(node: Node): string | undefined {
-  if (isCallable(node)) return nameableTarget(node)?.name;
   if (Node.isClassDeclaration(node) || Node.isClassExpression(node)) {
     return className(node);
   }
+  if (isCallable(node)) return nameableTarget(node)?.name;
   return undefined;
 }
 
@@ -93,6 +93,7 @@ function callablesNamed(
   }
   return declarationsNamed(sourceFile, name).flatMap((declaration) => {
     if (isBinding(declaration)) return boundFunctionOf(declaration) ?? [];
+    if (Node.isClassDeclaration(declaration)) return declaration;
     const isDeclared =
       Node.isFunctionDeclaration(declaration) ||
       Node.isMethodDeclaration(declaration);
@@ -101,6 +102,7 @@ function callablesNamed(
 }
 
 const DECLARATION_KINDS = new Set([
+  SyntaxKind.ClassDeclaration,
   SyntaxKind.FunctionDeclaration,
   SyntaxKind.MethodDeclaration,
   SyntaxKind.VariableDeclaration,

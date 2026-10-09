@@ -1,4 +1,9 @@
-import { TypeFormatFlags, type Node, type Type } from "ts-morph";
+import {
+  Node,
+  TypeFormatFlags,
+  type ParameterDeclaration,
+  type Type,
+} from "ts-morph";
 import { isDefaultLibFile } from "./externals.js";
 import type { CallableDeclaration } from "./focus.js";
 
@@ -32,23 +37,39 @@ export function returnTypeLabel(decl: CallableDeclaration): {
   text: string;
   isAsync: boolean;
 } {
-  const { type, isAsync } = unwrapPromise(decl.getReturnType());
+  const { type, isAsync } = unwrapPromise(returnTypeOf(decl));
   return { text: formatType(type, decl), isAsync };
 }
 
+/** What a call produces; for a class, the instance `new` constructs. */
+export function returnTypeOf(decl: CallableDeclaration): Type {
+  return Node.isClassDeclaration(decl) ? decl.getType() : decl.getReturnType();
+}
+
 export function inputTypeLabel(decl: CallableDeclaration): string {
-  return decl
-    .getParameters()
+  return parametersOf(decl)
     .map((p) => formatType(p.getType(), p))
     .join(", ");
 }
 
 /** A function's own type, the payload when it is passed rather than called. */
 export function signatureLabel(decl: CallableDeclaration): string {
-  return formatType(decl.getType(), decl);
+  const symbol = Node.isClassDeclaration(decl) ? decl.getSymbol() : undefined;
+  const type = symbol ? symbol.getTypeAtLocation(decl) : decl.getType();
+  return formatType(type, decl);
 }
 
+/** The first parameter, or for a class component the type of `this.props`. */
 export function propsTypeLabel(decl: CallableDeclaration): string {
-  const props = decl.getParameters()[0];
-  return props ? formatType(props.getType(), props) : "";
+  const props = Node.isClassDeclaration(decl)
+    ? decl.getType().getProperty("props")
+    : undefined;
+  if (props) return formatType(props.getTypeAtLocation(decl), decl);
+  const first = parametersOf(decl)[0];
+  return first ? formatType(first.getType(), first) : "";
+}
+
+function parametersOf(decl: CallableDeclaration): ParameterDeclaration[] {
+  if (!Node.isClassDeclaration(decl)) return decl.getParameters();
+  return decl.getConstructors()[0]?.getParameters() ?? [];
 }

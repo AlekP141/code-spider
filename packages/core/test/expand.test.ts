@@ -116,10 +116,11 @@ describe("expandNode — class methods", () => {
     ).toBe(true);
   });
 
-  it("does not expand a class name", () => {
-    expect(() => expandNode(project, "src/repo.ts#Repo", MEMORY_ROOT)).toThrow(
-      /not found/,
-    );
+  it("expands a class as what runs on construction", () => {
+    const slice = expandNode(project, "src/repo.ts#Repo", MEMORY_ROOT);
+
+    expect(slice.focusId).toBe("src/repo.ts#Repo");
+    expect(slice.nodes.find((n) => n.id === slice.focusId)?.name).toBe("Repo");
   });
 
   it("tells same-named methods of two classes apart", () => {

@@ -114,7 +114,7 @@ arrow two contradictory labels.
 
 | Kind | Meaning | Expandable |
 |---|---|---|
-| `function` | A callable declared in the repo: function declaration, arrow-function const, exported or local | Yes |
+| `function` | A callable declared in the repo: function declaration, arrow-function const, method, exported or local. A class counts too, as the code that runs on `new`: its constructor and field initializers (`new Store()` gives `Store → caller`) | Yes |
 | `component` | A function returning JSX, or one used as `<Foo/>` | Yes |
 | `module` | A file's top-level code, as the caller of anything called, rendered or passed outside every named function: `root.render(<App/>)`, route tables, `memo(Inner)`. ID `<path>#<module>`, named after the file | No |
 | `external` | Anything resolving into `node_modules` or a `lib.*.d.ts` builtin: `db.insert`, `fetch`, `stripe.charges.create` | No — the graph stops here by design |
@@ -183,7 +183,7 @@ type GraphSlice = {
 ### 5.4 Edge labels
 
 `supplies` is the `returnType` of the `from` node, resolved by the type checker
-and formatted for humans. `Promise<User>` displays as `User` with the source
+and formatted for humans. For a class, that is the instance `new` constructs. `Promise<User>` displays as `User` with the source
 node flagged `isAsync` — the promise wrapper is noise on every edge in an async
 codebase.
 

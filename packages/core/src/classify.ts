@@ -1,11 +1,16 @@
-import type { Node, Type } from "ts-morph";
+import { Node, type Type } from "ts-morph";
 import { isExternalFile } from "./externals.js";
 import {
   isCallable,
   nameableTarget,
   type CallableDeclaration,
 } from "./focus.js";
-import { formatType, returnTypeLabel, unwrapPromise } from "./labels.js";
+import {
+  formatType,
+  returnTypeLabel,
+  returnTypeOf,
+  unwrapPromise,
+} from "./labels.js";
 import type { NodeKind } from "./types.js";
 
 const JSX_RETURN = /\bJSX\.Element\b|\bReactElement\b/;
@@ -23,17 +28,23 @@ export function classifyDeclaration(decl: Node): NodeKind {
 }
 
 /**
- * Spec §5.1: a function returning JSX, or one used as `<Foo/>`. JSX treats
+ * Spec §5.1: a function returning JSX, or one used as `<Foo/>`; a class
+ * component is one whose `render` returns JSX. JSX treats
  * lowercase tags as intrinsic, so a usable component has a PascalCase name and
  * returns something React can render.
  */
 function isComponent(decl: CallableDeclaration): boolean {
+  if (Node.isClassDeclaration(decl)) {
+    const render = decl.getInstanceMethod("render");
+    const returns = render ? returnTypeLabel(render).text : "";
+    return JSX_RETURN.test(returns) || REACT_NODE_RETURN.test(returns);
+  }
   const returns = returnTypeLabel(decl).text;
   if (JSX_RETURN.test(returns)) return true;
   if (!COMPONENT_NAME.test(nameableTarget(decl)?.name ?? "")) return false;
   return (
     REACT_NODE_RETURN.test(returns) ||
-    isRenderable(unwrapPromise(decl.getReturnType()).type, decl)
+    isRenderable(unwrapPromise(returnTypeOf(decl)).type, decl)
   );
 }
 

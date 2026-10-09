@@ -1,5 +1,6 @@
 import {
   ArrowFunction,
+  ClassDeclaration,
   FunctionDeclaration,
   FunctionExpression,
   MethodDeclaration,
@@ -14,11 +15,13 @@ import {
   exportedFunctionOf,
 } from "./bound-functions.js";
 
+/** A class counts as the code that runs on `new`: its constructor and fields. */
 export type CallableDeclaration =
   | FunctionDeclaration
   | ArrowFunction
   | FunctionExpression
-  | MethodDeclaration;
+  | MethodDeclaration
+  | ClassDeclaration;
 
 export type FocusTarget = {
   /** The callable itself — used for walking the body and reading types. */
@@ -42,7 +45,8 @@ export const isCallable = (node: Node): node is CallableDeclaration => {
     Node.isFunctionDeclaration(node) ||
     Node.isArrowFunction(node) ||
     Node.isFunctionExpression(node) ||
-    Node.isMethodDeclaration(node)
+    Node.isMethodDeclaration(node) ||
+    Node.isClassDeclaration(node)
   );
 };
 
@@ -141,7 +145,8 @@ export function toFocusTarget(
 ): FocusTarget {
   if (
     Node.isFunctionDeclaration(declaration) ||
-    Node.isMethodDeclaration(declaration)
+    Node.isMethodDeclaration(declaration) ||
+    Node.isClassDeclaration(declaration)
   ) {
     const nameNode = declaration.getNameNode();
     if (nameNode && Node.isIdentifier(nameNode)) {
@@ -153,10 +158,10 @@ export function toFocusTarget(
         sourceFile,
       };
     }
-    // `export default function () {}`
-    const keyword = Node.isFunctionDeclaration(declaration)
-      ? declaration.getFirstModifierByKind(SyntaxKind.DefaultKeyword)
-      : undefined;
+    // `export default function () {}` or `export default class {}`
+    const keyword = Node.isMethodDeclaration(declaration)
+      ? undefined
+      : declaration.getFirstModifierByKind(SyntaxKind.DefaultKeyword);
     if (keyword) return defaultTarget(declaration, declaration, keyword);
     throw new Error(
       "Anonymous or computed-name declaration cannot be focused",

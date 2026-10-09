@@ -2,6 +2,7 @@ import {
   Node,
   type CallExpression,
   type JsxOpeningElement,
+  type NewExpression,
   type JsxSelfClosingElement,
 } from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
@@ -128,11 +129,11 @@ function compareLocation(a: Node, b: Node): number {
 const CALL_APPLY = new Set(["call", "apply"]);
 
 /**
- * The call a reference invokes: `f()`, `obj.f()`, `f.call(...)`, `f.apply(...)`
- * or `obj.f.call(...)`. Imports, type positions and other members such as
- * `f.toString()` or `f.bind(...)()` are not calls.
+ * The call a reference invokes: `f()`, `new F()`, `obj.f()`, `f.call(...)`,
+ * `f.apply(...)` or `obj.f.call(...)`. Imports, type positions and other
+ * members such as `f.toString()` are not calls.
  */
-function callOf(ref: Node): CallExpression | undefined {
+function callOf(ref: Node): CallExpression | NewExpression | undefined {
   const direct = invokerOf(ref) ?? callApplyOn(ref);
   if (direct) return direct;
   const parent = ref.getParent();
@@ -145,15 +146,19 @@ function callOf(ref: Node): CallExpression | undefined {
   return undefined;
 }
 
-/** The call that invokes `expr` directly, as in `expr()`. */
-function invokerOf(expr: Node): CallExpression | undefined {
+/** The call that invokes `expr` directly, as in `expr()` or `new expr()`. */
+function invokerOf(expr: Node): CallExpression | NewExpression | undefined {
   const parent = expr.getParent();
-  if (!Node.isCallExpression(parent)) return undefined;
+  if (!Node.isCallExpression(parent) && !Node.isNewExpression(parent)) {
+    return undefined;
+  }
   return parent.getExpression() === expr ? parent : undefined;
 }
 
 /** For `expr.call(...)` or `expr.apply(...)`, the call of that member. */
-function callApplyOn(expr: Node): CallExpression | undefined {
+function callApplyOn(
+  expr: Node,
+): CallExpression | NewExpression | undefined {
   const parent = expr.getParent();
   if (!Node.isPropertyAccessExpression(parent)) return undefined;
   if (parent.getExpression() !== expr) return undefined;

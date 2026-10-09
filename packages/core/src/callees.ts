@@ -1,4 +1,9 @@
-import { SyntaxKind, type CallExpression, type Node } from "ts-morph";
+import {
+  SyntaxKind,
+  type CallExpression,
+  type NewExpression,
+  type Node,
+} from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
 import { isExternalFile } from "./externals.js";
 import {
@@ -20,8 +25,10 @@ import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
 import { collectPassEdges } from "./pass-edges.js";
 import type { GraphEdge, GraphNode, NodeId } from "./types.js";
 
+type Invocation = CallExpression | NewExpression;
+
 /** Follow import aliases to the real declaration. Returns undefined when unresolvable. */
-export function resolveCallTarget(call: CallExpression): Node | undefined {
+export function resolveCallTarget(call: Invocation): Node | undefined {
   return resolveDeclaration(call.getExpression());
 }
 
@@ -32,9 +39,11 @@ export function collectCalleeEdges(
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const graph: Graph = { nodes: new Map(), edges: new Map() };
 
-  for (const call of target.declaration.getDescendantsOfKind(
-    SyntaxKind.CallExpression,
-  )) {
+  const invocations: Invocation[] = [
+    ...target.declaration.getDescendantsOfKind(SyntaxKind.CallExpression),
+    ...target.declaration.getDescendantsOfKind(SyntaxKind.NewExpression),
+  ];
+  for (const call of invocations) {
     if (belongsTo(call, target)) addCallEdge(graph, call, focusId, ctx);
   }
   collectJsxEdges(target, focusId, ctx, graph);
@@ -45,7 +54,7 @@ export function collectCalleeEdges(
 
 function addCallEdge(
   graph: Graph,
-  call: CallExpression,
+  call: Invocation,
   focusId: NodeId,
   ctx: BuildContext,
 ): void {
