@@ -75,17 +75,21 @@
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p smoke",
     "download:vscode": "node scripts/download-vscode.mjs",
-    "check:keybinding": "node scripts/check-default-keybinding.mjs"
+    "check:keybinding": "node scripts/check-default-keybinding.mjs",
+    "check:electron": "node scripts/check-electron-libs.mjs",
+    "test:smoke": "pnpm --workspace-root build && node build-smoke.mjs && node dist/smoke/run.cjs"
   },
   "devDependencies": {
     "@code-spider/core": "workspace:*",
     "@code-spider/webview": "workspace:*",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^26.5.0",
     "@types/vscode": "^1.140.0",
     "@vscode/test-electron": "^3.1.0",
     "esbuild": "^0.28.2",
+    "mocha": "^12.0.3",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   }
