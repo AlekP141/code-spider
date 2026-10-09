@@ -121,12 +121,16 @@ arrow two contradictory labels.
 
 ### 5.2 Node identity
 
-A node's ID is `<repo-relative-path>#<symbol-name>`.
+A node's ID is `<repo-relative-path>#<qualified-name>`. The qualified name is
+the symbol's name behind each named class and function that holds it:
+`src/repo.ts#Repo.save`, `src/page.tsx#Shell.onClick`. Anonymous callbacks add
+nothing, and an anonymous default-exported class reads as `default`. The node's
+`name` field stays the short name.
 
 Path-based rather than position-based, so a node survives edits made above it in
-the file and the view does not reset when an import is added. Where two local
-symbols share a name in one file, a disambiguating index derived from
-declaration order is appended.
+the file and the view does not reset when an import is added. Where callables in
+one file still share a qualified name (a static and an instance method, say),
+`~N` from declaration order is appended.
 
 Known limitation: because identity includes the symbol name, renaming a function
 reads as a delete plus an add rather than a rename. Tracking symbol identity

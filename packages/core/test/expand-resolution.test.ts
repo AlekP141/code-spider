@@ -58,7 +58,7 @@ describe("expandNode — overloads", () => {
   });
 
   it("expands an overloaded method to its implementation", () => {
-    const slice = expandNode(project, "src/box.ts#put", MEMORY_ROOT);
+    const slice = expandNode(project, "src/box.ts#Box.put", MEMORY_ROOT);
 
     expect(slice).toEqual(focusFrom(project, "src/box.ts", "helper();"));
     expect(slice.nodes.map((n) => n.id)).toContain("src/box.ts#helper");
@@ -108,9 +108,9 @@ describe("expandNode — declared names", () => {
   });
 
   it("resolves a nested function", () => {
-    const slice = expandNode(project, "src/nested.ts#inner", MEMORY_ROOT);
+    const slice = expandNode(project, "src/nested.ts#outer.inner", MEMORY_ROOT);
 
-    expect(slice.focusId).toBe("src/nested.ts#inner");
+    expect(slice.focusId).toBe("src/nested.ts#outer.inner");
   });
 
   it("resolves a function-expression const by its variable name", () => {

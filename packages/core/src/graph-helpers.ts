@@ -1,5 +1,5 @@
 import { Node } from "ts-morph";
-import { boundFunctionOf } from "./bound-functions.js";
+import { boundFunctionOf, isBinding } from "./bound-functions.js";
 import { externalModuleOf } from "./externals.js";
 import { isCallable } from "./focus.js";
 import { returnTypeLabel } from "./labels.js";
@@ -51,7 +51,7 @@ export function resolveDeclaration(expression: Node): Node | undefined {
 }
 
 function functionInitializerOf(declaration: Node): Node {
-  if (!Node.isVariableDeclaration(declaration)) return declaration;
+  if (!isBinding(declaration)) return declaration;
   return boundFunctionOf(declaration) ?? declaration;
 }
 

@@ -1,5 +1,6 @@
 import { relative } from "node:path";
 import type { Node } from "ts-morph";
+import { nodeNameOf } from "./callable-names.js";
 import type { FocusTarget } from "./focus.js";
 import { inputTypeLabel, returnTypeLabel } from "./labels.js";
 import { makeNodeId, toPosixPath } from "./node-id.js";
@@ -32,12 +33,13 @@ export function buildGraphNode(
   const absolute = target.sourceFile.getFilePath();
   const file = toPosixPath(relative(ctx.repoRoot, absolute));
 
+  const { name, index } = nodeNameOf(target);
   const text = target.textNode.getText();
   const lines = text.split(/\r?\n/);
   const { text: returnType, isAsync } = returnTypeLabel(target.declaration);
 
   return {
-    id: makeNodeId(file, target.name),
+    id: makeNodeId(file, name, index),
     kind,
     name: target.name,
     file,

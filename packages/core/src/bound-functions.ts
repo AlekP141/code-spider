@@ -2,37 +2,43 @@ import {
   Node,
   type ArrowFunction,
   type FunctionExpression,
+  type PropertyDeclaration,
   type VariableDeclaration,
 } from "ts-morph";
 
 export type FunctionValue = ArrowFunction | FunctionExpression;
 
+/** A const or class property whose initializer may hold a function. */
+export type Binding = VariableDeclaration | PropertyDeclaration;
+
 /**
- * The function a const is bound to: `const f = () => …`, behind parentheses,
- * `as` or `satisfies`, or wrapped as in `memo(forwardRef(fn))`. A wrapped
- * function counts only when the const itself is callable, so
- * `const xs = arr.map(cb)` is not bound to `cb`.
+ * The function a binding holds: `const f = () => …` or `run = () => …` in a
+ * class, behind parentheses, `as` or `satisfies`, or wrapped as in
+ * `memo(forwardRef(fn))`. A wrapped function counts only when the binding
+ * itself is callable, so `const xs = arr.map(cb)` is not bound to `cb`.
  */
-export function boundFunctionOf(
-  variable: VariableDeclaration,
-): FunctionValue | undefined {
-  const initializer = variable.getInitializer();
+export function boundFunctionOf(binding: Binding): FunctionValue | undefined {
+  const initializer = binding.getInitializer();
   if (!initializer) return undefined;
   const value = skipTypeOnly(initializer);
   if (isFunctionValue(value)) return value;
   const wrapped = wrappedFunctionOf(value);
-  return wrapped && isCallableValue(variable) ? wrapped : undefined;
+  return wrapped && isCallableValue(binding) ? wrapped : undefined;
 }
 
-/** The const that `fn` is bound to, per boundFunctionOf. */
-export function bindingOf(fn: FunctionValue): VariableDeclaration | undefined {
+export function isBinding(node: Node | undefined): node is Binding {
+  return Node.isVariableDeclaration(node) || Node.isPropertyDeclaration(node);
+}
+
+/** The binding that holds `fn`, per boundFunctionOf. */
+export function bindingOf(fn: FunctionValue): Binding | undefined {
   let node: Node = fn;
   let parent = node.getParent();
   while (parent && (isTypeOnly(parent) || isArgumentOf(parent, node))) {
     node = parent;
     parent = node.getParent();
   }
-  return Node.isVariableDeclaration(parent) && boundFunctionOf(parent) === fn
+  return isBinding(parent) && boundFunctionOf(parent) === fn
     ? parent
     : undefined;
 }
@@ -54,8 +60,8 @@ function wrappedFunctionOf(call: Node): FunctionValue | undefined {
   return undefined;
 }
 
-function isCallableValue(variable: VariableDeclaration): boolean {
-  return variable.getType().getCallSignatures().length > 0;
+function isCallableValue(binding: Binding): boolean {
+  return binding.getType().getCallSignatures().length > 0;
 }
 
 function isArgumentOf(parent: Node, node: Node): boolean {

@@ -131,18 +131,20 @@ export function toFocusTarget(
     };
   }
   // Arrow functions and function expressions are anonymous; the name (and the
-  // text worth showing) lives on the const they are bound to.
+  // text worth showing) lives on the const or class property holding them.
   const binding = bindingOf(declaration);
   if (binding) {
     const nameNode = binding.getNameNode();
     if (!Node.isIdentifier(nameNode)) {
-      throw new Error("Destructured declarations cannot be focused");
+      throw new Error("Destructured or private bindings cannot be focused");
     }
     return {
       declaration,
       // `const x = () => {}` — the arrow's own text omits `const x =`, so the
       // excerpt and jump range come from the enclosing statement.
-      textNode: binding.getFirstAncestor(Node.isVariableStatement) ?? binding,
+      textNode: Node.isVariableDeclaration(binding)
+        ? (binding.getVariableStatement() ?? binding)
+        : binding,
       nameNode,
       name: nameNode.getText(),
       sourceFile,

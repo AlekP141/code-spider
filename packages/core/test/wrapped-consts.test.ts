@@ -58,7 +58,7 @@ describe("consts bound to a wrapped function", () => {
       expect.arrayContaining([
         "src/page.tsx#Button",
         "src/page.tsx#Card",
-        "src/page.tsx#onClick",
+        "src/page.tsx#Shell.onClick",
       ]),
     );
     expect(slice.nodes.find((n) => n.id === "src/page.tsx#Card")?.kind).toBe(
@@ -78,8 +78,8 @@ describe("consts bound to a wrapped function", () => {
     expect(slice.edges.map((e) => e.to)).toEqual([
       "src/page.tsx#Button",
       "src/page.tsx#Card",
+      "src/page.tsx#Shell.onClick",
       "src/page.tsx#asserted",
-      "src/page.tsx#onClick",
     ]);
   });
 

@@ -90,7 +90,7 @@ describe("collectCallerEdges — caller shapes", () => {
       "src/lib.ts",
       "target",
     );
-    expect(idsOf(edges)).toEqual(["src/app.ts#viaArrow", "src/app.ts#run"]);
+    expect(idsOf(edges)).toEqual(["src/app.ts#viaArrow", "src/app.ts#Worker.run"]);
   });
 
   it("excludes a self-recursive call and keeps the outside caller", () => {

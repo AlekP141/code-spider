@@ -100,17 +100,17 @@ describe("expandNode — class methods", () => {
     ].join("\n"),
   });
 
-  it("expands a method by name", () => {
-    const slice = expandNode(project, "src/repo.ts#save", MEMORY_ROOT);
+  it("expands a method by its class-qualified name", () => {
+    const slice = expandNode(project, "src/repo.ts#Repo.save", MEMORY_ROOT);
 
-    expect(slice.focusId).toBe("src/repo.ts#save");
+    expect(slice.focusId).toBe("src/repo.ts#Repo.save");
     expect(slice.nodes.find((n) => n.id === slice.focusId)?.name).toBe("save");
   });
 
   it("includes a method's callees and callers", () => {
-    const slice = expandNode(project, "src/repo.ts#save", MEMORY_ROOT);
+    const slice = expandNode(project, "src/repo.ts#Repo.save", MEMORY_ROOT);
 
-    expect(slice.nodes.map((n) => n.id)).toContain("src/repo.ts#write");
+    expect(slice.nodes.map((n) => n.id)).toContain("src/repo.ts#Repo.write");
     expect(
       slice.edges.some((e) => e.to === "src/repo.ts#persistAll"),
     ).toBe(true);
@@ -122,7 +122,7 @@ describe("expandNode — class methods", () => {
     );
   });
 
-  it("picks the Nth same-named method for a ~index", () => {
+  it("tells same-named methods of two classes apart", () => {
     const twins = memoryProject({
       "src/twins.ts": [
         "export class A {",
@@ -138,9 +138,9 @@ describe("expandNode — class methods", () => {
         "",
       ].join("\n"),
     });
-    const second = expandNode(twins, "src/twins.ts#run~1", MEMORY_ROOT);
+    const second = expandNode(twins, "src/twins.ts#B.run", MEMORY_ROOT);
 
-    expect(second.focusId).toBe("src/twins.ts#run");
+    expect(second.focusId).toBe("src/twins.ts#B.run");
     expect(second.nodes.find((n) => n.id === second.focusId)?.returnType).toBe(
       "string",
     );
