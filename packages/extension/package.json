@@ -27,6 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@code-spider/core": "workspace:*",
     "@code-spider/webview": "workspace:*",
     "@types/node": "^26.5.0",
     "@types/vscode": "^1.140.0",

@@ -4,7 +4,7 @@ import { build, context } from "esbuild";
 const watch = process.argv.includes("--watch");
 
 const options = {
-  entryPoints: { extension: "src/extension.ts" },
+  entryPoints: { extension: "src/extension.ts", worker: "src/worker.ts" },
   outdir: "dist",
   outExtension: { ".js": ".cjs" },
   bundle: true,

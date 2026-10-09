@@ -49,6 +49,9 @@ importers:
 
   packages/extension:
     devDependencies:
+      '@code-spider/core':
+        specifier: workspace:*
+        version: link:../core
       '@code-spider/webview':
         specifier: workspace:*
         version: link:../webview
