@@ -40,19 +40,27 @@ export function displayNameOf(expression: Node): string {
 
 /**
  * Follow import aliases to the real declaration. Returns undefined when unresolvable.
- * Consts resolve to the function they are bound to (see boundFunctionOf).
+ * Consts resolve to the function they are bound to (see boundFunctionOf), and
+ * overload signatures to their implementation.
  */
 export function resolveDeclaration(expression: Node): Node | undefined {
   const symbol = expression.getSymbol();
   if (!symbol) return undefined;
   const real = symbol.getAliasedSymbol() ?? symbol;
   const declaration = real.getDeclarations()[0];
-  return declaration && functionInitializerOf(declaration);
+  return declaration && definitionOf(declaration);
 }
 
-function functionInitializerOf(declaration: Node): Node {
-  if (!isBinding(declaration)) return declaration;
-  return boundFunctionOf(declaration) ?? declaration;
+function definitionOf(declaration: Node): Node {
+  if (isBinding(declaration)) {
+    return boundFunctionOf(declaration) ?? declaration;
+  }
+  const overloadable =
+    Node.isFunctionDeclaration(declaration) ||
+    Node.isMethodDeclaration(declaration);
+  return overloadable && declaration.isOverload()
+    ? (declaration.getImplementation() ?? declaration)
+    : declaration;
 }
 
 export function addNodeEdge(

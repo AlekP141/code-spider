@@ -1,4 +1,4 @@
-const ROOT_FLAG = "--root";
+export const ROOT_FLAG = "--root";
 const TIMING_FLAG = "--timing";
 const REPEAT_FLAG = "--repeat";
 const MAX_REPEAT = 100;

@@ -9,13 +9,12 @@ import {
   warmProject,
   type GraphSlice,
 } from "@code-spider/core";
-import { parseRunOptions } from "./run-options.js";
+import { parseRunOptions, ROOT_FLAG } from "./run-options.js";
 import { formatTiming, type Timings } from "./timing.js";
 
 const USAGE =
   "usage: code-spider <file>:<line>[:<col>] [--root <dir>] " +
   "[--timing] [--repeat <n>]";
-const ROOT_FLAG = "--root";
 const TARGET_PATTERN = /^(.*?[^:]):([1-9]\d*)(?::([1-9]\d*))?$/;
 
 export type Target = { file: string; line: number; col: number };

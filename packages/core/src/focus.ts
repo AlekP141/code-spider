@@ -21,7 +21,7 @@ export type FocusTarget = {
   declaration: CallableDeclaration;
   /** The node whose text becomes the excerpt and whose range is jumped to. */
   textNode: Node;
-  /** The identifier used for reference lookups in Task 8. */
+  /** The identifier whose references are the callers. */
   nameNode: Identifier;
   name: string;
   sourceFile: SourceFile;

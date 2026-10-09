@@ -198,3 +198,29 @@ describe("collectCalleeEdges — call text as a name", () => {
     expect(iife?.name.length).toBeLessThanOrEqual(60);
   });
 });
+
+describe("collectCalleeEdges — overloaded callees", () => {
+  it("shows the implementation, not the first overload signature", () => {
+    const { nodes } = collectMemoryPage({
+      "src/fmt.ts": [
+        "export function fmt(a: number): string;",
+        "export function fmt(a: string): string;",
+        "export function fmt(a: unknown): string {",
+        "  return String(a)",
+        "}",
+        "",
+      ].join("\n"),
+      "src/page.tsx": [
+        'import { fmt } from "./fmt";',
+        "export function Page(): string {",
+        "  return fmt(1)",
+        "}",
+        "",
+      ].join("\n"),
+    });
+    const fmt = nodes.find((n) => n.id === "src/fmt.ts#fmt");
+    expect(fmt?.range.startLine).toBe(3);
+    expect(fmt?.codePreview).toMatch(/^export function fmt\(a: unknown\)/);
+    expect(fmt?.inputType).toBe("unknown");
+  });
+});
