@@ -4,6 +4,7 @@ import {
   type JsxOpeningElement,
   type JsxSelfClosingElement,
 } from "ts-morph";
+import { classifyDeclaration } from "./classify.js";
 import { isExternalFile } from "./externals.js";
 import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
 import {
@@ -79,6 +80,10 @@ function addJsxEdge(
     return;
   }
 
-  const node = buildGraphNode(componentTarget, "component", ctx);
+  const node = buildGraphNode(
+    componentTarget,
+    classifyDeclaration(componentTarget.declaration),
+    ctx,
+  );
   addNodeEdge(graph, node, focusId, "jsx", supplies, callSite);
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { collectMemoryPage } from "./helpers.js";
+import { classifyDeclaration } from "../src/classify.js";
+import { MEMORY_ROOT, collectMemoryPage, memoryProject } from "./helpers.js";
 
 const component = (name: string, props: string, body: string) =>
   `export function ${name}(${props}): JSX.Element {\n  return ${body}\n}\n`;
@@ -85,14 +86,26 @@ describe("JSX edge cases", () => {
     expect(edges.some((e) => e.from.includes("svg"))).toBe(false);
   });
 
-  it("forces the component kind for a non-JSX.Element return", () => {
+  it("gives a rendered component the kind it has as a focus", () => {
     const files = {
       "src/maybe.tsx": `export function Maybe(): string | null {\n  return null\n}\n`,
-      ...pageWith(`import { Maybe } from "./maybe";`, "<Maybe />"),
+      "src/odd.tsx": `export function Odd(): { a: number } {\n  return { a: 1 }\n}\n`,
+      ...pageWith(
+        `import { Maybe } from "./maybe";\nimport { Odd } from "./odd";`,
+        "<div><Maybe /><Odd /></div>",
+      ),
     };
+    const project = memoryProject(files);
     const { nodes } = collectMemoryPage(files);
-    expect(nodes.find((n) => n.id === "src/maybe.tsx#Maybe")?.kind).toBe(
-      "component",
-    );
+    for (const [rel, name] of [
+      ["src/maybe.tsx", "Maybe"],
+      ["src/odd.tsx", "Odd"],
+    ] as const) {
+      const file = project.getSourceFileOrThrow(`${MEMORY_ROOT}/${rel}`);
+      const focusKind = classifyDeclaration(file.getFunctionOrThrow(name));
+      expect(nodes.find((n) => n.id === `${rel}#${name}`)?.kind).toBe(
+        focusKind,
+      );
+    }
   });
 });
