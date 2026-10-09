@@ -1,15 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { ANALYSABLE_LANGUAGE_IDS } from "../src/changes.js";
-import { COMMAND_SHOW_GRAPH, SETTING_MAX_HEAP_MB } from "../src/ids.js";
+import {
+  CODELENS_TITLE,
+  COMMAND_SHOW_GRAPH,
+  COMMAND_SHOW_IN_CODE_SPIDER,
+  SETTING_CODELENS_ENABLED,
+  SETTING_MAX_HEAP_MB,
+} from "../src/ids.js";
 import {
   DEFAULT_MAX_HEAP_MB,
   MIN_MAX_HEAP_MB,
 } from "../src/settings-values.js";
 import { readManifest } from "./support/manifest.js";
 
+const languageClause = ANALYSABLE_LANGUAGE_IDS.map(
+  (id) => `editorLangId == ${id}`,
+).join(" || ");
+
 describe("extension manifest", () => {
+  const { contributes, activationEvents, main } = readManifest();
+
   it("contributes Show Graph under the Code Spider category", () => {
-    const command = readManifest().contributes.commands.find(
+    const command = contributes.commands.find(
       (entry) => entry.command === COMMAND_SHOW_GRAPH,
     );
     expect(command).toMatchObject({
@@ -18,22 +30,67 @@ describe("extension manifest", () => {
     });
   });
 
+  it("contributes the context-menu command with the spec's title", () => {
+    const command = contributes.commands.find(
+      (entry) => entry.command === COMMAND_SHOW_IN_CODE_SPIDER,
+    );
+    expect(command?.title).toBe("Show in Code Spider");
+  });
+
   it("points main at the CommonJS bundle", () => {
-    expect(readManifest().main).toBe("./dist/extension.cjs");
+    expect(main).toBe("./dist/extension.cjs");
   });
 
   it("activates when a TypeScript or JavaScript file opens", () => {
     const expected = ANALYSABLE_LANGUAGE_IDS.map((id) => `onLanguage:${id}`);
-    expect(readManifest().activationEvents.sort()).toEqual(expected.sort());
+    expect([...activationEvents].sort()).toEqual([...expected].sort());
+  });
+
+  it("binds Shift+Alt+Q in TS/JS editors only", () => {
+    expect(contributes.keybindings).toEqual([
+      {
+        command: COMMAND_SHOW_GRAPH,
+        key: "shift+alt+q",
+        when: `editorTextFocus && (${languageClause})`,
+      },
+    ]);
+  });
+
+  it("adds Show in Code Spider to the editor context menu for TS/JS only", () => {
+    expect(contributes.menus?.["editor/context"]).toEqual([
+      {
+        command: COMMAND_SHOW_IN_CODE_SPIDER,
+        when: languageClause,
+        group: "navigation",
+      },
+    ]);
+  });
+
+  it("keeps the menu-only command and non-TS/JS editors out of the palette", () => {
+    const palette = contributes.menus?.commandPalette ?? [];
+    expect(palette).toContainEqual({
+      command: COMMAND_SHOW_IN_CODE_SPIDER,
+      when: "false",
+    });
+    expect(palette).toContainEqual({
+      command: COMMAND_SHOW_GRAPH,
+      when: languageClause,
+    });
   });
 
   it("declares the worker heap setting with the shared default and minimum", () => {
-    const setting =
-      readManifest().contributes.configuration?.properties[SETTING_MAX_HEAP_MB];
+    const setting = contributes.configuration?.properties[SETTING_MAX_HEAP_MB];
     expect(setting).toMatchObject({
       type: "number",
       default: DEFAULT_MAX_HEAP_MB,
       minimum: MIN_MAX_HEAP_MB,
     });
+  });
+
+  it("makes the CodeLens toggleable and on by default", () => {
+    const setting =
+      contributes.configuration?.properties[SETTING_CODELENS_ENABLED];
+    expect(setting).toMatchObject({ type: "boolean", default: true });
+    expect(CODELENS_TITLE).toBe("⧉ Graph");
   });
 });

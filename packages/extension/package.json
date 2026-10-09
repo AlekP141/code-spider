@@ -25,6 +25,11 @@
           "default": 8192,
           "minimum": 512,
           "description": "Maximum heap, in megabytes, of the analysis worker. Raise it if Code Spider reports running out of memory on a very large project. Changing it restarts the worker."
+        },
+        "codeSpider.codeLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a ⧉ Graph CodeLens above function, component and class declarations."
         }
       }
     },
@@ -33,20 +38,53 @@
         "command": "codeSpider.showGraph",
         "title": "Show Graph",
         "category": "Code Spider"
+      },
+      {
+        "command": "codeSpider.showInCodeSpider",
+        "title": "Show in Code Spider"
       }
-    ]
+    ],
+    "keybindings": [
+      {
+        "command": "codeSpider.showGraph",
+        "key": "shift+alt+q",
+        "when": "editorTextFocus && (editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codeSpider.showInCodeSpider",
+          "when": "editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "codeSpider.showInCodeSpider",
+          "when": "false"
+        },
+        {
+          "command": "codeSpider.showGraph",
+          "when": "editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "download:vscode": "node scripts/download-vscode.mjs",
+    "check:keybinding": "node scripts/check-default-keybinding.mjs"
   },
   "devDependencies": {
     "@code-spider/core": "workspace:*",
     "@code-spider/webview": "workspace:*",
     "@types/node": "^26.5.0",
     "@types/vscode": "^1.140.0",
+    "@vscode/test-electron": "^3.1.0",
     "esbuild": "^0.28.2",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
