@@ -16,7 +16,7 @@ export {
   type AnalyzeRequest,
 } from "./analyze.js";
 export {
-  findNearestTsconfig,
+  findTsconfig,
   loadProject,
   warmProject,
   Project,

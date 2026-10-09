@@ -496,8 +496,12 @@ handling, `.vsix`.
    rather than a feasibility problem, but it is the difference between the tool
    feeling solid and feeling janky.
 3. **Which `tsconfig.json`?** Unambiguous for a single Next.js app, ambiguous in
-   a monorepo with several. v1 walks up from the focused file to the nearest
-   `tsconfig.json` and states the limitation openly.
+   a monorepo with several. v1 uses the largest `tsconfig.json` between the
+   focused file and the git repository root that actually includes the file, so
+   a package file in a repo with an all-covering root config sees callers across
+   the repo. Repos without such a root (a root that only lists project
+   references, or packages linked only through the workspace) still get the
+   nearest config, and cross-package callers stay invisible there.
 
 ## 12. Deferred
 

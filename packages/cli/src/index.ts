@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   analyzeFocus,
-  findNearestTsconfig,
+  findTsconfig,
   loadProject,
   warmProject,
   type GraphSlice,
@@ -110,7 +110,7 @@ export function runTarget(
   }
 
   const offset = lineColToOffset(readFileSync(absolute, "utf8"), line, col);
-  const tsconfig = findNearestTsconfig(absolute);
+  const tsconfig = findTsconfig(absolute);
   const repoRoot =
     rootFlag === undefined ? dirname(tsconfig) : resolve(rootFlag);
   const input = { file: absolute, offset, repoRoot };
