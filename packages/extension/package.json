@@ -1,0 +1,36 @@
+{
+  "name": "code-spider-vscode",
+  "displayName": "Code Spider",
+  "description": "Shows the callers and callees of the function under the cursor as a typed graph.",
+  "version": "0.0.0",
+  "private": true,
+  "publisher": "code-spider",
+  "license": "ISC",
+  "type": "module",
+  "engines": { "vscode": "^1.140.0" },
+  "categories": ["Visualization"],
+  "main": "./dist/extension.cjs",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeSpider.showGraph",
+        "title": "Show Graph",
+        "category": "Code Spider"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "@types/vscode": "^1.140.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
