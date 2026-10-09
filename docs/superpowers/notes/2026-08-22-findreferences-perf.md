@@ -3,8 +3,8 @@
 Measures spec §11 risk 1: is the language-service reference lookup fast enough
 to use as the caller index (spec §6), or is a cached reverse index needed?
 
-**Date:** 2026-10-09 (first pass), 2026-10-09 (follow-up: mid-size repos and
-cold-cost split)
+**Date:** 2026-10-09 (first pass), 2026-10-09 (follow-ups: mid-size repos and
+cold-cost split; then the single-program change)
 **Machine:** Intel Core i9-9900X (20 threads), 31 GB RAM, WSL2 Linux 5.15,
 Node 23.9.0. The analyser runs the TypeScript 5.5.2 bundled with ts-morph 23,
 whatever version a measured repo pins.
@@ -13,15 +13,18 @@ whatever version a measured repo pins.
 
 - **Risk 1 is closed for repos up to ~1,500 files.** Warm focuses take 42–436
   ms on excalidraw (670 files) and umami (1,341 files), under the ~500 ms budget.
-  The first focus costs 1.6–4.3 s after a 2.7–5.5 s load.
+  The first focus cost 1.6–4.3 s after a 2.7–5.5 s load before the
+  single-program change, and 1.6–2.4 s after it on the targets re-measured.
 - **A reverse index is not worth designing.** Even at 15k files the cold cost is
   dominated by loading, binding and a duplicated program, all of which a reverse
   index would still need. The reference search itself is a minority of it.
-- **ts-morph builds two programs.** Type queries use ts-morph's own program, and
-  `findReferences` uses a separate one inside the language service. Running the
-  reference search on ts-morph's program finds the same references and removes
-  0.4 s (taxonomy) to 8.6 s (lobe-chat) of cold time, plus 40–680 MB. This is the
-  cheapest large win available.
+- **ts-morph built two programs; the analyser now uses one.** Type queries used
+  ts-morph's own program, and `findReferences` used a separate one inside the
+  language service. The reference search now runs on ts-morph's program
+  (`packages/core/src/references.ts`), and ts-morph's per-call path
+  normalisation is memoised (`ts-morph-paths.ts`). End to end, the first focus
+  is 0.5 s (taxonomy) to 14.9 s (lobe-chat) faster, load is up to 8 s faster,
+  peak memory is 13–680 MiB lower, and later focuses are unchanged.
 - **Nearest-tsconfig hides half the callers in a monorepo package.** On
   excalidraw, `pointFrom` has 1,571 references through the root config but 785
   through its package's own config.
@@ -39,9 +42,11 @@ Each row is one fresh process. Phases run in this order:
 | `analyze[1]` | first `analyzeFocus`: a warm reference search plus first-time type checking of every file in the slice, for labels |
 | `analyze[2..3]` | repeats on the same project: what a long-lived worker sees on later focuses |
 
-`checker` plus `LS program` is what the CLI now reports as `warm:` (see
-`warmProject` in `packages/core/src/project.ts`). The finer split and the
-single-program comparison came from a scratch harness that times the same calls.
+These phase measurements predate the single-program change, when `checker` plus
+`LS program` was what the CLI reported as `warm:`. Since that change, `warm:` is
+`checker` only (see `warmProject` in `packages/core/src/project.ts`). The finer
+split and the single-program comparison came from a scratch harness that times
+the same calls.
 Its single-program mode never touches the language service and calls TypeScript's
 internal reference finder on ts-morph's program:
 
@@ -99,6 +104,27 @@ The single-program count is one higher in every case, which looks like the
 declaration entry. On lobe-chat, `load` (44 s) and `checker` (8 s) are the same
 in both modes.
 
+## Results — single program, end to end
+
+The CLI with `--timing --repeat 3` on the same targets, before (`cb51996`, two
+programs) and after the single-program change with the path memo. First focus
+is `warm` plus `analyze[1]`; later focuses are `analyze[2..3]`. Peak RSS is from
+GNU `time`.
+
+| Repo | Focus | Load | First focus | Later focuses | Peak RSS |
+|---|---|---|---|---|---|
+| taxonomy | `cn` | 1.69 → 1.61 s | 1.77 → 1.26 s | 145 → 125–140 ms | 507 → 494 MiB |
+| excalidraw | `ExcalidrawWrapper` | 2.81 → 2.59 s | 2.26 → 1.61 s | 158–175 → 155–161 ms | 693 → 666 MiB |
+| umami | `useMessages` | 5.76 → 5.05 s | 4.10 → 2.37 s | 258–293 → 246–267 ms | 1,004 → 924 MiB |
+| lobe-chat | `ensureElectronIpc` | 46.1 → 38.0 s | 29.7 → 14.8 s | 630–637 → 641–652 ms | 6.61 → 5.95 GiB |
+
+Without the path memo, the single program made later focuses slower: umami
+about 390 ms, lobe-chat about 1.35 s. ts-morph's compiler host runs
+`path.normalize` for every path TypeScript looks up, and the language service
+had avoided that with its own internal host. The search itself then took about
+270 ms warm on umami, against about 135 ms through the language service; with
+the memo it takes about 130 ms.
+
 ## Results — first pass (taxonomy and lobe-chat)
 
 These predate the cold split, so `analyze[1]` includes building the checker and
@@ -141,8 +167,8 @@ warm-up, then 138 ms for the first focus and about 30 ms after that.
 - **Up to ~1,500 files:** warm focus is within budget everywhere measured, and
   memory stays near 1 GB, inside Node's default heap.
 - **~15k files:** warm focus (0.55–0.9 s) is just over budget, and the cold path
-  is load, bind and the second program. A reverse index would still need the
-  program for types and labels, so it would not remove those costs.
+  is load and bind; the second program is gone. A reverse index would still need
+  the program for types and labels, so it would not remove those costs.
 
 ## Consequences for the UI plan (M2–M4)
 
@@ -154,11 +180,9 @@ warm-up, then 138 ms for the first focus and about 30 ms after that.
 
 ## Recommended follow-ups
 
-1. **One program instead of two.** Run the reference search on ts-morph's own
-   program, as the single-program mode above does, and stop building the
-   language service. This saves 0.4–8.6 s of cold time and 40–680 MB in the
-   repos measured. It relies on an internal TypeScript API, which should be
-   wrapped in one place and covered by the existing caller tests.
+1. **One program instead of two.** *Done.* It relies on two internals:
+   TypeScript's `FindAllReferences` and `@ts-morph/common`'s path helper. Each is
+   wrapped in one module, and tests fail if either disappears in an upgrade.
 2. **Monorepo tsconfig selection** (spec §11 risk 3) needs a design decision; see
    finding 1.
 3. **Loading at 15k files** (44 s) is the remaining scale problem. It is out of
@@ -179,7 +203,8 @@ warm-up, then 138 ms for the first focus and about 30 ms after that.
    `ReactNode`, which `classifyDeclaration` does not recognise as JSX. It is
    `function` when focused, but `component` in each of its 50 parents' slices,
    where it arrives through a JSX edge. The same node id therefore gets a
-   different kind depending on which slice the webview merges last. *Open.*
+   different kind depending on which slice the webview merges last. *Fixed in
+   `cb51996`: the kind now depends only on the declaration.*
 
 ## Reproducing
 
@@ -190,8 +215,8 @@ NODE_OPTIONS=--max-old-space-size=16384 \
   <absolute path to file>:<line>:<col> --timing --repeat 3
 ```
 
-The CLI prints `load`, `warm` (checker plus language service program) and
-`analyze[n]`, and always uses the nearest tsconfig. The rows that use excalidraw's
+The CLI prints `load`, `warm` (the type checker) and `analyze[n]`, and always
+uses the nearest tsconfig. The rows that use excalidraw's
 root config for files under `packages/` came from the scratch harness, which
 takes the tsconfig as an argument.
 

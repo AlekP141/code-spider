@@ -10,6 +10,7 @@ import { nearestNameableTarget, type FocusTarget } from "./focus.js";
 import { propsTypeLabel, returnTypeLabel } from "./labels.js";
 import { edgeId } from "./node-id.js";
 import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
+import { findReferenceNodes } from "./references.js";
 import type { GraphEdge, GraphNode, NodeId } from "./types.js";
 
 /** Spec §6: a logging helper can have hundreds of callers; cap the slice. */
@@ -18,8 +19,8 @@ export const MAX_CALLERS = 50;
 type UseSite = { kind: "call" | "jsx"; node: Node };
 
 /**
- * Callers come from the language service's reference index (the data behind
- * Find All References), not a whole-project index of our own. A reference
+ * Callers come from TypeScript's reference finder (the data behind Find All
+ * References), not a whole-project index of our own. A reference
  * counts when it is a call target or a rendered JSX tag.
  */
 export function collectCallerEdges(
@@ -109,7 +110,7 @@ function renderOf(
 
 /** Sorted by path then position, so the kept callers are deterministic. */
 function referencesInOrder(nameNode: Identifier): Node[] {
-  return nameNode.findReferencesAsNodes().sort(compareLocation);
+  return findReferenceNodes(nameNode).sort(compareLocation);
 }
 
 function compareLocation(a: Node, b: Node): number {

@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { dirname, join, parse } from "node:path";
 import { Project } from "ts-morph";
+import { memoiseTsMorphPaths } from "./ts-morph-paths.js";
 
 export { Project };
 
@@ -24,15 +25,14 @@ export function findNearestTsconfig(startFile: string): string {
 }
 
 export function loadProject(tsConfigFilePath: string): Project {
+  memoiseTsMorphPaths();
   return new Project({ tsConfigFilePath });
 }
 
 /**
- * Builds what the first analysis would otherwise build: ts-morph's type
- * checker, which binds every file, and the separate program inside the
- * language service, which findReferences uses.
+ * Builds what the first analysis would otherwise build: the type checker,
+ * which binds every file.
  */
 export function warmProject(project: Project): void {
   project.getProgram().compilerObject.getTypeChecker();
-  project.getLanguageService().compilerObject.getProgram();
 }

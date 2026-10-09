@@ -37,10 +37,10 @@ describe("loadProject", () => {
 });
 
 describe("warmProject", () => {
-  it("leaves analysis unchanged and keeps the language service program", () => {
+  it("leaves analysis unchanged and keeps the program", () => {
     const { project, root } = loadTestCode("basic");
     warmProject(project);
-    const program = project.getLanguageService().compilerObject.getProgram();
+    const program = project.getProgram().compilerObject;
 
     const file = testCodePath("basic", "src/signup.ts");
     const offset = readFileSync(file, "utf8").indexOf("const valid");
@@ -53,8 +53,6 @@ describe("warmProject", () => {
     expect(JSON.parse(JSON.stringify(slice))).toEqual(
       JSON.parse(readFileSync(golden, "utf8")),
     );
-    expect(project.getLanguageService().compilerObject.getProgram()).toBe(
-      program,
-    );
+    expect(project.getProgram().compilerObject).toBe(program);
   });
 });
