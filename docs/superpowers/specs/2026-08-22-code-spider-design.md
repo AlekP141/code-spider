@@ -241,7 +241,8 @@ enclosing callable, fall back to the file's default export.
 
 **2. Callees (cheap).** Walk the focus declaration's body for `CallExpression`
 and JSX elements. For each, ask the checker for the resolved signature's
-declaration.
+declaration. A `const alias = fn` is followed to `fn` in both directions, so a
+call through the alias connects to the real function.
 
 **3. Callers (the expensive direction).** A naive design would force a
 whole-project index. Instead, call `findReferencesAsNodes()` on the focus symbol,

@@ -1,5 +1,7 @@
 import {
   Node,
+  SyntaxKind,
+  VariableDeclarationKind,
   type ArrowFunction,
   type ExportAssignment,
   type FunctionExpression,
@@ -40,6 +42,41 @@ function functionHeldBy(
   if (isFunctionValue(unwrapped)) return unwrapped;
   const wrapped = wrappedFunctionOf(unwrapped);
   return wrapped && isCallableValue(holder) ? wrapped : undefined;
+}
+
+/** How many `const a = b` hops are followed; also stops alias cycles. */
+export const MAX_ALIAS_DEPTH = 8;
+
+/**
+ * For `const alias = cn` or `const save = api.save`, the expression aliased.
+ * A `let` can be reassigned, so it is never an alias.
+ */
+export function aliasedExpressionOf(binding: Binding): Node | undefined {
+  if (!Node.isVariableDeclaration(binding)) return undefined;
+  const list = binding.getParentIfKind(SyntaxKind.VariableDeclarationList);
+  if (list?.getDeclarationKind() !== VariableDeclarationKind.Const) {
+    return undefined;
+  }
+  const initializer = binding.getInitializer();
+  const value = initializer && skipTypeOnly(initializer);
+  return Node.isIdentifier(value) || Node.isPropertyAccessExpression(value)
+    ? value
+    : undefined;
+}
+
+/** The const that aliases `ref`, as `alias` in `const alias = ref`. */
+export function aliasDeclaredBy(ref: Node): VariableDeclaration | undefined {
+  const parent = ref.getParent();
+  const value =
+    Node.isPropertyAccessExpression(parent) && parent.getNameNode() === ref
+      ? parent
+      : ref;
+  let holder = value.getParent();
+  while (holder && isTypeOnly(holder)) holder = holder.getParent();
+  return Node.isVariableDeclaration(holder) &&
+    aliasedExpressionOf(holder) === value
+    ? holder
+    : undefined;
 }
 
 export function isBinding(node: Node | undefined): node is Binding {

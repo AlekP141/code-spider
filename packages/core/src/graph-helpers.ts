@@ -1,8 +1,10 @@
 import { Node } from "ts-morph";
 import {
+  aliasedExpressionOf,
   boundFunctionOf,
   exportedFunctionOf,
   isBinding,
+  MAX_ALIAS_DEPTH,
 } from "./bound-functions.js";
 import { externalModuleOf } from "./externals.js";
 import { isCallable } from "./focus.js";
@@ -45,14 +47,18 @@ export function displayNameOf(expression: Node): string {
 /**
  * Follow import aliases to the real declaration. Returns undefined when unresolvable.
  * Consts and `export default` resolve to the function they hold (see
- * boundFunctionOf), and overload signatures to their implementation.
+ * boundFunctionOf), `const alias = cn` to what it aliases, and overload
+ * signatures to their implementation.
  */
-export function resolveDeclaration(expression: Node): Node | undefined {
+export function resolveDeclaration(
+  expression: Node,
+  depth = 0,
+): Node | undefined {
   const symbol = valueSymbolOf(expression);
   if (!symbol) return undefined;
   const real = symbol.getAliasedSymbol() ?? symbol;
   const declaration = real.getDeclarations()[0];
-  return declaration && definitionOf(declaration);
+  return declaration && definitionOf(declaration, depth);
 }
 
 /** In `{ track }` the name's own symbol is the property, not `track`. */
@@ -67,9 +73,13 @@ function valueSymbolOf(expression: Node) {
   return expression.getSymbol();
 }
 
-function definitionOf(declaration: Node): Node {
+function definitionOf(declaration: Node, depth: number): Node {
   if (isBinding(declaration)) {
-    return boundFunctionOf(declaration) ?? declaration;
+    const bound = boundFunctionOf(declaration);
+    if (bound) return bound;
+    const aliased = aliasedExpressionOf(declaration);
+    if (!aliased || depth >= MAX_ALIAS_DEPTH) return declaration;
+    return resolveDeclaration(aliased, depth + 1) ?? declaration;
   }
   if (Node.isExportAssignment(declaration)) {
     return exportedFunctionOf(declaration) ?? declaration;

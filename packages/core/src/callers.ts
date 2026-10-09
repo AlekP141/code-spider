@@ -5,6 +5,7 @@ import {
   type NewExpression,
   type JsxSelfClosingElement,
 } from "ts-morph";
+import { aliasDeclaredBy, MAX_ALIAS_DEPTH } from "./bound-functions.js";
 import { classifyDeclaration } from "./classify.js";
 import { nearestNameableTarget, type FocusTarget } from "./focus.js";
 import { propsTypeLabel, returnTypeLabel, signatureLabel } from "./labels.js";
@@ -116,7 +117,16 @@ function renderOf(
 
 /** Sorted by path then position, so the kept callers are deterministic. */
 function referencesInOrder(nameNode: Node): Node[] {
-  return findReferenceNodes(nameNode).sort(compareLocation);
+  return referencesThroughAliases(nameNode, 0).sort(compareLocation);
+}
+
+/** References, with each `const alias = it` replaced by the alias's own. */
+function referencesThroughAliases(nameNode: Node, depth: number): Node[] {
+  return findReferenceNodes(nameNode).flatMap((ref) => {
+    const alias = aliasDeclaredBy(ref);
+    if (!alias || depth >= MAX_ALIAS_DEPTH) return [ref];
+    return referencesThroughAliases(alias.getNameNode(), depth + 1);
+  });
 }
 
 function compareLocation(a: Node, b: Node): number {
