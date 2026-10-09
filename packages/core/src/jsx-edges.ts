@@ -6,7 +6,12 @@ import {
 } from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
 import { isExternalFile } from "./externals.js";
-import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
+import {
+  belongsTo,
+  isCallable,
+  nameableTarget,
+  type FocusTarget,
+} from "./focus.js";
 import {
   addNodeEdge,
   addUnknown,
@@ -28,7 +33,8 @@ export function collectJsxEdges(
   graph: Graph,
 ): void {
   for (const element of jsxElementsOf(target)) {
-    if (!isIntrinsicTag(element.getTagNameNode())) {
+    const tag = element.getTagNameNode();
+    if (!isIntrinsicTag(tag) && belongsTo(element, target)) {
       addJsxEdge(graph, element, focusId, ctx);
     }
   }

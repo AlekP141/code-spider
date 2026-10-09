@@ -63,7 +63,7 @@ describe("collectCallerEdges — caller shapes", () => {
     expect(idsOf(edges)).toEqual(["src/app.ts#viaCall", "src/app.ts#viaApply"]);
   });
 
-  it("rejects f.toString() and f.bind(...)() as calls of f", () => {
+  it("treats f.bind(...) as passing f, and f.toString() as no use", () => {
     const { edges } = callersOf(
       {
         "src/lib.ts": LIB,
@@ -75,7 +75,9 @@ describe("collectCallerEdges — caller shapes", () => {
       "src/lib.ts",
       "target",
     );
-    expect(edges).toEqual([]);
+    expect(edges.map((e) => [e.to, e.kind])).toEqual([
+      ["src/app.ts#viaBind", "passes"],
+    ]);
   });
 
   it("finds callers that are arrow-const bindings and class methods", () => {

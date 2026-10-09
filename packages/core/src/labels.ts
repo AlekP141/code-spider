@@ -43,6 +43,11 @@ export function inputTypeLabel(decl: CallableDeclaration): string {
     .join(", ");
 }
 
+/** A function's own type, the payload when it is passed rather than called. */
+export function signatureLabel(decl: CallableDeclaration): string {
+  return formatType(decl.getType(), decl);
+}
+
 export function propsTypeLabel(decl: CallableDeclaration): string {
   const props = decl.getParameters()[0];
   return props ? formatType(props.getType(), props) : "";

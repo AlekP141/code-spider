@@ -6,21 +6,23 @@ import {
 } from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
 import { nearestNameableTarget, type FocusTarget } from "./focus.js";
-import { propsTypeLabel, returnTypeLabel } from "./labels.js";
+import { propsTypeLabel, returnTypeLabel, signatureLabel } from "./labels.js";
 import { edgeId } from "./node-id.js";
 import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
+import { passSiteOf } from "./passing.js";
 import { findReferenceNodes } from "./references.js";
 import type { GraphEdge, GraphNode, NodeId } from "./types.js";
 
 /** Spec §6: a logging helper can have hundreds of callers; cap the slice. */
 export const MAX_CALLERS = 50;
 
-type UseSite = { kind: "call" | "jsx"; node: Node };
+type UseSite = { kind: "call" | "jsx" | "passes"; node: Node };
 
 /**
  * Callers come from TypeScript's reference finder (the data behind Find All
- * References), not a whole-project index of our own. A reference
- * counts when it is a call target or a rendered JSX tag.
+ * References), not a whole-project index of our own. A reference counts
+ * when it is a call target, a rendered JSX tag, or the function passed as a
+ * value (see passSiteOf).
  */
 export function collectCallerEdges(
   target: FocusTarget,
@@ -30,6 +32,7 @@ export function collectCallerEdges(
   const supplies = {
     call: returnTypeLabel(target.declaration).text,
     jsx: propsTypeLabel(target.declaration),
+    passes: signatureLabel(target.declaration),
   };
 
   const nodes = new Map<NodeId, GraphNode>();
@@ -82,7 +85,9 @@ function useSiteOf(ref: Node): UseSite | undefined {
   const call = callOf(ref);
   if (call) return { kind: "call", node: call };
   const element = renderOf(ref);
-  return element && { kind: "jsx", node: element };
+  if (element) return { kind: "jsx", node: element };
+  const passed = passSiteOf(ref);
+  return passed && { kind: "passes", node: passed };
 }
 
 /**

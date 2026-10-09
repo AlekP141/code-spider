@@ -1,7 +1,12 @@
 import { SyntaxKind, type CallExpression, type Node } from "ts-morph";
 import { classifyDeclaration } from "./classify.js";
 import { isExternalFile } from "./externals.js";
-import { isCallable, nameableTarget, type FocusTarget } from "./focus.js";
+import {
+  belongsTo,
+  isCallable,
+  nameableTarget,
+  type FocusTarget,
+} from "./focus.js";
 import {
   addNodeEdge,
   addUnknown,
@@ -12,6 +17,7 @@ import {
 } from "./graph-helpers.js";
 import { collectJsxEdges } from "./jsx-edges.js";
 import { buildGraphNode, rangeOf, type BuildContext } from "./node-builder.js";
+import { collectPassEdges } from "./pass-edges.js";
 import type { GraphEdge, GraphNode, NodeId } from "./types.js";
 
 /** Follow import aliases to the real declaration. Returns undefined when unresolvable. */
@@ -29,9 +35,10 @@ export function collectCalleeEdges(
   for (const call of target.declaration.getDescendantsOfKind(
     SyntaxKind.CallExpression,
   )) {
-    addCallEdge(graph, call, focusId, ctx);
+    if (belongsTo(call, target)) addCallEdge(graph, call, focusId, ctx);
   }
   collectJsxEdges(target, focusId, ctx, graph);
+  collectPassEdges(target, focusId, ctx, graph);
 
   return { nodes: [...graph.nodes.values()], edges: [...graph.edges.values()] };
 }

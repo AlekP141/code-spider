@@ -84,6 +84,22 @@ export function nearestNameableTarget(node: Node): FocusTarget | undefined {
 }
 
 /**
+ * Whether `node` sits in `target` itself rather than inside a named function
+ * nested in it, matching how callers attribute a reference.
+ */
+export function belongsTo(node: Node, target: FocusTarget): boolean {
+  for (
+    let fn = node.getFirstAncestor(isCallable);
+    fn;
+    fn = fn.getFirstAncestor(isCallable)
+  ) {
+    if (fn === target.declaration) return true;
+    if (nameableTarget(fn)) return false;
+  }
+  return false;
+}
+
+/**
  * toFocusTarget throws for callables it cannot name (anonymous functions,
  * private `#names`, computed keys); this returns undefined instead.
  */

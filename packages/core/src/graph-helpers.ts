@@ -48,11 +48,23 @@ export function displayNameOf(expression: Node): string {
  * boundFunctionOf), and overload signatures to their implementation.
  */
 export function resolveDeclaration(expression: Node): Node | undefined {
-  const symbol = expression.getSymbol();
+  const symbol = valueSymbolOf(expression);
   if (!symbol) return undefined;
   const real = symbol.getAliasedSymbol() ?? symbol;
   const declaration = real.getDeclarations()[0];
   return declaration && definitionOf(declaration);
+}
+
+/** In `{ track }` the name's own symbol is the property, not `track`. */
+function valueSymbolOf(expression: Node) {
+  const parent = expression.getParent();
+  if (Node.isShorthandPropertyAssignment(parent)) {
+    return expression
+      .getProject()
+      .getTypeChecker()
+      .getShorthandAssignmentValueSymbol(parent);
+  }
+  return expression.getSymbol();
 }
 
 function definitionOf(declaration: Node): Node {

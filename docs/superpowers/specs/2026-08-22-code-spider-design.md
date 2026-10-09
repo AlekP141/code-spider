@@ -165,7 +165,7 @@ type GraphEdge = {
   id:       string
   from:     NodeId           // supplier (the callee)
   to:       NodeId           // consumer (the caller)
-  kind:     'call' | 'jsx' | 'external'
+  kind:     'call' | 'jsx' | 'external' | 'passes'
   supplies: string           // payload label — see 5.4
   callSite: Range            // for click-to-jump onto the exact call
   resolved: boolean          // false renders dashed to an `unknown` node
@@ -192,6 +192,16 @@ type is `JSX.Element` — technically correct and completely uninformative. So f
 `kind: 'jsx'`, `supplies` is overridden with the **props type** instead, since
 that is the payload anyone cares about. JSX edges are styled distinctly so the
 override is visible rather than silent.
+
+**A function handed over as a value gets a `passes` edge.** In the same example,
+`handleSignup` is never called inside `Page`, so a call edge alone would leave it
+unconnected; it is passed. `onSubmit={handleSignup}`, `items.map(format)`,
+`useEffect(load)`, `{ handler: track }` and `save.bind(null, id)` all produce
+`handleSignup → Page`-style edges of `kind: 'passes'`, labelled with the passed
+function's own signature, since the function itself is the payload. Only repo
+functions get one. Calls, renders and passes made inside a named function nested
+in the focus belong to that nested function, so a component links to its
+handlers and each handler to what it calls, from whichever side is focused.
 
 ### 5.5 Unresolved edges are kept
 

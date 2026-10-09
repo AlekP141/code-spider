@@ -22,7 +22,7 @@ export type GraphNode = {
   codePreview: string;
 };
 
-export type EdgeType = "call" | "jsx" | "external";
+export type EdgeType = "call" | "jsx" | "external" | "passes";
 
 export type GraphEdge = {
   id: string;
