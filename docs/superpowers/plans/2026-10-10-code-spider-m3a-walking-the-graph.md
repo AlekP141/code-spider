@@ -32,7 +32,7 @@ smoke tests. No new dependencies.
 ## Status
 
 All nine tasks are implemented, reviewed and committed, and an integration review
-found the milestone ready (core 231, CLI 43, webview 277, extension 139, smoke 6).
+found the milestone ready (core 231, CLI 43, webview 290, extension 139, smoke 6).
 Task 6 follows Plan decision 11 and Plan decision 12 lists the integration fixes.
 Tasks 1 to 5 are written in full detail and Tasks 6 to 9 at plan level; the
 `Create`/`Replace`/`Edit` block syntax applies to Tasks 1 to 5 only, and the counts
@@ -214,6 +214,15 @@ reading most consistent with the spec's intent:
       by Back.
     - Parked for the owner: no automated test loads the real webview and drives it.
       That needs a DOM or Electron harness, to be decided at the start of M3b.
+13. **The Spacing slider also sets the vertical gap (owner, after the milestone).**
+    There is one slider and one stored value. The vertical gap between boxes is
+    derived from it: `rowGap(columnGap) = Math.max(16, Math.round(columnGap / 6))`
+    in `packages/webview/src/column-gap.ts`, so 192 gives 32 px (the earlier look),
+    32 gives 16 px and 480 gives 80 px. It is used for ELK's `elk.spacing.nodeNode`
+    (a new centre and Tidy), for the spacing and clearance of an expansion's new
+    boxes, and for Tidy's displacement around pinned boxes. The fixed `NODE_MARGIN`
+    of 32 is gone; where Tasks 4, 5 and 7 mention `NODE_MARGIN` or a fixed `"32"`,
+    this entry wins.
 
 ---
 
@@ -8079,7 +8088,9 @@ runs at the end of Task 6, and is listed again here).** Setup: `pnpm build`, F5 
    overlaps, the view fits.
 8. Move the Spacing slider through both ends: boxes settle after a pause, labels
    ellipsise at narrow gaps with the full text on hover. Close the panel, run Show
-   Graph: the value is kept; restart the dev host: still kept.
+   Graph: the value is kept; restart the dev host: still kept. Boxes also move
+   apart vertically as the slider goes up and closer as it goes down; at the
+   default the graph looks as it did before.
 9. In `test-code/jsx` focus `Page`: `SignupForm` has one purple `SignupFormProps`
    label. In `basic` focus `handleSignup`: `validateUser`, `createUser` and
    `sendWelcome` each carry one label (`ValidUserData`, `User`, `void`) and

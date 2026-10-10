@@ -259,33 +259,37 @@ outside the node rectangle and never enter layout or overlap checks.
 
 ELK, layered, direction RIGHT, as in M2. `layoutPositions(nodes, edges,
 columnGap)` sets `elk.layered.spacing.nodeNodeBetweenLayers` to `columnGap`
-(M2 hard-codes `"96"`; the default is now 192, section 5.5) and keeps
-`elk.spacing.nodeNode` at `"32"`. The old graph stays
-until the slice is laid out; then `commitCentre` swaps it in and the view fits
+(M2 hard-codes `"96"`; the default is now 192, section 5.5) and
+`elk.spacing.nodeNode` to `rowGap(columnGap)`, the vertical gap derived from it
+(32 at the default). The old graph stays until the slice is laid out; then
+`commitCentre` swaps it in and the view fits
 (`padding: 0.2`, `maxZoom: 1`, as in M2). The newest centre slice wins if
 layouts overlap.
 
 ### 5.2 Expansion
 
-`graph/placement.ts` exports `Rect`, `NODE_MARGIN` (32), `isClear`,
-`nearestFreeY` and `placeExpansion`.
+`graph/placement.ts` exports `Rect`, `isClear`, `nearestFreeY`, `stackTops` and
+`placeExpansion`. `isClear`, `nearestFreeY` and `stackTops` (the preferred tops
+of a stack of boxes) take the clearance between boxes as a parameter, called
+`rowGap` below; `placeExpansion` takes `columnGap` and derives the row gap.
 
 - `pitch = NODE_WIDTH + columnGap`, where `columnGap` is the graph's own gap
   (the view's when the graph has none, section 5.5), so new columns line up with
-  the rest of that graph, including one restored by Back. Added nodes with an
-  edge `from === n, to === X` (X the expanded node) are *suppliers*; the rest are
+  the rest of that graph, including one restored by Back; `rowGap` is
+  `rowGap(columnGap)` of that same gap (section 5.5). Added nodes with an edge
+  `from === n, to === X` (X the expanded node) are *suppliers*; the rest are
   *consumers*. A node linked both ways is a supplier.
 - Suppliers go in the column `x = X.x − pitch`, consumers at `X.x + pitch`. In
-  each column the nodes are stacked in id order, `NODE_MARGIN` apart, the stack
+  each column the nodes are stacked in id order, `rowGap` apart, the stack
   centred on X's vertical centre.
 - In stack order each node takes `nearestFreeY`: the y nearest its stack
   position (ties go up) whose rectangle is `isClear` of every obstacle: all
   nodes already in the graph, X included, wherever they were dragged, plus
   added nodes placed before it.
-- `isClear(a, b, margin)` holds when the horizontal or the vertical gap between
-  the rectangles is at least `margin`. The forbidden y values in a column are a
+- `isClear(a, b, rowGap)` holds when the horizontal or the vertical gap between
+  the rectangles is at least `rowGap`. The forbidden y values in a column are a
   union of open intervals, so the nearest free y is the preferred y or an
-  interval end (`obstacle.bottom + margin`, `obstacle.top − margin − height`);
+  interval end (`obstacle.bottom + rowGap`, `obstacle.top − rowGap − height`);
   `nearestFreeY` tests exactly those, nearest first. One always exists.
 - Existing nodes never move. Added nodes and their edges fade in over 250 ms
   (class kept 300 ms; no animation under `prefers-reduced-motion`).
@@ -306,15 +310,18 @@ toggling. `zoomOnDoubleClick` is off.
 
 ### 5.4 Tidy
 
-`graph/tidy.ts` exports `tidyPositions({ elk, sizes, pinned })`, pure, with
-ELK's output as input so tests need no ELK.
+`graph/tidy.ts` exports `tidyPositions({ elk, sizes, pinned, margin })`, pure,
+with ELK's output as input so tests need no ELK; `margin` is the row gap of the
+gap Tidy lays out with.
 
-1. ELK lays out every node and edge (layers reflect the whole graph). Pinned
-   nodes keep their current positions and ignore ELK's.
-2. An unpinned node whose ELK rectangle is not `isClear` of some pinned node is
-   *displaced*. Displaced nodes, sorted by (x, y, id), each move within their
-   own column (x unchanged) with `nearestFreeY`; the obstacles are the pinned
-   nodes, the undisplaced unpinned nodes and the displaced nodes placed so far.
+1. ELK lays out every node and edge (layers reflect the whole graph) at the gap
+   Tidy lays out with. Pinned nodes keep their current positions and ignore
+   ELK's.
+2. An unpinned node whose ELK rectangle is not `isClear`, by that gap's
+   `rowGap`, of some pinned node is *displaced*. Displaced nodes, sorted by
+   (x, y, id), each move within their own column (x unchanged) with
+   `nearestFreeY`; the obstacles are the pinned nodes, the undisplaced unpinned
+   nodes and the displaced nodes placed so far.
 3. The view fits (`padding: 0.2`, `maxZoom: 1`, 250 ms).
 
 Undisplaced nodes keep ELK's positions, so ELK's spacing holds between them.
@@ -328,13 +335,27 @@ A range input in the toolbar sets `columnGap`: **min 32, max 480, step 16,
 default 192**. The default favours readable labels: a label has room for
 `columnGap − 12` px, about 27 characters of 11 px monospace at 192, so
 `ValidUserData` fits where 96 (about 12) would truncate it. A first graph is
-therefore wider than in M2, which hard-coded 96. 32 is `NODE_MARGIN`, so a
-neighbouring column is never closer than the margin. At 480 a label has room
-for about 70 characters; longer types ellipsise and show in full on hover.
+therefore wider than in M2, which hard-coded 96. At 480 a label has room for
+about 70 characters; longer types ellipsise and show in full on hover.
+
+The one slider also sets the vertical gap between boxes, derived from the same
+stored value: `rowGap(columnGap) = Math.max(16, Math.round(columnGap / 6))`. It
+gives 32 px at the default 192, 16 px at 32 and 80 px at 480. The gaps are not
+equal because the column gap has to fit a type label, and a vertical gap of that
+size would make graphs far too tall; the floor of 16 keeps a supplier's stacked
+label lines clear of the box above (section 5.6). The row gap applies wherever
+boxes are positioned: ELK's `elk.spacing.nodeNode` for a new centre and for Tidy;
+the spacing between an expansion's stacked boxes and their clearance from
+existing boxes; and Tidy's displacement of unpinned boxes around pinned ones.
+Each uses the row gap of the gap it works with, which for an expansion is the
+graph's own (section 5.2). The column gap is never smaller than the row gap, so
+boxes never overlap at any slider value. Pinned boxes stay where they are when
+the slider moves; the others are tidied around them 250 ms after the last move.
 
 `packages/webview/src/column-gap.ts` holds `COLUMN_GAP = { min, max, step,
-default }` and `normaliseColumnGap(raw)` (not a finite number gives the
-default; otherwise clamp, then snap to the step). It is exported as
+default }`, `normaliseColumnGap(raw)` (not a finite number gives the default;
+otherwise clamp, then snap to the step) and the pure `rowGap(columnGap)`. It is
+exported as
 `@code-spider/webview/column-gap` and imported by the extension: one pure value
 module, a deliberate exception to M2's "the protocol is types only".
 
@@ -385,9 +406,11 @@ editor-coloured background. Lines stack upward,
 lines `--vscode-charts-blue` in italic, matching their edges. Edges lose their
 `label`; an edge click still jumps to the call site.
 
-Same-column labels cannot collide: three lines reach 46 px above the centre,
-at most 32 px above a node's top (minimum height 28), and the node above ends
-at least `NODE_MARGIN` higher. Dragged nodes carry no such guarantee.
+Same-column labels cannot collide: a node's lines lie between 46 px and 4 px
+above its centre, so at most 32 px above its top and at least 18 px above its
+bottom (minimum height 28). The node above ends at least the row gap, 16 px or
+more, higher, and 32 − 18 = 14 is less than 16. Dragged nodes carry no such
+guarantee.
 
 ### 5.7 Toolbar
 
@@ -475,16 +498,19 @@ generation.
   mulberry32): 300 random layouts of up to 30 obstacles at arbitrary integer
   positions, dragged ones overlapping each other, and up to 12 added nodes.
   Asserts each added node sits in its column, is `isClear` of every other node
-  by `NODE_MARGIN`, and is optimal (no nearer integer y is clear). Fixed cases:
-  forced down vs up, ties go up, supplier/consumer split.
-- `tidy.test.ts`: pinned never move; no unpinned node overlaps a pinned one;
-  displaced nodes keep their column; undisplaced keep ELK's position.
+  by the row gap, and is optimal (no nearer integer y is clear). It runs at the
+  minimum, default and maximum gap (32, 192, 480). Fixed cases: forced down vs
+  up, ties go up, supplier/consumer split.
+- `tidy.test.ts`: pinned never move; no unpinned node overlaps a pinned one
+  (also at the minimum, default and maximum gap); displaced nodes keep their
+  column; undisplaced keep ELK's position.
 - `supplier-labels.test.ts`: one line per supplier and kind; call and external
   merge; jsx and passes separate; empty text skipped.
 - Also `pan-to-reveal`, `node-controls` (`nodeControl` and `doubleClickAction`,
-  each row of section 6's table), `persist`, `column-gap`, `messages`,
-  `app-state`, `to-flow`, `layout` (ELK option follows `columnGap`) and
-  `node-box` (pin, spinner and failure markup).
+  each row of section 6's table), `persist`, `column-gap` (including `rowGap` at
+  32, 192 and 480), `messages`, `app-state`, `to-flow`, `layout` (ELK options
+  follow `columnGap` and `rowGap`) and `node-box` (pin, spinner and failure
+  markup).
 
 **Extension unit tests:** `jump-table` (merge, per-project isolation, `clear`);
 `session` (`focusNode` brackets `busy`, newest wins; `expand` posts no `busy`,
@@ -534,8 +560,10 @@ with "Run Code Spider" (Extension Development Host on `test-code/basic`), open
 7. Pin two boxes, press `Tidy`: the others re-lay out, the pinned two stay, nothing
    overlaps, the view fits.
 8. Move the Spacing slider through both ends: boxes settle after a pause, labels
-   ellipsise at narrow gaps with the full text on hover. Close the panel, run Show
-   Graph: the value is kept; restart the dev host: still kept.
+   ellipsise at narrow gaps with the full text on hover. Boxes also move apart
+   vertically as the slider goes up and closer as it goes down; at the default the
+   graph looks as it did before. Close the panel, run Show Graph: the value is
+   kept; restart the dev host: still kept.
 9. In `test-code/jsx` focus `Page`: `SignupForm` has one purple `SignupFormProps`
    label. In `basic` focus `handleSignup`: `validateUser`, `createUser` and
    `sendWelcome` each carry one label (`ValidUserData`, `User`, `void`) and
