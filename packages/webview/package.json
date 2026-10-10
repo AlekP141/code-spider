@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./protocol": "./src/protocol.ts"
+    "./protocol": "./src/protocol.ts",
+    "./column-gap": "./src/column-gap.ts"
   },
   "scripts": {
     "build": "node build.mjs",

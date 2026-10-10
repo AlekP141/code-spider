@@ -1,0 +1,40 @@
+import type { GraphSlice } from "@code-spider/core/types";
+import { graphFromSlice } from "../../src/view/graph-state.js";
+import type { GraphState } from "../../src/view/types.js";
+import { makeEdge, makeNode, makeSlice } from "./slices.js";
+
+export const PROJECT = "/repo/tsconfig.json";
+
+export const id = (name: string): string => `src/a.ts#${name}`;
+
+export function sliceOf(
+  focus: string,
+  suppliers: string[] = [],
+  consumers: string[] = [],
+): GraphSlice {
+  const names = [focus, ...suppliers, ...consumers];
+  return makeSlice(
+    id(focus),
+    names.map((name) => makeNode({ id: id(name) })),
+    [
+      ...suppliers.map((name) => makeEdge(id(name), id(focus))),
+      ...consumers.map((name) => makeEdge(id(focus), id(name))),
+    ],
+  );
+}
+
+export function graphOf(
+  focus: string,
+  suppliers: string[] = [],
+  consumers: string[] = [],
+): GraphState {
+  return graphFromSlice(sliceOf(focus, suppliers, consumers), PROJECT);
+}
+
+export function nodeIds(graph: GraphState): string[] {
+  return Object.keys(graph.nodes).sort();
+}
+
+export function edgeIds(graph: GraphState): string[] {
+  return Object.keys(graph.edges).sort();
+}
