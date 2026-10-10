@@ -13,16 +13,19 @@ you must go back to the editor, put the cursor in `validateUser` and press
 `Shift+Alt+Q`; the first graph is gone with no way back. Nodes cannot be moved,
 and the type labels sit on the edges and pile up on each other.
 
-M3a lets you walk the graph from inside it: expand a neighbour in place,
-re-centre on it, step Back, drag nodes and tidy up, with no overlap and one
-readable type label per supplier. It is the first half of §10 M3.
+M3a lets you walk the graph from inside it: double-click a neighbour to expand
+it in place (again to collapse it), step Back, drag nodes and tidy up, with no
+overlap and one readable type label per supplier. It is the first half of §10
+M3.
 
 ## 2. Scope
 
-**In scope:** expand and collapse; re-centre from inside the graph; Back
-history; dragging and pinning; guaranteed no overlap; Tidy; the column-spacing
-slider; type labels once per supplier; a types-only core entry so the webview
-type-checks `src/` without Node types.
+**In scope:** expand and collapse by double-click; Back history; dragging and
+pinning; guaranteed no overlap; Tidy; the column-spacing slider; type labels
+once per supplier; a types-only core entry so the webview type-checks `src/`
+without Node types. Re-centring from inside the graph was dropped by the owner
+during Task 6: a single click already jumps the editor to that function, and
+`Shift+Alt+Q` there re-centres, so a second gesture adds nothing.
 
 **M3b, later:** the refresh button, the file watcher, zoom level of detail,
 sharing line:col to offset through core, mixed-EOL offset drift. **M4:**
@@ -87,7 +90,7 @@ state survives `structuredClone` and JSON.
 **Merge** (`mergeExpansion`) adds nodes and edges whose ids are absent (an
 existing node is never replaced), records `slices[nodeId]` and returns the added
 ids. An expansion that adds no node still adds missing edges and records the
-slice, so its button turns to `[−]`. `applyExpansion` merges, then places the
+slice, so the box counts as expanded. `applyExpansion` merges, then places the
 added nodes (section 5.2), writing no existing position.
 
 **Collapse.** `collapseNode(graph, X)`:
@@ -112,8 +115,8 @@ so Back also invalidates answers in flight for the graph being left.
 `current.project`, the node is in the graph and `slice.focusId` equals the node
 id.
 
-**History.** Every new centre pushes the previous graph, whatever its source:
-double-click, `Shift+Alt+Q` or the context menu, except a trivially recoverable
+**History.** Every new centre, from Show Graph (`Shift+Alt+Q`, the context menu
+or the palette), pushes the previous graph, except a trivially recoverable
 graph (same `project` and `focusId`, no expansions, nothing pinned). The 21st
 entry drops the oldest. Back restores nodes, edges, expansions, positions and
 pins exactly, without re-analysis, then refits the view. No forward history.
@@ -148,7 +151,7 @@ export type WebviewToExtension =
   | { type: "ready" }
   | { type: "openInEditor"; project: string; nodeId: NodeId }
   | { type: "openCallSite"; project: string; edgeId: string }
-  | { type: "focus"; project: string; nodeId: NodeId }
+  | { type: "focus"; project: string; nodeId: NodeId } // kept; not sent
   | { type: "expand"; project: string; nodeId: NodeId; generation: number }
   | { type: "setColumnGap"; value: number }
   | { type: "refresh" }; // still unhandled; M3b
@@ -161,7 +164,8 @@ restore a graph from another project, so one id can mean different files;
 `project` keeps them apart and tells the extension which project to ask. An
 `expansion` slice echoes the `generation` it was asked with. `busy` covers
 centre requests only; an expansion spins on its own box. `parseWebviewMessage`
-and `isExtensionMessage` validate the new shapes.
+and `isExtensionMessage` validate the new shapes. The webview no longer sends
+`focus`; the message and the extension's `focusNode` stay as built.
 
 ### 4.2 Worker
 
@@ -192,7 +196,7 @@ entry from the new `ProjectCache.openTsconfig(tsconfig)`, which reuses the warm
 project, reloads it if evicted (`MAX_PROJECTS = 3`) and applies pending changed
 files like `open`. It never calls `findTsconfig`: that picks a project from a
 file path and could pick another project for a node reached from a neighbouring
-package. Re-centre and expansion both use this request; core needs no change,
+package. Expansion and `focusNode` both use this request; core needs no change,
 because the project lookup lives in the worker.
 
 ### 4.3 Extension
@@ -287,7 +291,8 @@ drag moves the node live through React Flow's change handling;
 `onNodeDragStop` writes the final position of every node it reports into the
 view state and adds them to `pinned`. `nodeDragThreshold={4}` stops a plain
 click becoming a drag. A pinned node shows a pin icon (inline SVG) in its
-header; clicking it unpins without moving the node. `zoomOnDoubleClick` is off.
+header; clicking it unpins without moving the node and without jumping or
+toggling. `zoomOnDoubleClick` is off.
 
 ### 5.4 Tidy
 
@@ -372,47 +377,54 @@ is empty or `busy`; Tidy when there is no graph.
 ## 6. Interactions
 
 **Single click** on a node or edge jumps at once, unchanged, with no delay.
-**Double-click** on a `function` or `component` node other than the centre
-posts `focus` (`onNodeDoubleClick`); elsewhere it does nothing. Its first click
-already jumped, harmless because the code sits beside the panel. Node boxes are
-`user-select: none` so a double-click selects no text.
+**Double-click** on a node toggles it (`onNodeDoubleClick`): a collapsed
+`function` or `component` other than the centre expands, an expanded one
+collapses, and on a loading box, the centre, or an `external`, `unknown` or
+`module` box it does nothing. Expanding is ignored while `busy` (a centre is
+pending); collapsing works while `busy`. The first click already jumped, so a
+double-click jumps first and then toggles, harmless because the code sits beside
+the panel. Node boxes are `user-select: none` so a double-click selects no text.
 
-**Known risk, verified in Task 6.** The first click's jump goes through
+**Re-centring has no gesture in the graph.** Single-click a box (the editor
+jumps to that function) and press `Shift+Alt+Q` there; a new centre always comes
+from Show Graph. A double-click never posts `focus`, and there is no re-centre
+button.
+
+**Focus and the second click.** The first click's jump goes through
 `EditorRevealer.reveal`, whose `showTextDocument` moves keyboard focus into the
-editor, and VS Code might then swallow the second click so `dblclick` never
-reaches the webview. No automated test can click, so the owner checks by hand
-before committing Task 6 (manual check 5). Pass: ten consecutive double-clicks
-on different nodes each re-centre the graph and leave the editor at that node's
-declaration. **Fallback if it fails:** remove the double-click handler and add a
-`[◎]` button to the header cluster, left of `[+]`, same eligibility, title
-"Re-centre here", posting the same `focus`. The single-click jump keeps its
-present focus behaviour either way.
+editor, which could have made VS Code swallow the second click. The owner checked
+by hand that it does not; there is no fallback button.
 
-**Header controls** (`graph/node-controls.ts`, pure
-`nodeControl(node, graph, ui)`) sit at the right end of the header after the
-input type: the pin icon if pinned, then the expand control.
+**Box states** (`graph/node-controls.ts`). There are no expand or collapse
+buttons. The header shows only the pin icon, when pinned, at the right end after
+the input type; a loading box shows a 12 px spinner there, and a failed
+expansion shows its message on the box for 4 s. The pure
+`nodeControl(node, graph, ui)` decides the state, and the pure
+`doubleClickAction(node, graph, ui): "expand" | "collapse" | "none"` is derived
+from it; `canRecentre` is gone.
 
-| Node | Expand control |
-|---|---|
-| centre, `external`, `unknown`, `module` | none |
-| `function`/`component`, collapsed | `[+]`, disabled while `busy` |
-| loading | 12 px spinner, not clickable |
-| expanded | `[−]`, also while `busy` |
+| Box | `nodeControl` | Double-click |
+|---|---|---|
+| centre, `external`, `unknown`, `module` | `none` | nothing |
+| `function`/`component`, collapsed | `expand` | expands |
+| same, while `busy` | `expandDisabled` | nothing |
+| loading | `loading` | nothing |
+| expanded | `collapse` | collapses, also while `busy` |
 
-`[+]` posts `expand` with the graph's `project` and `generation` and marks the
-node loading; several may be in flight, each merging when it arrives. `[−]`
-calls `collapseNode` locally. Controls stop click and double-click
-propagation, so they never jump, drag or re-centre. A pending centre, by any
-route, leaves the old graph visible with the existing spinner; `[+]` and Back
-are disabled while `busy`, and answers for the old graph are dropped by
+Expanding posts `expand` with the graph's `project` and `generation` and marks
+the node loading; several may be in flight, each merging when it arrives.
+Collapsing calls `collapseNode` locally. The pin icon stops click and
+double-click propagation, so it never jumps, toggles or drags. A pending centre,
+by any route, leaves the old graph visible with the existing spinner; expanding
+and Back are disabled while `busy`, and answers for the old graph are dropped by
 generation.
 
 ## 7. Errors
 
 | Failure | Result |
 |---|---|
-| Expansion fails (renamed since, worker crash, unknown project) | `expandFailed`: the box shows the message for 4 s (full text in `title`), the button resets to `[+]`, the graph is unchanged |
-| Re-centre fails | `analysisError`, `busy: false`: old graph and history unchanged, existing banner shows the message |
+| Expansion fails (renamed since, worker crash, unknown project) | `expandFailed`: the box shows the message for 4 s (full text in `title`) and returns to collapsed, the graph is unchanged |
+| A new centre fails (Show Graph, or `focus`) | `analysisError`, `busy: false`: old graph and history unchanged, existing banner shows the message |
 | Answer for an older graph (generation, project, missing node, `focusId`) | Dropped silently |
 | ELK fails (new centre or Tidy) | Old graph and positions kept; banner "Could not lay out the graph: ..." |
 | Persisted state fails `isViewState` | Ignored; the panel starts empty |
@@ -442,9 +454,10 @@ generation.
   displaced nodes keep their column; undisplaced keep ELK's position.
 - `supplier-labels.test.ts`: one line per supplier and kind; call and external
   merge; jsx and passes separate; empty text skipped.
-- Also `pan-to-reveal`, `node-controls` (each row of section 6's table),
-  `persist`, `column-gap`, `messages`, `app-state`, `to-flow`, `layout` (ELK
-  option follows `columnGap`) and `node-box` (controls markup).
+- Also `pan-to-reveal`, `node-controls` (`nodeControl` and `doubleClickAction`,
+  each row of section 6's table), `persist`, `column-gap`, `messages`,
+  `app-state`, `to-flow`, `layout` (ELK option follows `columnGap`) and
+  `node-box` (pin, spinner and failure markup).
 
 **Extension unit tests:** `jump-table` (merge, per-project isolation, `clear`);
 `session` (`focusNode` brackets `busy`, newest wins; `expand` posts no `busy`,
@@ -458,36 +471,43 @@ never queued); `webview-messages`; `dispatch`; `column-gap`.
 send `project: api.currentGraph()!.tsconfig`). Two new ones, after them, on
 `test-code/basic`:
 
-1. Re-centre by node id: `focus` for `src/signup.ts#validateUser`; then
-   `api.currentGraph()?.slice.focusId` is that id.
+1. Re-centre by node id: `focus` for `src/signup.ts#validateUser` (the
+   extension still handles it); then `api.currentGraph()?.slice.focusId` is that
+   id.
 2. A node added by an expansion can be clicked: `expand`
    `src/signup.ts#handleSignup`, then `openInEditor` for
    `src/signup.ts#createUser`, which only that expansion brought in; the editor
    lands on line index 7, the start of its declaration.
 
-**Manual check list** (the owner runs it after Task 9; item 5 earlier, per
-section 6). In `test-code/basic`, focus `handleSignup`:
+**Manual check list** (the owner runs it after Task 9). In `test-code/basic`,
+focus `handleSignup`:
 
-1. Click `[+]` on `main`: no new node, the button reads `[−]`. Click it: `[+]`.
-2. Focus `validateUser`, expand `handleSignup`: `createUser`, `sendWelcome`,
-   `main`, `retry` fade in without zoom, panning only if off screen. Collapse
-   `handleSignup`: they go; the other two stay.
-3. Drag `createUser`: the pin icon appears. Expand a neighbour: nothing moves.
-   Drag another node onto where an expansion would land, then expand: the new
-   nodes keep a visible gap. Click the pin: it vanishes, the node stays put.
-4. Click a node: the editor jumps at once. Click an edge: the call site.
-5. Double-click a neighbour ten times: it re-centres each time (section 6).
-6. `← Back` returns the previous graph with its expansions and positions and is
-   disabled at the start. Re-centre 21 times: Back stops after 20.
-7. Pin two nodes and press Tidy: unpinned nodes re-layout, pinned stay,
+1. Double-click `main`: the editor jumps to it and nothing else changes (it has
+   no new neighbours).
+2. Focus `validateUser`, double-click `handleSignup`: `createUser`,
+   `sendWelcome`, `main`, `retry` fade in without zoom, panning only if off
+   screen. Double-click `handleSignup` again: they go; the other two stay.
+3. Drag `createUser`: the pin icon appears. Double-click a neighbour: nothing
+   moves. Drag another node onto where an expansion would land, then expand: the
+   new nodes keep a visible gap. Click the pin: it vanishes, the node stays put
+   and the editor does not jump.
+4. Drag a box: every edge to and from it stays drawn and follows it throughout.
+5. Click a node: the editor jumps at once. Click an edge: the call site. A click
+   with a few pixels of pointer movement still jumps and does not pin the node.
+6. Double-click ten different boxes in a row: each one toggles (expands, or
+   collapses if it was expanded) with the editor at that box's declaration.
+7. `← Back` returns the previous graph with its expansions and positions and is
+   disabled at the start. Run Show Graph in 21 different functions: Back stops
+   after 20.
+8. Pin two nodes and press Tidy: unpinned nodes re-layout, pinned stay,
    nothing overlaps, the view fits.
-8. Move the slider through both ends: nodes settle after a pause, labels
+9. Move the slider through both ends: nodes settle after a pause, labels
    ellipsise at narrow gaps with the full text on hover. Close the panel, run
    Show Graph: the value is kept; restart the dev host: still kept.
-9. In `test-code/jsx` focus `Page`: `SignupForm` has one purple
-   `SignupFormProps` label. In `basic`, each supplier of `handleSignup` has one.
-10. "Developer: Reload Webviews": graph, pins and Back history return. Rename
-    `createUser`, save, click `[+]` on its old box: the message shows about 4 s
+10. In `test-code/jsx` focus `Page`: `SignupForm` has one purple
+    `SignupFormProps` label. In `basic`, each supplier of `handleSignup` has one.
+11. "Developer: Reload Webviews": graph, pins and Back history return. Rename
+    `createUser`, save, double-click its old box: the message shows about 4 s
     (undo the rename). Switch light and dark themes: everything follows.
 
 ## 9. Task outline
@@ -515,10 +535,10 @@ where a bundle changes).
 5. **Persistent React Flow state.** `AppState` holds `ViewState`; `layout.ts`
    takes `columnGap`; `use-layout.ts` becomes a centre-layout and Tidy hook;
    `to-flow.ts` maps `GraphState`; one mounted `ReactFlow`; drag, pins,
-   `setState` persistence; expansion answers merge (no button yet).
-6. **Box controls.** `node-controls.ts`, `[+]`/`[−]`, spinner, failure text,
-   pin icon, double-click, fade-in, pan to reveal. Ends with manual check 5; on
-   failure the `[◎]` fallback is built in the same task.
+   `setState` persistence; expansion answers merge (no gesture yet).
+6. **Box controls.** `node-controls.ts` (`nodeControl`, `doubleClickAction`),
+   double-click to expand or collapse, spinner, failure text, pin icon, fade-in,
+   pan to reveal. No buttons and no re-centre gesture.
 7. **Toolbar.** `toolbar/Toolbar.tsx`, Back, Tidy, the slider, `column-gap.ts`
    (webview module and extension store), `settings`, `setColumnGap`.
 8. **Labels.** `supplier-labels.ts`, rendering in `SpiderNode`, removal of edge

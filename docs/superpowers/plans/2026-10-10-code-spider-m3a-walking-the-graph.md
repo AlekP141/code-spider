@@ -4,11 +4,11 @@
 > validate this plan and hand it to `subagent-driven-development` for
 > task-by-task execution. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let the user walk the graph from inside it. Expand a neighbour in
-place (`[+]`/`[−]`), re-centre on it (double-click), step Back, drag nodes (a
-dragged node is pinned), Tidy, and spread the columns with a slider, with no
-overlap ever and one readable type label per supplier. This is the first half of
-spec §10 M3.
+**Goal:** Let the user walk the graph from inside it. Expand and collapse a
+neighbour in place (double-click), step Back, drag nodes (a dragged node is
+pinned), Tidy, and spread the columns with a slider, with no overlap ever and one
+readable type label per supplier. This is the first half of spec §10 M3. (Re-centring
+stays with a click plus `Shift+Alt+Q`; see Plan decision 11.)
 
 **Architecture:** The webview owns the view state (centre, merged slices,
 expanded nodes, positions, pins, Back history, column gap) as plain data with
@@ -31,8 +31,10 @@ smoke tests. No new dependencies.
 
 ## Status
 
-Tasks 1 to 5 are written in full detail and were tried in order on a scratch copy of
-the repository (after Task 5: core 231, CLI 43, webview 162, extension 127, smoke 4).
+Tasks 1 to 5 are written in full detail, were tried in order on a scratch copy of
+the repository (after Task 5: core 231, CLI 43, webview 162, extension 127, smoke 4)
+and are now implemented and committed. Task 6 was built, then changed by the owner's
+decision (Plan decision 11: double-click toggles, nothing re-centres in the graph).
 Tasks 6 to 9 are written at plan level: the implementer follows TDD from each task's
 Tests list and writes the code and tests themselves; the `Create`/`Replace`/`Edit`
 block syntax below applies to Tasks 1 to 5 only. Counts for Tasks 6 to 9 are not
@@ -185,6 +187,20 @@ reading most consistent with the spec's intent:
     table keeps every slice sent since the panel opened and the earlier cases
     already sent `createUser`. Task 9 closes the panel (which clears the table)
     and reopens it on `validateUser` first.
+11. **Double-click toggles; no re-centre inside the graph (owner, during Task 6).**
+    After trying Task 6 as first built, the owner decided: (a) a double-click on a
+    function or component box other than the centre expands it when collapsed and
+    collapses it when expanded, does nothing on a loading box, the centre or an
+    `external`, `unknown` or `module` box, and ignores expanding while `busy`
+    (collapsing works); (b) there are no `[+]` or `[−]` buttons, while the spinner,
+    the failure strip and the pin icon stay; (c) the webview no longer re-centres: a
+    double-click never posts `focus` and there is no `[◎]` button or fallback, so the
+    user clicks a box and presses `Shift+Alt+Q` in the editor. The protocol's `focus`
+    and the extension's `focusNode` stay as Task 2 built them. Wherever the M3a spec
+    still describes the old controls (section 6's `[+]`/`[−]` table, double-click
+    re-centre and `[◎]` fallback; manual checks 1, 2, 5, 6 and 10; the Task 6 outline
+    entry) this entry wins. Tasks 6 and 9 follow it; Tasks 1 to 5 are unchanged and
+    mention buttons and double-click only as work for later tasks.
 
 ---
 
@@ -7606,13 +7622,15 @@ The implementer does not stage or commit; the user does.
 
 ### Task 6: Box controls
 
-A function or component box can be expanded in place, collapsed, and re-centred on
-with a double-click. It shows a spinner while loading, its failure message for 4
-seconds and a pin icon once dragged; new boxes fade in and the view pans just far
-enough to show them. The task ends with the owner's manual check 5.
+A double-click on a function or component box expands it in place, or collapses it
+again if it is already expanded. A box shows a spinner while its expansion loads,
+its failure message for 4 seconds and a pin icon once dragged; new boxes fade in
+and the view pans just far enough to show them. There are no expand or collapse
+buttons and nothing re-centres from inside the graph (Plan decision 11). The task
+ends with the owner's manual check 5.
 
 **Files:**
-- Create: `packages/webview/src/graph/node-controls.ts` (pure `nodeControl`, `canRecentre`), `node-context.ts` (`NodeContext`: graph, box UI state and callbacks, so React Flow's node data stays stable), `reveal.ts` (`revealRect`), `viewport-requests.tsx` (`FitOnRequest`, moved out of `GraphView.tsx`, and the new `RevealOnRequest`)
+- Create: `packages/webview/src/graph/node-controls.ts` (pure `nodeControl`, `doubleClickAction`), `node-context.ts` (`NodeContext`: graph, box UI state and the unpin callback, so React Flow's node data stays stable), `reveal.ts` (`revealRect`), `viewport-requests.tsx` (`FitOnRequest`, moved out of `GraphView.tsx`, and the new `RevealOnRequest`)
 - Create: `packages/webview/src/app-walk.ts` (pure `AppState` helpers for expansions in flight; keeps `app-state.ts` under 300 lines), `use-walk-timers.ts` (expires a failure after 4 s and `entering` after 300 ms)
 - Modify: `packages/webview/src/app-state.ts` (fields and actions below, delegating to `app-walk.ts`), `graph/jump.ts`, `graph/NodeBox.tsx`, `graph/SpiderNode.tsx`, `graph/GraphView.tsx`, `App.tsx`, `graph/graph.css`
 - Test: `packages/webview/test/node-controls.test.ts`, `reveal.test.ts`, `app-walk.test.ts` (create); `jump.test.ts`, `node-box.test.tsx` (extend)
@@ -7630,7 +7648,7 @@ enough to show them. The task ends with the owner's manual check 5.
   export type NodeUi = { busy: boolean; loading: readonly NodeId[] };
   export type NodeControl = "none" | "expand" | "expandDisabled" | "loading" | "collapse";
   export function nodeControl(node: GraphNode, graph: GraphState, ui: NodeUi): NodeControl;
-  export function canRecentre(node: GraphNode, graph: GraphState): boolean;
+  export function doubleClickAction(node: GraphNode, graph: GraphState, ui: NodeUi): "expand" | "collapse" | "none";
   // app-state.ts: AppState gains
   loading: NodeId[];  failures: Record<NodeId, { message: string; token: number }>;
   entering: { ids: NodeId[]; token: number };  nextToken: number;
@@ -7644,26 +7662,33 @@ enough to show them. The task ends with the owner's manual check 5.
   Also: `app-walk.ts` exports `resetTransient(state: AppState): AppState` (empties
   `loading`, `failures`, `entering`, `reveal`; Task 7 uses it); `reveal.ts` exports
   `revealRect(graph, ids: readonly NodeId[]): Rect | undefined`; `jump.ts` exports
-  `expandMessage(nodeId, project, generation)` and `focusMessage(nodeId, project)`;
-  `node-context.ts` exports `NodeActions = { onExpand, onCollapse, onUnpin }` (each
-  `(nodeId: NodeId) => void`), `NodeContextValue = { graph: GraphState; ui: NodeUi;
-  failures: AppState["failures"]; actions: NodeActions }` and `NodeContext`;
-  `NodeBoxProps` gains optional `pinned`, `control`, `failure`, `actions`;
-  `GraphViewProps` gains `ui: Pick<AppState, "busy" | "loading" | "failures" |
-  "entering" | "reveal">` and `actions: NodeActions`.
+  `expandMessage(nodeId, project, generation)` and no `focus` builder (the webview
+  never sends `focus`); `node-context.ts` exports `NodeActions = { onExpand,
+  onCollapse, onUnpin }` (each `(nodeId: NodeId) => void`; `GraphView` takes it as
+  `actions`), `NodeContextValue = { graph: GraphState; ui: NodeUi; failures:
+  AppState["failures"]; onUnpin: NodeActions["onUnpin"] }` and `NodeContext`;
+  `NodeBoxProps` gains optional `pinned`, `loading`, `failure`, `onUnpin`;
+  `GraphViewProps` gains `busy`, `loading`, `failures`, `entering`, `reveal`
+  (the matching `AppState` fields) and `actions: NodeActions`.
 
 **Behaviour:**
-- Controls follow the table in spec section 6; `nodeControl` checks ineligible
-  (centre, kinds other than function and component), then loading, then expanded,
-  then `expand` (`expandDisabled` while `busy`). `[−]` works while busy.
-- Single click jumps at once, unchanged. Double-click where `canRecentre` holds
-  posts `focus`; it is not disabled while busy (the newest centre wins, spec
-  section 4.3). Decided, not to reopen: the `[◎]` button exists only as the
-  fallback below.
-- `[+]` posts `expand` with the graph's `project` and `generation` and marks the
-  node loading (several may be in flight); `[−]` runs `collapseNode`; the pin icon
-  runs `unpinNode` without moving the box. Controls stop click and double-click
-  propagation and carry `nodrag`.
+- Decided by the owner during Task 6, not to reopen: no `[+]`, `[−]` or `[◎]`
+  buttons; a double-click never posts `focus`; the webview sends no `focus` at all.
+  Re-centring is a single click on a box followed by `Shift+Alt+Q` in the editor.
+  The protocol's `focus` and the extension's `focusNode` stay as Task 2 built them.
+- A single click still jumps at once. A double-click therefore jumps first and then
+  toggles, which is harmless because the code sits beside the panel.
+- `doubleClickAction` answers `expand` for a collapsed function or component other
+  than the centre while not `busy`, `collapse` for an expanded one (also while
+  `busy`), and `none` for everything else: a loading box, the centre, `external`,
+  `unknown` and `module` boxes, and a collapsed box while `busy`. It is built on
+  `nodeControl`, which classifies each box (spec section 6); `loading` is also what
+  shows the spinner.
+- Expanding posts `expand` with the graph's `project` and `generation` and marks the
+  node loading (several may be in flight); collapsing runs `collapseNode` locally;
+  the pin icon runs `unpinNode` without moving the box. The pin and spinner sit in a
+  cluster that stops click and double-click propagation and carries `nodrag`, so
+  they neither jump, drag nor toggle.
 - An accepted expansion clears the node's loading and sets `entering` (the added
   ids) and `reveal` (their bounding box); one that `acceptExpansion` rejects changes
   nothing. `expandFailed` for the current generation clears loading and shows its
@@ -7671,16 +7696,20 @@ enough to show them. The task ends with the owner's manual check 5.
   committed centre calls `resetTransient`.
 - Fade-in and pan are spec section 5.2: 250 ms, class kept 300 ms, none under
   `prefers-reduced-motion`, no zoom or refit, a 200 ms pan.
-- Markup: buttons with text `+` ("Expand") and `−` U+2212 ("Collapse"); an inline
-  SVG pin button ("Unpin") before them; a 12 px spinner with `role="status"`; a
-  failure strip with `role="alert"` and the message in text and `title`;
-  `.node-box { user-select: none }`.
+- Markup: an inline SVG pin button titled "Unpin" when pinned; a 12 px spinner with
+  `role="status"` while loading; a failure strip with `role="alert"` and the message
+  in text and `title`; `.node-box { user-select: none }` so a double-click selects no
+  text. The pin and spinner cluster renders only when one of them applies.
 
 **Approach and traps:**
 - Tokens (`nextToken`) keep a late timer from clearing a newer failure or fade;
   `use-walk-timers.ts` only dispatches the two expiry actions. `collapsed` must also
   drop `loading` and `failures` for nodes that left the graph: an answer for a gone
   node is dropped, so its spinner would never clear.
+- `GraphView`'s `onNodeDoubleClick` only runs `doubleClickAction` and calls
+  `actions.onExpand` or `actions.onCollapse`; App turns those into the `expand`
+  post plus `expandStarted`, and `collapsed`. `zoomOnDoubleClick` is already off
+  (Task 5); keep it off or a double-click zooms.
 - `RevealOnRequest` follows `FitOnRequest` (handle each token once, in
   `requestAnimationFrame`), reads the pane size with `useStoreApi().getState()`
   inside the effect, and calls `setViewport(next, { duration: 200 })` only when
@@ -7690,13 +7719,11 @@ enough to show them. The task ends with the owner's manual check 5.
   edges keep their `appearance.className`, so append. Fade with `opacity` only
   (React Flow positions with `transform`).
 - `NodeBox` renders as before with only `{ node, isFocus }`; `SpiderNode` shows no
-  controls without a provider. The failure strip sits inside the box along its
+  markers without a provider. The failure strip sits inside the box along its
   bottom edge (`.node-box` needs `position: relative`).
-- Fallback if check 5 fails: delete `onNodeDoubleClick`; add `onRecentre` to
-  `NodeActions` (App posts `focusMessage`), a `recentre` prop on `NodeBox` and a
-  `[◎]` button (title "Re-centre here") before the expand control, shown when
-  `canRecentre`; extend the `node-box` tests; re-verify and repeat check 5 with ten
-  clicks on `[◎]`.
+- Risk, watched by manual check 5: the first click's jump moves keyboard focus into
+  the editor and VS Code might swallow the second click. There is no fallback
+  button any more; if check 5 fails, stop and report to the owner.
 
 **Tests:**
 - `packages/webview/test/node-controls.test.ts`
@@ -7705,16 +7732,19 @@ enough to show them. The task ends with the owner's manual check 5.
   - a loading box gets `loading`, busy or not
   - an expanded box gets `collapse`, also while busy
   - the centre is never expanded although its slice is recorded
-  - `canRecentre` is true only for a function or component that is not the centre
+  - `doubleClickAction` gives `expand` for a collapsed function or component
+  - `doubleClickAction` gives `collapse` for an expanded one, also while busy
+  - `doubleClickAction` gives `none` for a loading box, the centre, external, unknown and module boxes, and a collapsed box while busy
 - `packages/webview/test/reveal.test.ts`
   - the rectangle spans the added nodes by position and analytic height
   - ids without a node or position are ignored, and no ids gives `undefined`
 - `packages/webview/test/jump.test.ts`
-  - `expandMessage` carries node, project and generation; `focusMessage` node and project
+  - `expandMessage` carries node, project and generation
+  - no `focus` builder is exported
 - `packages/webview/test/node-box.test.tsx`
-  - `expand`, `expandDisabled` (with `disabled`) and `collapse` render their buttons and titles
-  - `loading` renders the spinner and no button; `none` renders no control markup
-  - the pin icon shows only when pinned, before the control, titled "Unpin"
+  - no expand or collapse button renders in any state
+  - a loading box renders the spinner; a box neither pinned nor loading renders no marker cluster
+  - the pin icon shows only when pinned, titled "Unpin"
   - the failure strip carries the message in its text and `title`
   - the existing cases still pass with only `{ node, isFocus }`
 - `packages/webview/test/app-walk.test.ts`
@@ -7730,21 +7760,21 @@ enough to show them. The task ends with the owner's manual check 5.
 
 **Steps:**
 - [ ] Write the listed tests and see them fail for the right reason
-- [ ] Add the pure parts: `nodeControl`, `canRecentre`, `revealRect`, the message
-      builders, the `AppState` fields and actions with `app-walk.ts`
-- [ ] Render the controls and wire the canvas: `NodeBox`, `NodeContext`, `SpiderNode`,
-      double-click, `entering` classes, `RevealOnRequest`, App handlers,
+- [ ] Add the pure parts: `nodeControl`, `doubleClickAction`, `revealRect`,
+      `expandMessage`, the `AppState` fields and actions with `app-walk.ts`
+- [ ] Render the markers and wire the canvas: `NodeBox`, `NodeContext`, `SpiderNode`,
+      `onNodeDoubleClick`, `entering` classes, `RevealOnRequest`, App handlers,
       `useWalkTimers`, CSS (keyframes, reduced-motion rule, spinner)
 - [ ] Verify: `pnpm -r typecheck` and `pnpm -r test` pass; `pnpm build` completes
 - [ ] Manual check 5 (the owner): the implementer stops and reports. The owner runs
       "Run Code Spider" (F5), focuses `handleSignup` in `test-code/basic` and
-      double-clicks ten different neighbours in a row; each must re-centre the graph
-      and leave the editor at that node's declaration. On failure, build the fallback
-      in this task and repeat
+      double-clicks ten different boxes in a row (expanding as they go gives enough
+      of them); each must toggle (expand, or collapse if already expanded) and leave
+      the editor at that box's declaration
 - [ ] Inspect the task delta (`git diff --check`, `git diff`, and the untracked-file
       loop under Global Constraints) and propose the commit
 
-Proposed commit message: `add expand, collapse and double-click re-centre to node boxes`
+Proposed commit message: `add double-click expand and collapse to node boxes`
 
 The implementer does not stage or commit; the user does.
 
@@ -7958,7 +7988,7 @@ owner's manual check list, in the final names, closes M3a.
 
 **Files:**
 - Modify: `packages/extension/smoke/suite/extension.smoke.ts` (two cases after the existing four)
-- Modify: `docs/superpowers/specs/2026-08-22-code-spider-design.md` (sections 4.3, 7.5, and the section 10 M3 list)
+- Modify: `docs/superpowers/specs/2026-08-22-code-spider-design.md` (sections 4.3, 7.5, 8.2 and the section 10 M3 list)
 
 **Interfaces:**
 - Consumes: `ExtensionApi.handleWebviewMessage(message)` and `currentGraph()`
@@ -7970,18 +8000,24 @@ owner's manual check list, in the final names, closes M3a.
 
 **Behaviour:**
 - Case 1 (spec section 8): `focus` for `src/signup.ts#validateUser`; then
-  `api.currentGraph()?.slice.focusId` is that id.
+  `api.currentGraph()?.slice.focusId` is that id. The webview no longer sends
+  `focus` (Plan decision 11), so this case covers the extension side only.
 - Case 2 (spec section 8): after `expand` of `src/signup.ts#handleSignup`,
   `openInEditor` for `src/signup.ts#createUser` puts the cursor at line index 7,
   character 0, on `export async function createUser`.
-- Doc edits (spec section 2): in 4.3, a re-centre discards the visible graph's
-  expansions but the Back history (20 graphs) keeps them; in 7.5, replace "ELK runs
-  only over the newly added subgraph" with our own column placement that never moves
-  existing nodes, ELK serving only a new centre and Tidy, and add that labels are
-  drawn once per supplier with M2's 40-character cap gone; in the section 10 M3
-  list, mark expand-on-demand with pinning, re-centre, draggable nodes, the slider
-  and no-overlap done in M3a, leaving the refresh button, zoom level of detail and
-  the file watcher as M3b. Leave the rest of that file alone.
+- Doc edits (spec section 2, and Plan decision 11): in 4.3, a re-centre (Show Graph
+  from the editor) discards the visible graph's expansions but the Back history (20
+  graphs) keeps them; in 7.5, replace "ELK runs only over the newly added subgraph"
+  with our own column placement that never moves existing nodes, ELK serving only a
+  new centre and Tidy, and add that labels are drawn once per supplier with M2's
+  40-character cap gone; in 8.2, "expand click" becomes a double-click on a box and
+  the table row "Expand `+`" becomes "Expand (double-click)"; in the section 10 M3
+  list, mark expand-on-demand with pinning (double-click to expand and collapse),
+  draggable nodes, the slider and no-overlap done in M3a, mark "Re-centre from
+  inside the graph" as dropped (a single click plus `Shift+Alt+Q` covers it), and
+  leave the refresh button, zoom level of detail and the file watcher as M3b.
+  Sections 7.4 (`focus` stays in the protocol), 7.6 and 8.1 describe no double-click
+  or in-graph re-centre; leave them, and the rest of that file, alone.
 
 **Approach and traps:**
 - The jump table keeps every slice sent since the panel opened, and the earlier
@@ -7997,26 +8033,29 @@ owner's manual check list, in the final names, closes M3a.
 
 **Tests:**
 - `packages/extension/smoke/suite/extension.smoke.ts`
-  - "re-centres on a node by its id" (case 1)
+  - "re-centres on a node by its id" (case 1, extension side only)
   - "jumps to a node that only an expansion brought in" (case 2, with the panel closed and reopened first)
 
 **Manual check list (the owner runs it after Task 9; check 5 already ran in Task
 6).** Setup: `pnpm build`, F5 with "Run Code Spider" (Extension Development Host on
 `test-code/basic`), open `src/signup.ts`, cursor in `handleSignup`, `Shift+Alt+Q`.
-1. `[+]` on `main`: no new box and the button reads `[−]`; click it: `[+]`.
-2. Double-click `validateUser` to re-centre, then `[+]` on `handleSignup`:
-   `createUser`, `sendWelcome`, `main`, `retry` fade in without zoom, panning only if
-   off screen. `[−]` on `handleSignup`: those four go, `validateUser` and
-   `handleSignup` stay.
-3. Drag `createUser`: a pin icon appears. Expand a neighbour: nothing moves. Drag
-   another box onto where an expansion would land, then expand: the new boxes keep a
-   visible gap. Click the pin: it vanishes and the box stays put.
+1. Double-click `main`: no new box and no failure message appears; double-click it
+   again: still nothing changes (it expanded, then collapsed, with nothing to add).
+2. Click `validateUser`, then press `Shift+Alt+Q` in the editor to re-centre on it.
+   Double-click `handleSignup`: `createUser`, `sendWelcome`, `main`, `retry` fade in
+   without zoom, panning only if off screen. Double-click `handleSignup` again:
+   those four go, `validateUser` and `handleSignup` stay.
+3. Drag `createUser`: a pin icon appears. Double-click a neighbour to expand it:
+   nothing moves. Drag another box onto where an expansion would land, then
+   double-click to expand: the new boxes keep a visible gap. Click the pin: it
+   vanishes and the box stays put.
 4. Click a box: the editor jumps to its declaration at once. Click an edge: the call
    site.
-5. Double-click a neighbour ten times: it re-centres each time (repeat only if
-   Task 6 built the `[◎]` fallback).
+5. Double-click ten different boxes in a row: each toggles (expands, or collapses if
+   it was expanded) and the editor is at that box's declaration (passed in Task 6).
 6. `← Back` returns the previous graph with expansions, positions and pins, and is
-   disabled at the start. Re-centre 21 times: Back stops after 20.
+   disabled at the start. Re-centre 21 times with Show Graph from the editor,
+   alternating between two functions: Back stops after 20.
 7. Pin two boxes, press `Tidy`: the others re-lay out, the pinned two stay, nothing
    overlaps, the view fits.
 8. Move the Spacing slider through both ends: boxes settle after a pause, labels
@@ -8027,12 +8066,18 @@ owner's manual check list, in the final names, closes M3a.
    `sendWelcome` each carry one label (`ValidUserData`, `User`, `void`) and
    `handleSignup` one `User` label for its two consumers.
 10. "Developer: Reload Webviews": graph, pins and Back history return. Rename
-    `createUser`, save, `[+]` on its old box: the message shows about 4 s (undo the
-    rename). Switch light and dark themes: boxes, labels, toolbar and pins follow.
+    `createUser`, save, double-click its old box (one you have not expanded): the
+    failure message shows about 4 s (undo the rename). Switch light and dark
+    themes: boxes, labels, toolbar and pins follow.
+11. (From the Task 5 review.) Drag a box: its edges stay drawn and follow it for the
+    whole drag.
+12. (From the Task 5 review.) Click a box while the pointer moves a few pixels (under
+    the 4 px drag threshold): the editor still jumps to the code and the box neither
+    moves nor pins.
 
 **Steps:**
 - [ ] Write the two smoke cases after the existing four
-- [ ] Edit the three sections of the main design spec
+- [ ] Edit the four sections of the main design spec
 - [ ] Verify: `pnpm -r typecheck`, `pnpm -r test` and `pnpm build` pass;
       `pnpm --filter code-spider-vscode check:electron` exits 0 (on exit 2 stop and
       report its `sudo apt install` line); `pnpm --filter code-spider-vscode
