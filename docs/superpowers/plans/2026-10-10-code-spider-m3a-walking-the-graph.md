@@ -29,22 +29,14 @@ smoke tests. No new dependencies.
 
 **Spec:** docs/superpowers/specs/2026-10-10-code-spider-m3a-design.md
 
-## Progress
+## Status
 
-This copy of the plan was saved mid-authoring. Every task marked complete below
-was applied, in order, to a scratch copy of the repository: `pnpm -r typecheck`,
-`pnpm -r test` and `pnpm build` were green after each, and each test count
-quoted was observed.
-
-- [x] Task 1: Types-only core entry (webview 55)
-- [x] Task 2: Protocol, worker slices and extension plumbing (webview 58, extension 127)
-- [x] Task 3: Webview graph-state model (webview 99)
-- [x] Task 4: Placement, Tidy, pan-to-reveal and accepting an expansion (webview 142)
-- [x] Task 5: One mounted canvas: view state in the app, drag, pins, persistence (webview 162)
-- [ ] Task 6: Box controls: NOT YET WRITTEN
-- [ ] Task 7: Toolbar: NOT YET WRITTEN
-- [ ] Task 8: Labels once per supplier: NOT YET WRITTEN
-- [ ] Task 9: Smoke tests, docs and the manual check list: NOT YET WRITTEN
+Tasks 1 to 5 are written in full detail and were tried in order on a scratch copy of
+the repository (after Task 5: core 231, CLI 43, webview 162, extension 127, smoke 4).
+Tasks 6 to 9 are written at plan level: the implementer follows TDD from each task's
+Tests list and writes the code and tests themselves; the `Create`/`Replace`/`Edit`
+block syntax below applies to Tasks 1 to 5 only. Counts for Tasks 6 to 9 are not
+predicted: each leaves every existing test passing and adds the cases it lists.
 
 ## Global Constraints
 
@@ -188,6 +180,11 @@ reading most consistent with the spec's intent:
    text). Task 9 applies them to `docs/superpowers/specs/2026-08-22-code-spider-design.md`
    and marks the M3a items in its §10 M3 list; the M3a spec does not mention
    §10 explicitly, so this follows the brief.
+10. **Smoke case 2 starts from a cleared jump table.** The spec's second smoke
+    case expects `createUser` to be known only through the expansion, but the
+    table keeps every slice sent since the panel opened and the earlier cases
+    already sent `createUser`. Task 9 closes the panel (which clears the table)
+    and reopens it on `validateUser` first.
 
 ---
 
@@ -7609,43 +7606,442 @@ The implementer does not stage or commit; the user does.
 
 ### Task 6: Box controls
 
-**STATUS: NOT YET WRITTEN**
+A function or component box can be expanded in place, collapsed, and re-centred on
+with a double-click. It shows a spinner while loading, its failure message for 4
+seconds and a pin icon once dragged; new boxes fade in and the view pans just far
+enough to show them. The task ends with the owner's manual check 5.
 
-Planned: `graph/node-controls.ts` (pure `nodeControl(node, graph, ui)` covering
-each row of the spec's table), `[+]`/`[−]`/spinner/failure text/pin icon markup in
-`NodeBox` and `SpiderNode` (callbacks through a context so React Flow's node data
-stays stable), `jump.ts` builders for `expand` and `focus`, double-click to
-re-centre, the AppState fields `loading`, `failures`, `entering` and `reveal`, the
-250 ms fade-in (class kept 300 ms, none under `prefers-reduced-motion`) and
-`panToReveal` after an expansion. Ends with the owner's manual check 5; the `[◎]`
-fallback is written out in full as conditional steps.
+**Files:**
+- Create: `packages/webview/src/graph/node-controls.ts` (pure `nodeControl`, `canRecentre`), `node-context.ts` (`NodeContext`: graph, box UI state and callbacks, so React Flow's node data stays stable), `reveal.ts` (`revealRect`), `viewport-requests.tsx` (`FitOnRequest`, moved out of `GraphView.tsx`, and the new `RevealOnRequest`)
+- Create: `packages/webview/src/app-walk.ts` (pure `AppState` helpers for expansions in flight; keeps `app-state.ts` under 300 lines), `use-walk-timers.ts` (expires a failure after 4 s and `entering` after 300 ms)
+- Modify: `packages/webview/src/app-state.ts` (fields and actions below, delegating to `app-walk.ts`), `graph/jump.ts`, `graph/NodeBox.tsx`, `graph/SpiderNode.tsx`, `graph/GraphView.tsx`, `App.tsx`, `graph/graph.css`
+- Test: `packages/webview/test/node-controls.test.ts`, `reveal.test.ts`, `app-walk.test.ts` (create); `jump.test.ts`, `node-box.test.tsx` (extend)
+
+**Interfaces:**
+- Consumes: `isExpanded`, `collapseNode(graph, nodeId)`, `unpinNode(graph, nodeId)`
+  (Task 3); `acceptExpansion(view, answer, columnGap): { view; added }`, `Rect`,
+  `boundingRect`, `panToReveal(viewport, size, rect, padding?)` (Task 4);
+  `AppState`, `LocalAction`, `FitRequest`, `GraphView` with `{ graph, fit, onPost,
+  onDragStop }`, `SpiderNodeData` (Task 5; `refit` in `app-state.ts` is private).
+- Produces:
+
+  ```ts
+  // graph/node-controls.ts
+  export type NodeUi = { busy: boolean; loading: readonly NodeId[] };
+  export type NodeControl = "none" | "expand" | "expandDisabled" | "loading" | "collapse";
+  export function nodeControl(node: GraphNode, graph: GraphState, ui: NodeUi): NodeControl;
+  export function canRecentre(node: GraphNode, graph: GraphState): boolean;
+  // app-state.ts: AppState gains
+  loading: NodeId[];  failures: Record<NodeId, { message: string; token: number }>;
+  entering: { ids: NodeId[]; token: number };  nextToken: number;
+  reveal: { token: number; rect: Rect } | undefined;
+  // LocalAction gains
+  { type: "expandStarted" | "collapsed" | "unpinned"; nodeId: NodeId }
+  { type: "failureExpired"; nodeId: NodeId; token: number }
+  { type: "enteringExpired"; token: number }
+  ```
+
+  Also: `app-walk.ts` exports `resetTransient(state: AppState): AppState` (empties
+  `loading`, `failures`, `entering`, `reveal`; Task 7 uses it); `reveal.ts` exports
+  `revealRect(graph, ids: readonly NodeId[]): Rect | undefined`; `jump.ts` exports
+  `expandMessage(nodeId, project, generation)` and `focusMessage(nodeId, project)`;
+  `node-context.ts` exports `NodeActions = { onExpand, onCollapse, onUnpin }` (each
+  `(nodeId: NodeId) => void`), `NodeContextValue = { graph: GraphState; ui: NodeUi;
+  failures: AppState["failures"]; actions: NodeActions }` and `NodeContext`;
+  `NodeBoxProps` gains optional `pinned`, `control`, `failure`, `actions`;
+  `GraphViewProps` gains `ui: Pick<AppState, "busy" | "loading" | "failures" |
+  "entering" | "reveal">` and `actions: NodeActions`.
+
+**Behaviour:**
+- Controls follow the table in spec section 6; `nodeControl` checks ineligible
+  (centre, kinds other than function and component), then loading, then expanded,
+  then `expand` (`expandDisabled` while `busy`). `[−]` works while busy.
+- Single click jumps at once, unchanged. Double-click where `canRecentre` holds
+  posts `focus`; it is not disabled while busy (the newest centre wins, spec
+  section 4.3). Decided, not to reopen: the `[◎]` button exists only as the
+  fallback below.
+- `[+]` posts `expand` with the graph's `project` and `generation` and marks the
+  node loading (several may be in flight); `[−]` runs `collapseNode`; the pin icon
+  runs `unpinNode` without moving the box. Controls stop click and double-click
+  propagation and carry `nodrag`.
+- An accepted expansion clears the node's loading and sets `entering` (the added
+  ids) and `reveal` (their bounding box); one that `acceptExpansion` rejects changes
+  nothing. `expandFailed` for the current generation clears loading and shows its
+  message on the box for 4 s (spec section 7); other generations are dropped. A
+  committed centre calls `resetTransient`.
+- Fade-in and pan are spec section 5.2: 250 ms, class kept 300 ms, none under
+  `prefers-reduced-motion`, no zoom or refit, a 200 ms pan.
+- Markup: buttons with text `+` ("Expand") and `−` U+2212 ("Collapse"); an inline
+  SVG pin button ("Unpin") before them; a 12 px spinner with `role="status"`; a
+  failure strip with `role="alert"` and the message in text and `title`;
+  `.node-box { user-select: none }`.
+
+**Approach and traps:**
+- Tokens (`nextToken`) keep a late timer from clearing a newer failure or fade;
+  `use-walk-timers.ts` only dispatches the two expiry actions. `collapsed` must also
+  drop `loading` and `failures` for nodes that left the graph: an answer for a gone
+  node is dropped, so its spinner would never clear.
+- `RevealOnRequest` follows `FitOnRequest` (handle each token once, in
+  `requestAnimationFrame`), reads the pane size with `useStoreApi().getState()`
+  inside the effect, and calls `setViewport(next, { duration: 200 })` only when
+  `panToReveal` returns a viewport. Compute `reveal` in the reducer, after placement.
+- In `GraphView`, keep `nodeTypes` module-level and memoise the context value, or
+  React Flow rebuilds every node. Add `entering` classes in the existing `nodes` memo;
+  edges keep their `appearance.className`, so append. Fade with `opacity` only
+  (React Flow positions with `transform`).
+- `NodeBox` renders as before with only `{ node, isFocus }`; `SpiderNode` shows no
+  controls without a provider. The failure strip sits inside the box along its
+  bottom edge (`.node-box` needs `position: relative`).
+- Fallback if check 5 fails: delete `onNodeDoubleClick`; add `onRecentre` to
+  `NodeActions` (App posts `focusMessage`), a `recentre` prop on `NodeBox` and a
+  `[◎]` button (title "Re-centre here") before the expand control, shown when
+  `canRecentre`; extend the `node-box` tests; re-verify and repeat check 5 with ten
+  clicks on `[◎]`.
+
+**Tests:**
+- `packages/webview/test/node-controls.test.ts`
+  - the centre and the external, unknown and module boxes get `none`
+  - a collapsed function or component gets `expand`, and `expandDisabled` while busy
+  - a loading box gets `loading`, busy or not
+  - an expanded box gets `collapse`, also while busy
+  - the centre is never expanded although its slice is recorded
+  - `canRecentre` is true only for a function or component that is not the centre
+- `packages/webview/test/reveal.test.ts`
+  - the rectangle spans the added nodes by position and analytic height
+  - ids without a node or position are ignored, and no ids gives `undefined`
+- `packages/webview/test/jump.test.ts`
+  - `expandMessage` carries node, project and generation; `focusMessage` node and project
+- `packages/webview/test/node-box.test.tsx`
+  - `expand`, `expandDisabled` (with `disabled`) and `collapse` render their buttons and titles
+  - `loading` renders the spinner and no button; `none` renders no control markup
+  - the pin icon shows only when pinned, before the control, titled "Unpin"
+  - the failure strip carries the message in its text and `title`
+  - the existing cases still pass with only `{ node, isFocus }`
+- `packages/webview/test/app-walk.test.ts`
+  - `expandStarted` marks a node loading once
+  - an accepted answer merges, clears loading and sets `entering` and `reveal`
+  - an answer that adds no node clears loading and sets neither
+  - an answer for another generation changes nothing, loading included
+  - `expandFailed` records a failure and clears loading for the current generation and is dropped otherwise
+  - `failureExpired` and `enteringExpired` act only on a matching token
+  - `collapsed` collapses and drops loading and failures of removed nodes
+  - `unpinned` unpins and keeps the position
+  - `centreLaidOut` resets the transient fields
+
+**Steps:**
+- [ ] Write the listed tests and see them fail for the right reason
+- [ ] Add the pure parts: `nodeControl`, `canRecentre`, `revealRect`, the message
+      builders, the `AppState` fields and actions with `app-walk.ts`
+- [ ] Render the controls and wire the canvas: `NodeBox`, `NodeContext`, `SpiderNode`,
+      double-click, `entering` classes, `RevealOnRequest`, App handlers,
+      `useWalkTimers`, CSS (keyframes, reduced-motion rule, spinner)
+- [ ] Verify: `pnpm -r typecheck` and `pnpm -r test` pass; `pnpm build` completes
+- [ ] Manual check 5 (the owner): the implementer stops and reports. The owner runs
+      "Run Code Spider" (F5), focuses `handleSignup` in `test-code/basic` and
+      double-clicks ten different neighbours in a row; each must re-centre the graph
+      and leave the editor at that node's declaration. On failure, build the fallback
+      in this task and repeat
+- [ ] Inspect the task delta (`git diff --check`, `git diff`, and the untracked-file
+      loop under Global Constraints) and propose the commit
+
+Proposed commit message: `add expand, collapse and double-click re-centre to node boxes`
+
+The implementer does not stage or commit; the user does.
+
 
 ### Task 7: Toolbar
 
-**STATUS: NOT YET WRITTEN**
+A toolbar above the banners with `← Back`, `Tidy` and the Spacing slider. Back steps
+through the history of 20, Tidy re-arranges unpinned boxes around pinned ones, and
+the slider spreads the columns; its value lives in the extension's global state, so
+it survives panels and VS Code restarts.
 
-Planned: `toolbar/Toolbar.tsx` (Back, Tidy, the Spacing slider; pure markup tested
-with `renderToStaticMarkup`), `back` and `columnGapChanged` actions, the 250 ms
-debounced Tidy plus `setColumnGap`, applying only the first `settings` message
-after each load, and the extension's `src/column-gap.ts` (a store over a
-Memento-like port, `settings` posted at activation and after every
-`setColumnGap`) wired into the dispatcher.
+**Files:**
+- Create: `packages/webview/src/toolbar/Toolbar.tsx` (pure markup), `toolbar.css` (`--vscode-button-*` theming), `spacing-control.ts` (`createSpacingControl`), `use-spacing-control.ts` (hook owning one)
+- Modify: `packages/webview/src/app-state.ts` (`settingsApplied`, actions `back` and `columnGapChanged`, the `settings` case), `App.tsx` (toolbar above the banners), `main.tsx` (import `toolbar.css`)
+- Create: `packages/extension/src/column-gap.ts` (`ColumnGapStore`)
+- Modify: `packages/extension/src/dispatch.ts` (route `setColumnGap`), `extension.ts` (store over `context.globalState`, publish at activation), `ids.ts` (`STATE_COLUMN_GAP = "codeSpider.columnGap"`)
+- Test: `packages/webview/test/toolbar.test.tsx`, `spacing-control.test.ts`, `app-toolbar.test.ts`, `packages/extension/test/column-gap.test.ts` (create); `dispatch.test.ts` (modify)
+
+**Interfaces:**
+- Consumes: `canGoBack(view)`, `goBack(view)` (Task 3); `COLUMN_GAP`,
+  `normaliseColumnGap(raw: unknown): number` (Task 3); `TrailingDebounce`,
+  `useGraphLayout(state, dispatch): { tidy: () => void }`, `postToExtension`,
+  `AppState`, `LocalAction`, `FitRequest` (Task 5); `resetTransient` (Task 6); the
+  `settings` and `setColumnGap` messages, `createDispatcher({ jumps, session })`,
+  `GraphPanel.post` and the gate's `settings` replay (Task 2).
+- Produces (webview):
+
+  ```ts
+  export type ToolbarProps = { canBack: boolean; canTidy: boolean; columnGap: number;
+    onBack(): void; onTidy(): void; onColumnGap(value: number): void };
+  export type SpacingControl = { change(value: number): void; dispose(): void };
+  export function createSpacingControl(deps: { dispatch: (action: LocalAction) => void;
+    tidy: () => void; post: (message: WebviewToExtension) => void;
+    delayMs?: number /* 250 */ }): SpacingControl;
+  // AppState gains settingsApplied: boolean (false at start, never persisted)
+  // LocalAction gains { type: "back" } | { type: "columnGapChanged"; value: number }
+  ```
+
+- Produces (extension): `MementoPort = { get(key: string): unknown; update(key:
+  string, value: unknown): PromiseLike<void> }`; `class ColumnGapStore {
+  constructor(memento: MementoPort, publish: (columnGap: number) => void);
+  get(): number; set(raw: unknown): Promise<void>; publish(): void }`;
+  `createDispatcher({ jumps, session, columnGap })` with `columnGap:
+  Pick<ColumnGapStore, "set">`.
+
+**Behaviour:**
+- Enablement is spec section 5.7: Back off when the history is empty or `busy`, Tidy
+  off with no graph, the slider always on. The slider is `COLUMN_GAP` (min 32, max
+  480, step 16, default 192), labelled "Spacing" with the value as `${columnGap}px`.
+- Back (spec section 3.2): `goBack`, then refit with duration 0. The reducer ignores
+  `back` on an empty history or while `busy`, and clears `pending` (a running layout
+  must not commit over the restored graph), the banner and, via `resetTransient`,
+  the transient fields.
+- Slider (spec section 5.5): `columnGapChanged` stores the normalised value at once
+  and moves no position. 250 ms after the last move, run Tidy (pinned boxes stay,
+  decided), then post `setColumnGap` with the latest value; a burst posts once.
+- `settings`: the first one after each load sets the normalised `columnGap` without
+  Tidy; later ones are ignored (they only echo the webview's own value).
+- Extension (spec section 5.5): `ColumnGapStore` normalises on read and write under
+  `codeSpider.columnGap`; `publish()` posts `settings` at activation and `set` posts
+  it after every `setColumnGap`; the gate replays the latest on each `ready`.
+
+**Approach and traps:**
+- Do not call Tidy from the change handler: `useGraphLayout` reads `columnGap` from
+  a ref updated after render, and the debounce is what makes that safe. Do not post
+  `setColumnGap` per input event.
+- `.spinner` sits absolutely at the top right of `.app`; keep the toolbar content
+  left-aligned.
+- The extension imports `@code-spider/webview/column-gap` at runtime. The export
+  points at a `.ts` file that esbuild and vitest both transform, and the package is
+  already an extension dev dependency, so no manifest or lockfile change. Confirm
+  with `pnpm build` and the typecheck.
+- Task 2's `dispatch.test.ts` has a `setup()` without a store and a case "ignores
+  ready, refresh and setColumnGap"; update both.
+
+**Tests:**
+- `packages/webview/test/toolbar.test.tsx`
+  - Back and Tidy render disabled or enabled from `canBack` and `canTidy`
+  - the slider carries min 32, max 480, step 16 and the current value
+  - the "Spacing" label and the `192px` value show
+- `packages/webview/test/spacing-control.test.ts` (fake timers)
+  - `change` dispatches `columnGapChanged` at once
+  - a burst of changes runs `tidy` once and posts one `setColumnGap` with the last value after 250 ms
+  - `dispose` cancels a pending run
+- `packages/webview/test/app-toolbar.test.ts`
+  - `back` restores the previous graph under a new generation with a fresh fit
+  - `back` clears `pending`, the error and the transient fields
+  - `back` does nothing on an empty history or while busy
+  - `columnGapChanged` normalises and clamps and leaves positions alone
+  - the first `settings` applies (normalised, no fit) and later ones are ignored
+- `packages/extension/test/column-gap.test.ts`
+  - the default 192 when nothing or junk is stored
+  - `set` stores the normalised value (100 becomes 96) and publishes it
+  - `publish` posts the current value
+  - a new store over the same memento reads the value back
+- `packages/extension/test/dispatch.test.ts`
+  - `setColumnGap` calls `columnGap.set` with the value and runs nothing else
+  - `ready` and `refresh` still do nothing
+
+**Steps:**
+- [ ] Write the listed tests and see them fail for the right reason
+- [ ] Webview logic: the `back`, `columnGapChanged` and first-`settings` cases and
+      `createSpacingControl`
+- [ ] Webview UI: `Toolbar` and CSS mounted in `App`, connected to Back, Tidy
+      (`useGraphLayout().tidy`) and the slider
+- [ ] Extension: `ColumnGapStore`, the dispatcher route, `globalState` wiring and
+      the publish at activation
+- [ ] Verify: `pnpm -r typecheck` and `pnpm -r test` pass; `pnpm build` completes
+- [ ] Inspect the task delta (`git diff --check`, `git diff`, and the untracked-file
+      loop under Global Constraints) and propose the commit
+
+Proposed commit message: `add toolbar with back, tidy and a column spacing slider`
+
+The implementer does not stage or commit; the user does.
+
 
 ### Task 8: Labels once per supplier
 
-**STATUS: NOT YET WRITTEN**
+Type labels are drawn once per supplier, beside its outgoing edge and inside its
+node wrapper, instead of on every edge. They drag and fade with the node and
+ellipsise at the column gap; the edge labels and their 40-character cap are gone.
 
-Planned: `graph/supplier-labels.ts` (`supplierLabels(edges)` giving at most one
-line per supplier and kind), label rendering inside the supplier's node wrapper in
-`SpiderNode` with the CSS from spec section 5.6 (`--column-gap` variable, ellipsis,
-`title`), removal of edge labels, `truncateLabel`, `MAX_EDGE_LABEL_CHARS` and
-`fullLabel`, and the label tests.
+**Files:**
+- Create: `packages/webview/src/graph/supplier-labels.ts` (`supplierLabels`), `NodeLabels.tsx` (pure markup for one supplier's lines)
+- Modify: `packages/webview/src/graph/to-flow.ts` (labels into node data; edges lose `label` and `data`; delete `truncateLabel` and `SpiderEdgeData`), `constants.ts` (delete `MAX_EDGE_LABEL_CHARS`), `SpiderNode.tsx`, `GraphView.tsx` (`columnGap` prop), `graph.css`, and `src/App.tsx` (pass `state.view.columnGap`)
+- Test: `packages/webview/test/supplier-labels.test.ts`, `node-labels.test.tsx` (create); `to-flow.test.ts` (modify)
+
+**Interfaces:**
+- Consumes: `GraphEdge`, `NodeId` (core types); `toFlow(graph: GraphState)` and
+  `SpiderNodeData = { node, isFocus, pinned }` (Task 5); `SpiderNode` (Task 6);
+  `GraphViewProps` (Tasks 5 and 6); `AppState.view.columnGap` (Task 7).
+- Produces:
+
+  ```ts
+  // graph/supplier-labels.ts
+  export type LabelLine = { kind: "returns" | "jsx" | "passes"; text: string };
+  export function supplierLabels(edges: readonly GraphEdge[]): Map<NodeId, LabelLine[]>;
+  // graph/to-flow.ts
+  export type SpiderNodeData = { node: GraphNode; isFocus: boolean; pinned: boolean;
+    labels: readonly LabelLine[] };
+  export type SpiderFlowEdge = Edge; // no data, no label
+  ```
+
+  `NodeLabels({ lines }: { lines: readonly LabelLine[] })`; `GraphViewProps` gains
+  `columnGap: number`.
+
+**Behaviour:**
+- Grouping, joining and order are spec section 5.6 (`call` and `external` give
+  `returns`; one line per supplier and kind; distinct `supplies` joined with ` · ` in
+  edge-id order; returns, jsx, passes). Geometry, colours and truncation are also
+  section 5.6; `returns` uses `--vscode-descriptionForeground`, the colour the old
+  edge text had.
+- `toFlow` computes the lines from drawn edges only (both ends present), so
+  collapsing updates labels; a node supplying nothing gets `labels: []`.
+- Labels never enter layout, Tidy or placement; node sizes stay analytic.
+- An edge click still jumps to the call site. A click on a label counts as a click
+  on its supplier's box; add no handler for it.
+
+**Approach and traps:**
+- Render `NodeLabels` as a sibling of `NodeBox` inside `SpiderNode`, not inside the
+  box (`.node-box` clips overflow), positioned against the React Flow node wrapper,
+  which has the box's size. `flex-direction: column-reverse` puts the first line
+  lowest.
+- `SpiderNode` cannot render outside React Flow (`Handle` needs its store), so test
+  `NodeLabels` and `supplierLabels`, not `SpiderNode`.
+- Set `--column-gap` as `${columnGap}px` on `.graph-canvas`; `CSSProperties` rejects
+  a custom property, so cast the style object.
+- Delete the edge-label leftovers in `graph.css` (`--xy-edge-label-*`,
+  `.react-flow__edge-text`) together with `truncateLabel`, `MAX_EDGE_LABEL_CHARS` and
+  `SpiderEdgeData`.
+- Task 5's `to-flow.test.ts` asserts `label` and `data.fullLabel` in two cases, keeps
+  an "omits the label" case that becomes meaningless, and has a `truncateLabel`
+  block; rewrite or delete them for the new shape.
+
+**Tests:**
+- `packages/webview/test/supplier-labels.test.ts`
+  - one line per supplier and kind
+  - `call` and `external` merge into one `returns` line
+  - `jsx` and `passes` stay separate
+  - empty `supplies` is skipped
+  - two different `supplies` values join with ` · ` in edge-id order
+  - lines come out returns, jsx, passes, and a pure consumer has no entry
+- `packages/webview/test/node-labels.test.tsx`
+  - one element per line with its kind class and the full text in `title`
+  - `returns` comes first in the markup, and an empty list renders nothing
+- `packages/webview/test/to-flow.test.ts`
+  - a supplier's data carries its lines (golden `handleSignup`: `validateUser` has `ValidUserData`; golden jsx: `SignupForm` has `SignupFormProps`)
+  - an edge with a missing end adds no line
+  - edges carry no `label` or `data`
+
+**Steps:**
+- [ ] Write the listed tests and see them fail for the right reason
+- [ ] Add `supplierLabels` and `NodeLabels`; move the labels into `toFlow`'s node data
+- [ ] Render them in `SpiderNode`, pass `columnGap` to `--column-gap`, add the CSS
+- [ ] Delete `truncateLabel`, `MAX_EDGE_LABEL_CHARS`, `SpiderEdgeData` and the
+      edge-label CSS; fix the Task 5 `to-flow` tests
+- [ ] Verify: `pnpm -r typecheck` and `pnpm -r test` pass; `pnpm build` completes
+- [ ] Inspect the task delta (`git diff --check`, `git diff`, and the untracked-file
+      loop under Global Constraints) and propose the commit
+
+Proposed commit message: `draw type labels once per supplier instead of per edge`
+
+The implementer does not stage or commit; the user does.
+
 
 ### Task 9: Smoke tests, docs and the manual check list
 
-**STATUS: NOT YET WRITTEN**
+Two smoke cases prove re-centring by node id and that a node brought in by an
+expansion can be clicked. The main design spec records what M3a changed. The
+owner's manual check list, in the final names, closes M3a.
 
-Planned: two new smoke cases after the existing four (`focus` re-centres on
-`src/signup.ts#validateUser`; `expand` of `handleSignup` then `openInEditor` for
-`createUser` lands on line index 7), the spec's 10-item manual check list adapted
-to the final names, and the edits to the main spec §4.3, §7.5 and §10 M3 list.
+**Files:**
+- Modify: `packages/extension/smoke/suite/extension.smoke.ts` (two cases after the existing four)
+- Modify: `docs/superpowers/specs/2026-08-22-code-spider-design.md` (sections 4.3, 7.5, and the section 10 M3 list)
+
+**Interfaces:**
+- Consumes: `ExtensionApi.handleWebviewMessage(message)` and `currentGraph()`
+  (`tsconfig` is the project); the smoke file's `currentProject(api)` (Task 2),
+  `openFile`, `activeEditor` and `graphPanelTab()`; the `focus` and `expand`
+  messages; `GraphPanel`'s `onClosed` clearing the jump table and `JumpHandler`
+  ignoring an id the table lacks (Task 2).
+- Produces: a smoke suite of six cases. No code interface.
+
+**Behaviour:**
+- Case 1 (spec section 8): `focus` for `src/signup.ts#validateUser`; then
+  `api.currentGraph()?.slice.focusId` is that id.
+- Case 2 (spec section 8): after `expand` of `src/signup.ts#handleSignup`,
+  `openInEditor` for `src/signup.ts#createUser` puts the cursor at line index 7,
+  character 0, on `export async function createUser`.
+- Doc edits (spec section 2): in 4.3, a re-centre discards the visible graph's
+  expansions but the Back history (20 graphs) keeps them; in 7.5, replace "ELK runs
+  only over the newly added subgraph" with our own column placement that never moves
+  existing nodes, ELK serving only a new centre and Tidy, and add that labels are
+  drawn once per supplier with M2's 40-character cap gone; in the section 10 M3
+  list, mark expand-on-demand with pinning, re-centre, draggable nodes, the slider
+  and no-overlap done in M3a, leaving the refresh button, zoom level of detail and
+  the file watcher as M3b. Leave the rest of that file alone.
+
+**Approach and traps:**
+- The jump table keeps every slice sent since the panel opened, and the earlier
+  cases already sent `createUser` (a neighbour of `handleSignup`), so case 2 would
+  pass even if expansion never fed the table. So: close the Code Spider tab
+  (`vscode.window.tabGroups.close`) and wait until `graphPanelTab()` is gone, which
+  clears the table; run `codeSpider.showGraph` with the cursor in `validateUser` (its
+  graph is only `validateUser` and `handleSignup`); open `src/app.ts`, send
+  `openInEditor` for `createUser` and assert the editor did not move; then `expand`
+  `handleSignup` (any integer `generation`) and click `createUser`.
+- Read `currentProject(api)` after the new `showGraph`, not before. The mocha
+  timeout (120 s) covers the extra panel open.
+
+**Tests:**
+- `packages/extension/smoke/suite/extension.smoke.ts`
+  - "re-centres on a node by its id" (case 1)
+  - "jumps to a node that only an expansion brought in" (case 2, with the panel closed and reopened first)
+
+**Manual check list (the owner runs it after Task 9; check 5 already ran in Task
+6).** Setup: `pnpm build`, F5 with "Run Code Spider" (Extension Development Host on
+`test-code/basic`), open `src/signup.ts`, cursor in `handleSignup`, `Shift+Alt+Q`.
+1. `[+]` on `main`: no new box and the button reads `[−]`; click it: `[+]`.
+2. Double-click `validateUser` to re-centre, then `[+]` on `handleSignup`:
+   `createUser`, `sendWelcome`, `main`, `retry` fade in without zoom, panning only if
+   off screen. `[−]` on `handleSignup`: those four go, `validateUser` and
+   `handleSignup` stay.
+3. Drag `createUser`: a pin icon appears. Expand a neighbour: nothing moves. Drag
+   another box onto where an expansion would land, then expand: the new boxes keep a
+   visible gap. Click the pin: it vanishes and the box stays put.
+4. Click a box: the editor jumps to its declaration at once. Click an edge: the call
+   site.
+5. Double-click a neighbour ten times: it re-centres each time (repeat only if
+   Task 6 built the `[◎]` fallback).
+6. `← Back` returns the previous graph with expansions, positions and pins, and is
+   disabled at the start. Re-centre 21 times: Back stops after 20.
+7. Pin two boxes, press `Tidy`: the others re-lay out, the pinned two stay, nothing
+   overlaps, the view fits.
+8. Move the Spacing slider through both ends: boxes settle after a pause, labels
+   ellipsise at narrow gaps with the full text on hover. Close the panel, run Show
+   Graph: the value is kept; restart the dev host: still kept.
+9. In `test-code/jsx` focus `Page`: `SignupForm` has one purple `SignupFormProps`
+   label. In `basic` focus `handleSignup`: `validateUser`, `createUser` and
+   `sendWelcome` each carry one label (`ValidUserData`, `User`, `void`) and
+   `handleSignup` one `User` label for its two consumers.
+10. "Developer: Reload Webviews": graph, pins and Back history return. Rename
+    `createUser`, save, `[+]` on its old box: the message shows about 4 s (undo the
+    rename). Switch light and dark themes: boxes, labels, toolbar and pins follow.
+
+**Steps:**
+- [ ] Write the two smoke cases after the existing four
+- [ ] Edit the three sections of the main design spec
+- [ ] Verify: `pnpm -r typecheck`, `pnpm -r test` and `pnpm build` pass;
+      `pnpm --filter code-spider-vscode check:electron` exits 0 (on exit 2 stop and
+      report its `sudo apt install` line); `pnpm --filter code-spider-vscode
+      test:smoke` reports six passing
+- [ ] Hand the manual check list to the owner with the report (the implementer
+      cannot run it)
+- [ ] Inspect the task delta (`git diff --check`, `git diff`, and the untracked-file
+      loop under Global Constraints) and propose the commit
+
+Proposed commit message: `add smoke cases for re-centre and expansion, update the design spec`
+
+The implementer does not stage or commit; the user does.
