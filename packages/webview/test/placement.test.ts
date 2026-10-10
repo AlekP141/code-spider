@@ -1,0 +1,198 @@
+import { describe, expect, it } from "vitest";
+import { NODE_WIDTH } from "../src/graph/constants.js";
+import {
+  isClear,
+  NODE_MARGIN,
+  nearestFreeY,
+  placeExpansion,
+  stackTops,
+  type AddedNode,
+  type Rect,
+} from "../src/graph/placement.js";
+
+const rect = (x: number, y: number, width: number, height: number): Rect => ({
+  x,
+  y,
+  width,
+  height,
+});
+
+describe("isClear", () => {
+  it("is true when the horizontal or the vertical gap reaches the margin", () => {
+    const a = rect(0, 0, 100, 100);
+    expect(isClear(a, rect(132, 0, 100, 100), 32)).toBe(true);
+    expect(isClear(a, rect(0, 132, 100, 100), 32)).toBe(true);
+    expect(isClear(rect(132, 0, 100, 100), a, 32)).toBe(true);
+  });
+
+  it("is false when the gap is less than the margin, touching or overlapping", () => {
+    const a = rect(0, 0, 100, 100);
+    expect(isClear(a, rect(131, 0, 100, 100), 32)).toBe(false);
+    expect(isClear(a, rect(100, 0, 100, 100), 32)).toBe(false);
+    expect(isClear(a, rect(50, 50, 100, 100), 32)).toBe(false);
+    expect(isClear(a, a, 32)).toBe(false);
+  });
+
+  it("is clear in one axis even when the rectangles overlap in the other", () => {
+    expect(isClear(rect(0, 0, 100, 100), rect(50, 200, 100, 100), 32)).toBe(
+      true,
+    );
+  });
+});
+
+describe("nearestFreeY", () => {
+  const column = { x: 0, width: 100, height: 50 };
+  const blocker = rect(0, 100, 100, 100);
+
+  it("keeps the preferred y when it is free", () => {
+    expect(nearestFreeY(400, column, [blocker], 32)).toBe(400);
+    expect(nearestFreeY(400, column, [], 32)).toBe(400);
+  });
+
+  it("moves down when the lower end of the blocked interval is nearer", () => {
+    expect(nearestFreeY(140, column, [blocker], 32)).toBe(232);
+  });
+
+  it("moves up when the upper end is nearer", () => {
+    expect(nearestFreeY(80, column, [blocker], 32)).toBe(18);
+  });
+
+  it("sends a tie up", () => {
+    expect(nearestFreeY(125, column, [blocker], 32)).toBe(18);
+  });
+
+  it("ignores obstacles in other columns", () => {
+    expect(nearestFreeY(140, column, [rect(200, 100, 100, 100)], 32)).toBe(140);
+  });
+
+  it("moves past an end that another obstacle blocks", () => {
+    const second = rect(0, 240, 100, 100);
+    expect(nearestFreeY(140, column, [blocker, second], 32)).toBe(18);
+    expect(nearestFreeY(300, column, [blocker, second], 32)).toBe(372);
+  });
+});
+
+describe("stackTops", () => {
+  it("centres a single node and a stack on the given line", () => {
+    expect(stackTops(100, [40])).toEqual([80]);
+    expect(stackTops(100, [40, 60])).toEqual([
+      100 - (40 + 32 + 60) / 2,
+      100 - (40 + 32 + 60) / 2 + 72,
+    ]);
+    expect(stackTops(100, [])).toEqual([]);
+  });
+});
+
+describe("placeExpansion", () => {
+  const anchor = rect(1000, 500, NODE_WIDTH, 100);
+  const pitch = NODE_WIDTH + 192;
+  const node = (id: string, height = 100): AddedNode => ({ id, height });
+  const place = (
+    added: AddedNode[],
+    edges: { from: string; to: string }[],
+    existing: Rect[] = [anchor],
+  ) =>
+    placeExpansion({
+      expandedId: "x",
+      anchor,
+      added,
+      edges,
+      existing,
+      columnGap: 192,
+    });
+
+  it("puts suppliers a column to the left and consumers a column to the right", () => {
+    const placed = place(
+      [node("s", 100), node("c", 60)],
+      [
+        { from: "s", to: "x" },
+        { from: "x", to: "c" },
+      ],
+    );
+    expect(placed).toEqual({
+      s: { x: 1000 - pitch, y: 500 },
+      c: { x: 1000 + pitch, y: 520 },
+    });
+  });
+
+  it("treats a node linked both ways as a supplier", () => {
+    const placed = place(
+      [node("n")],
+      [
+        { from: "x", to: "n" },
+        { from: "n", to: "x" },
+      ],
+    );
+    expect(placed.n?.x).toBe(1000 - pitch);
+  });
+
+  it("stacks a column in id order, a margin apart, centred on the anchor", () => {
+    const placed = place(
+      [node("b"), node("a")],
+      [
+        { from: "x", to: "a" },
+        { from: "x", to: "b" },
+      ],
+    );
+    expect(placed.a).toEqual({ x: 1000 + pitch, y: 434 });
+    expect(placed.b).toEqual({ x: 1000 + pitch, y: 566 });
+  });
+
+  it("is pushed down by a dragged node on its slot when the lower end is nearer", () => {
+    const dragged = rect(1000 + pitch, 480, NODE_WIDTH, 100);
+    const placed = place(
+      [node("c")],
+      [{ from: "x", to: "c" }],
+      [anchor, dragged],
+    );
+    expect(placed.c).toEqual({ x: 1000 + pitch, y: 612 });
+  });
+
+  it("is pushed up by a dragged node on its slot when the upper end is nearer", () => {
+    const dragged = rect(1000 + pitch, 530, NODE_WIDTH, 100);
+    const placed = place(
+      [node("c")],
+      [{ from: "x", to: "c" }],
+      [anchor, dragged],
+    );
+    expect(placed.c).toEqual({ x: 1000 + pitch, y: 398 });
+  });
+
+  it("keeps the nodes it places clear of each other", () => {
+    const dragged = rect(1000 + pitch, 300, NODE_WIDTH, 200);
+    const placed = place(
+      [node("a"), node("b")],
+      [
+        { from: "x", to: "a" },
+        { from: "x", to: "b" },
+      ],
+      [anchor, dragged],
+    );
+    expect(placed.a).toEqual({ x: 1000 + pitch, y: 532 });
+    expect(placed.b).toEqual({ x: 1000 + pitch, y: 664 });
+    const a = rect(placed.a?.x ?? 0, placed.a?.y ?? 0, NODE_WIDTH, 100);
+    const b = rect(placed.b?.x ?? 0, placed.b?.y ?? 0, NODE_WIDTH, 100);
+    expect(isClear(a, dragged, NODE_MARGIN)).toBe(true);
+    expect(isClear(b, dragged, NODE_MARGIN)).toBe(true);
+    expect(isClear(a, b, NODE_MARGIN)).toBe(true);
+  });
+
+  it("does not change its inputs", () => {
+    const added = [node("b"), node("a")];
+    const existing = [anchor, rect(1000 + pitch, 300, NODE_WIDTH, 200)];
+    const edges = [
+      { from: "x", to: "a" },
+      { from: "b", to: "x" },
+    ];
+    const snapshot = structuredClone({ added, existing, edges });
+    placeExpansion({
+      expandedId: "x",
+      anchor,
+      added,
+      edges,
+      existing,
+      columnGap: 192,
+    });
+    expect({ added, existing, edges }).toEqual(snapshot);
+  });
+});
