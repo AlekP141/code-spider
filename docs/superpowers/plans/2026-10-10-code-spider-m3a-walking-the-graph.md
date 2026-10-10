@@ -31,14 +31,14 @@ smoke tests. No new dependencies.
 
 ## Status
 
-Tasks 1 to 5 are written in full detail, were tried in order on a scratch copy of
-the repository (after Task 5: core 231, CLI 43, webview 162, extension 127, smoke 4)
-and are now implemented and committed. Task 6 was built, then changed by the owner's
-decision (Plan decision 11: double-click toggles, nothing re-centres in the graph).
-Tasks 6 to 9 are written at plan level: the implementer follows TDD from each task's
-Tests list and writes the code and tests themselves; the `Create`/`Replace`/`Edit`
-block syntax below applies to Tasks 1 to 5 only. Counts for Tasks 6 to 9 are not
-predicted: each leaves every existing test passing and adds the cases it lists.
+All nine tasks are implemented, reviewed and committed, and an integration review
+found the milestone ready (core 231, CLI 43, webview 277, extension 139, smoke 6).
+Task 6 follows Plan decision 11 and Plan decision 12 lists the integration fixes.
+Tasks 1 to 5 are written in full detail and Tasks 6 to 9 at plan level; the
+`Create`/`Replace`/`Edit` block syntax applies to Tasks 1 to 5 only, and the counts
+quoted inside them were true when each was written. Where the repository differs
+from the code shown in Tasks 1 to 5, the repository is the source of truth, because
+review fixes changed it after each task.
 
 ## Global Constraints
 
@@ -196,11 +196,24 @@ reading most consistent with the spec's intent:
     the failure strip and the pin icon stay; (c) the webview no longer re-centres: a
     double-click never posts `focus` and there is no `[◎]` button or fallback, so the
     user clicks a box and presses `Shift+Alt+Q` in the editor. The protocol's `focus`
-    and the extension's `focusNode` stay as Task 2 built them. Wherever the M3a spec
-    still describes the old controls (section 6's `[+]`/`[−]` table, double-click
-    re-centre and `[◎]` fallback; manual checks 1, 2, 5, 6 and 10; the Task 6 outline
-    entry) this entry wins. Tasks 6 and 9 follow it; Tasks 1 to 5 are unchanged and
-    mention buttons and double-click only as work for later tasks.
+    and the extension's `focusNode` stay as Task 2 built them. Tasks 6 and 9 follow it;
+    Tasks 1 to 5 are unchanged and mention buttons and double-click only as work for
+    later tasks.
+12. **Integration fixes after Task 9.**
+    - The webview counts itself as working while `busy` or while a centre waits for
+      its layout (`isWorking`); that disables Back and double-click expand and keeps
+      the spinner showing.
+    - A worker crash shows one notification, not one per in-flight request.
+    - `GraphState` has an optional `columnGap`, the gap its positions were laid out
+      with, set on a centre commit and on Tidy; the labels use it, so a graph
+      restored by Back keeps labels that fit its layout.
+    - `packages/webview/test/tsconfig.json` extends `../tsconfig.test.json`, so
+      editors type-check test files with the strict settings.
+    - An expansion is placed with the graph's own `columnGap` (falling back to the
+      view's gap), so new columns line up with that graph, including one restored
+      by Back.
+    - Parked for the owner: no automated test loads the real webview and drives it.
+      That needs a DOM or Electron harness, to be decided at the start of M3b.
 
 ---
 
@@ -7672,6 +7685,9 @@ ends with the owner's manual check 5.
   (the matching `AppState` fields) and `actions: NodeActions`.
 
 **Behaviour:**
+- Superseded in part by Plan decision 12: "busy" here means working (`busy` or a
+  pending centre), and Back is ignored while working, so it never clears a pending
+  centre.
 - Decided by the owner during Task 6, not to reopen: no `[+]`, `[−]` or `[◎]`
   buttons; a double-click never posts `focus`; the webview sends no `focus` at all.
   Re-centring is a single click on a box followed by `Shift+Alt+Q` in the editor.
@@ -7821,6 +7837,9 @@ it survives panels and VS Code restarts.
   Pick<ColumnGapStore, "set">`.
 
 **Behaviour:**
+- Superseded in part by Plan decision 12: "busy" here means working (`busy` or a
+  pending centre), and Back is ignored while working, so it never clears a pending
+  centre.
 - Enablement is spec section 5.7: Back off when the history is empty or `busy`, Tidy
   off with no graph, the slider always on. The slider is `COLUMN_GAP` (min 32, max
   480, step 16, default 192), labelled "Spacing" with the value as `${columnGap}px`.
@@ -8036,8 +8055,8 @@ owner's manual check list, in the final names, closes M3a.
   - "re-centres on a node by its id" (case 1, extension side only)
   - "jumps to a node that only an expansion brought in" (case 2, with the panel closed and reopened first)
 
-**Manual check list (the owner runs it after Task 9; check 5 already ran in Task
-6).** Setup: `pnpm build`, F5 with "Run Code Spider" (Extension Development Host on
+**Manual check list (the owner runs it after Task 9; check 5 is the one the owner
+runs at the end of Task 6, and is listed again here).** Setup: `pnpm build`, F5 with "Run Code Spider" (Extension Development Host on
 `test-code/basic`), open `src/signup.ts`, cursor in `handleSignup`, `Shift+Alt+Q`.
 1. Double-click `main`: no new box and no failure message appears; double-click it
    again: still nothing changes (it expanded, then collapsed, with nothing to add).
@@ -8052,7 +8071,7 @@ owner's manual check list, in the final names, closes M3a.
 4. Click a box: the editor jumps to its declaration at once. Click an edge: the call
    site.
 5. Double-click ten different boxes in a row: each toggles (expands, or collapses if
-   it was expanded) and the editor is at that box's declaration (passed in Task 6).
+   it was expanded) and the editor is at that box's declaration.
 6. `← Back` returns the previous graph with expansions, positions and pins, and is
    disabled at the start. Re-centre 21 times with Show Graph from the editor,
    alternating between two functions: Back stops after 20.

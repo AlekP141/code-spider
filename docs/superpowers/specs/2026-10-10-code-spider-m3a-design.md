@@ -1,7 +1,7 @@
 # Code Spider — M3a Walking the Graph — Design
 
 **Date:** 2026-10-10
-**Status:** Approved design, ready for implementation planning
+**Status:** Built in M3a; this document describes the design as implemented
 **Main spec:** [2026-08-22-code-spider-design.md](2026-08-22-code-spider-design.md).
 This is its companion: "§n" means a section of the main spec, "section n" a
 section of this one.
@@ -35,12 +35,19 @@ slices from different tsconfigs; forward history; staleness handling (Back
 restores without re-analysis, and an expansion reads files as they are on disk
 now, so old and new nodes can disagree until M3b's refresh).
 
-**Changes to the main spec.** §7.5 "ELK runs only over the newly added
-subgraph" becomes our own column placement (section 5.2), because ELK treats
-existing positions as hints, which breaks "existing nodes never move". §4.3's
-"discards prior expansions" now describes only the visible graph; the Back
-history keeps the discarded one. §7.5 labels are no longer per edge (section
-5.6) and M2's 40-character cap (`MAX_EDGE_LABEL_CHARS`) is deleted.
+**Changes to the main spec**, all made with M3a. §4.3: re-focusing discards only
+the visible graph's expansions; the Back history keeps them. §4.4, §5.3 and
+§5.4: labels carry the supplier's return type and are drawn once per supplier
+("Edge labels" becomes "Type labels"). §7.4: the protocol of section 4.1. §7.5:
+expansion uses our own column placement (section 5.2) instead of ELK over the new
+subgraph, because ELK treats existing positions as hints, which breaks "existing
+nodes never move"; labels are drawn once per supplier (section 5.6) and M2's
+40-character cap (`MAX_EDGE_LABEL_CHARS`) is deleted. §8.1: Show Graph pushes
+onto the Back history, and the panel gains double-click, the toolbar and a
+persisted view. §8.2: the expand moment is a double-click. §9: the smoke suite
+has six cases. §10: the M3 list marks the M3a items done, drops in-graph
+re-centring and leaves the rest to M3b. §11: risk 2 is now about our own
+placement.
 
 ## 3. State and ownership
 
@@ -70,6 +77,7 @@ export type GraphState = {
   positions: Record<NodeId, Point>; // top-left, flow coordinates
   pinned: NodeId[];
   revision: number; // +1 on any change to nodes, edges, pins or positions
+  columnGap?: number; // gap its positions were laid out with; absent in old saves
 };
 
 export type ViewState = {
@@ -262,9 +270,11 @@ layouts overlap.
 `graph/placement.ts` exports `Rect`, `NODE_MARGIN` (32), `isClear`,
 `nearestFreeY` and `placeExpansion`.
 
-- `pitch = NODE_WIDTH + columnGap`. Added nodes with an edge `from === n,
-  to === X` (X the expanded node) are *suppliers*; the rest are *consumers*. A
-  node linked both ways is a supplier.
+- `pitch = NODE_WIDTH + columnGap`, where `columnGap` is the graph's own gap
+  (the view's when the graph has none, section 5.5), so new columns line up with
+  the rest of that graph, including one restored by Back. Added nodes with an
+  edge `from === n, to === X` (X the expanded node) are *suppliers*; the rest are
+  *consumers*. A node linked both ways is a supplier.
 - Suppliers go in the column `x = X.x − pitch`, consumers at `X.x + pitch`. In
   each column the nodes are stacked in id order, `NODE_MARGIN` apart, the stack
   centred on X's vertical centre.
@@ -328,14 +338,24 @@ default; otherwise clamp, then snap to the step). It is exported as
 `@code-spider/webview/column-gap` and imported by the extension: one pure value
 module, a deliberate exception to M2's "the protocol is types only".
 
-Moving the slider updates `columnGap` at once (label widths follow); after
-250 ms without movement it runs Tidy and posts `setColumnGap`. The extension
-stores the normalised value in `globalState` under `codeSpider.columnGap`
-(`src/column-gap.ts`, over a Memento-like `get`/`update` port) and posts
-`settings` at activation and after every `setColumnGap`, so the gate always
-replays the current value. The webview applies only the first `settings`
-message after each load, without running Tidy. The value survives panels and
-VS Code restarts.
+Moving the slider updates the displayed value and the view's `columnGap` at
+once; after 250 ms without movement it runs Tidy and posts `setColumnGap`. Label
+widths follow the graph's own gap, which changes only when Tidy completes, so the
+labels change together with the boxes. If the slider settles while a new centre
+is being laid out, the centre is laid out again at the current gap before it is
+shown. The extension stores the normalised value in `globalState` under
+`codeSpider.columnGap` (`src/column-gap.ts`, over a Memento-like `get`/`update`
+port) and posts `settings` at activation and after every `setColumnGap`, so the
+gate always replays the current value. The webview applies only the first
+`settings` message after each load, without running Tidy. The value survives
+panels and VS Code restarts.
+
+A graph also records the gap its positions were laid out with,
+`GraphState.columnGap`. It is set when a centre commits and when Tidy commits;
+merging an expansion, collapsing, pinning and dragging leave it alone; where it
+is absent (a state saved earlier) the view's gap is used. Label widths follow the
+graph's own gap, so a graph restored by Back keeps labels that fit its layout
+until the slider is moved, which tidies it at the new gap.
 
 ### 5.6 Labels, once per supplier
 
@@ -358,8 +378,9 @@ updates labels.
 Each line renders inside its supplier's node wrapper, so it drags and fades
 with the node: left edge 6 px right of the box, bottom edge 4 px above the
 box's vertical centre (clear of the outgoing edge), 11 px editor font, 14 px
-line height, `max-width: calc(var(--column-gap) − 12px)`, one line with CSS
-ellipsis, full text in `title`, editor-coloured background. Lines stack upward,
+line height, `max-width: calc(var(--column-gap) − 12px)` with `--column-gap` the
+graph's own gap (section 5.5), one line with CSS ellipsis, full text in `title`,
+editor-coloured background. Lines stack upward,
 `returns` nearest the edge. `jsx` lines use `--vscode-charts-purple`, `passes`
 lines `--vscode-charts-blue` in italic, matching their edges. Edges lose their
 `label`; an edge click still jumps to the call site.
@@ -372,7 +393,7 @@ at least `NODE_MARGIN` higher. Dragged nodes carry no such guarantee.
 
 Above the banners: `← Back`, `Tidy` and the slider with a "Spacing" label and
 its value, themed with `--vscode-button-*`. Back is disabled when the history
-is empty or `busy`; Tidy when there is no graph.
+is empty or the webview is working (section 6); Tidy when there is no graph.
 
 ## 6. Interactions
 
@@ -380,10 +401,13 @@ is empty or `busy`; Tidy when there is no graph.
 **Double-click** on a node toggles it (`onNodeDoubleClick`): a collapsed
 `function` or `component` other than the centre expands, an expanded one
 collapses, and on a loading box, the centre, or an `external`, `unknown` or
-`module` box it does nothing. Expanding is ignored while `busy` (a centre is
-pending); collapsing works while `busy`. The first click already jumped, so a
-double-click jumps first and then toggles, harmless because the code sits beside
-the panel. Node boxes are `user-select: none` so a double-click selects no text.
+`module` box it does nothing. Expanding is ignored while the webview is
+*working*; collapsing still works. The webview is working when the extension
+reports `busy` or a centre slice is waiting for its layout
+(`isWorking(state)` = `busy || pending !== undefined`); while working the spinner
+shows and Back is disabled too. The first click already jumped, so a double-click
+jumps first and then toggles, harmless because the code sits beside the panel.
+Node boxes are `user-select: none` so a double-click selects no text.
 
 **Re-centring has no gesture in the graph.** Single-click a box (the editor
 jumps to that function) and press `Shift+Alt+Q` there; a new centre always comes
@@ -392,14 +416,16 @@ button.
 
 **Focus and the second click.** The first click's jump goes through
 `EditorRevealer.reveal`, whose `showTextDocument` moves keyboard focus into the
-editor, which could have made VS Code swallow the second click. The owner checked
-by hand that it does not; there is no fallback button.
+editor, so VS Code might swallow the second click and `dblclick` never reach the
+webview. No automated test can click; manual check 5 (section 8) covers it.
+There is no fallback button.
 
 **Box states** (`graph/node-controls.ts`). There are no expand or collapse
 buttons. The header shows only the pin icon, when pinned, at the right end after
 the input type; a loading box shows a 12 px spinner there, and a failed
 expansion shows its message on the box for 4 s. The pure
-`nodeControl(node, graph, ui)` decides the state, and the pure
+`nodeControl(node, graph, ui)` decides the state (its `ui.busy` is the working
+flag), and the pure
 `doubleClickAction(node, graph, ui): "expand" | "collapse" | "none"` is derived
 from it; `canRecentre` is gone.
 
@@ -407,16 +433,16 @@ from it; `canRecentre` is gone.
 |---|---|---|
 | centre, `external`, `unknown`, `module` | `none` | nothing |
 | `function`/`component`, collapsed | `expand` | expands |
-| same, while `busy` | `expandDisabled` | nothing |
+| same, while working | `expandDisabled` | nothing |
 | loading | `loading` | nothing |
-| expanded | `collapse` | collapses, also while `busy` |
+| expanded | `collapse` | collapses, also while working |
 
 Expanding posts `expand` with the graph's `project` and `generation` and marks
 the node loading; several may be in flight, each merging when it arrives.
 Collapsing calls `collapseNode` locally. The pin icon stops click and
 double-click propagation, so it never jumps, toggles or drags. A pending centre,
 by any route, leaves the old graph visible with the existing spinner; expanding
-and Back are disabled while `busy`, and answers for the old graph are dropped by
+and Back are disabled while working, and answers for the old graph are dropped by
 generation.
 
 ## 7. Errors
@@ -425,6 +451,7 @@ generation.
 |---|---|
 | Expansion fails (renamed since, worker crash, unknown project) | `expandFailed`: the box shows the message for 4 s (full text in `title`) and returns to collapsed, the graph is unchanged |
 | A new centre fails (Show Graph, or `focus`) | `analysisError`, `busy: false`: old graph and history unchanged, existing banner shows the message |
+| Worker crash with several requests in flight | Each request still gets its own `expandFailed` or `analysisError`, but VS Code shows one error notification, not one per request |
 | Answer for an older graph (generation, project, missing node, `focusId`) | Dropped silently |
 | ELK fails (new centre or Tidy) | Old graph and positions kept; banner "Could not lay out the graph: ..." |
 | Persisted state fails `isViewState` | Ignored; the panel starts empty |
@@ -467,48 +494,61 @@ echoes the generation, posts `expandFailed` and nothing after `clear`);
 `openTsconfig` reuses and reloads); `message-gate` (content once, expansions
 never queued); `webview-messages`; `dispatch`; `column-gap`.
 
-**Smoke tests** (`smoke/suite/extension.smoke.ts`; the four existing cases now
-send `project: api.currentGraph()!.tsconfig`). Two new ones, after them, on
-`test-code/basic`:
+**Smoke tests** (`smoke/suite/extension.smoke.ts`, six cases on
+`test-code/basic`). Cases 1 to 4 are M2's (the commands register, the panel
+opens and analyses, a node click jumps to the declaration, an edge click jumps to
+the call site); the click cases now send `project: api.currentGraph()!.tsconfig`.
+Cases 5 and 6 are new in M3a:
 
-1. Re-centre by node id: `focus` for `src/signup.ts#validateUser` (the
-   extension still handles it); then `api.currentGraph()?.slice.focusId` is that
-   id.
-2. A node added by an expansion can be clicked: `expand`
-   `src/signup.ts#handleSignup`, then `openInEditor` for
-   `src/signup.ts#createUser`, which only that expansion brought in; the editor
-   lands on line index 7, the start of its declaration.
+5. "the extension re-centres on a node by its id": `focus` for
+   `src/signup.ts#validateUser`; then `api.currentGraph()?.slice.focusId` is that
+   id. It covers the extension side only, since the webview no longer sends
+   `focus`.
+6. "jumps to a node that only an expansion brought in": close the panel (which
+   clears the jump table), reopen it on `validateUser`, and check that
+   `openInEditor` for `src/signup.ts#createUser` does not move the editor; then
+   `expand` `src/signup.ts#handleSignup` and `openInEditor` for `createUser`: the
+   editor lands on line index 7, the start of its declaration.
 
-**Manual check list** (the owner runs it after Task 9). In `test-code/basic`,
-focus `handleSignup`:
+**Manual check list** (the owner runs it after Task 9). Setup: `pnpm build`, F5
+with "Run Code Spider" (Extension Development Host on `test-code/basic`), open
+`src/signup.ts`, cursor in `handleSignup`, `Shift+Alt+Q`.
 
-1. Double-click `main`: the editor jumps to it and nothing else changes (it has
-   no new neighbours).
-2. Focus `validateUser`, double-click `handleSignup`: `createUser`,
-   `sendWelcome`, `main`, `retry` fade in without zoom, panning only if off
-   screen. Double-click `handleSignup` again: they go; the other two stay.
-3. Drag `createUser`: the pin icon appears. Double-click a neighbour: nothing
-   moves. Drag another node onto where an expansion would land, then expand: the
-   new nodes keep a visible gap. Click the pin: it vanishes, the node stays put
-   and the editor does not jump.
-4. Drag a box: every edge to and from it stays drawn and follows it throughout.
-5. Click a node: the editor jumps at once. Click an edge: the call site. A click
-   with a few pixels of pointer movement still jumps and does not pin the node.
-6. Double-click ten different boxes in a row: each one toggles (expands, or
-   collapses if it was expanded) with the editor at that box's declaration.
-7. `← Back` returns the previous graph with its expansions and positions and is
-   disabled at the start. Run Show Graph in 21 different functions: Back stops
-   after 20.
-8. Pin two nodes and press Tidy: unpinned nodes re-layout, pinned stay,
-   nothing overlaps, the view fits.
-9. Move the slider through both ends: nodes settle after a pause, labels
-   ellipsise at narrow gaps with the full text on hover. Close the panel, run
-   Show Graph: the value is kept; restart the dev host: still kept.
-10. In `test-code/jsx` focus `Page`: `SignupForm` has one purple
-    `SignupFormProps` label. In `basic`, each supplier of `handleSignup` has one.
-11. "Developer: Reload Webviews": graph, pins and Back history return. Rename
-    `createUser`, save, double-click its old box: the message shows about 4 s
-    (undo the rename). Switch light and dark themes: everything follows.
+1. Double-click `main`: no new box and no failure message appears; double-click it
+   again: still nothing changes (it expanded, then collapsed, with nothing to add).
+2. Click `validateUser`, then press `Shift+Alt+Q` in the editor to re-centre on it.
+   Double-click `handleSignup`: `createUser`, `sendWelcome`, `main`, `retry` fade in
+   without zoom, panning only if off screen. Double-click `handleSignup` again:
+   those four go, `validateUser` and `handleSignup` stay.
+3. Drag `createUser`: a pin icon appears. Double-click a neighbour to expand it:
+   nothing moves. Drag another box onto where an expansion would land, then
+   double-click to expand: the new boxes keep a visible gap. Click the pin: it
+   vanishes and the box stays put.
+4. Click a box: the editor jumps to its declaration at once. Click an edge: the call
+   site.
+5. Double-click ten different boxes in a row: each toggles (expands, or collapses if
+   it was expanded) and the editor is at that box's declaration.
+6. `← Back` returns the previous graph with expansions, positions and pins, and is
+   disabled at the start. Re-centre 21 times with Show Graph from the editor,
+   alternating between two functions: Back stops after 20.
+7. Pin two boxes, press `Tidy`: the others re-lay out, the pinned two stay, nothing
+   overlaps, the view fits.
+8. Move the Spacing slider through both ends: boxes settle after a pause, labels
+   ellipsise at narrow gaps with the full text on hover. Close the panel, run Show
+   Graph: the value is kept; restart the dev host: still kept.
+9. In `test-code/jsx` focus `Page`: `SignupForm` has one purple `SignupFormProps`
+   label. In `basic` focus `handleSignup`: `validateUser`, `createUser` and
+   `sendWelcome` each carry one label (`ValidUserData`, `User`, `void`) and
+   `handleSignup` one `User` label for its two consumers.
+10. "Developer: Reload Webviews": graph, pins and Back history return. Rename
+    `createUser`, save, double-click its old box (one you have not expanded): the
+    failure message shows about 4 s (undo the rename). Switch light and dark
+    themes: boxes, labels, toolbar and pins follow.
+11. (From the Task 5 review.) Drag a box: its edges stay drawn and follow it for the
+    whole drag.
+12. (From the Task 5 review.) Click a box while the pointer moves a few pixels (under
+    the 4 px drag threshold): the editor still jumps to the code and the box neither
+    moves nor pins.
 
 ## 9. Task outline
 
