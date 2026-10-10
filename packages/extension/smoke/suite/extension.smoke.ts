@@ -41,6 +41,17 @@ function currentProject(api: ExtensionApi): string {
   return graph.tsconfig;
 }
 
+async function closeGraphPanel(): Promise<void> {
+  const tab = graphPanelTab();
+  assert.ok(tab, "the Code Spider panel is not open");
+  await vscode.window.tabGroups.close(tab);
+  const deadline = Date.now() + 10_000;
+  while (graphPanelTab()) {
+    assert.ok(Date.now() < deadline, "the Code Spider panel did not close");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 describe("Code Spider", () => {
   let api: ExtensionApi;
 
@@ -105,6 +116,67 @@ describe("Code Spider", () => {
     assert.equal(
       editor.document.getText(editor.selection),
       "handleSignup(input)",
+    );
+  });
+
+  // The webview sends no focus message, so this covers the extension side only.
+  it("the extension re-centres on a node by its id", async () => {
+    await api.handleWebviewMessage({
+      type: "focus",
+      project: currentProject(api),
+      nodeId: "src/signup.ts#validateUser",
+    });
+
+    assert.equal(
+      api.currentGraph()?.slice.focusId,
+      "src/signup.ts#validateUser",
+    );
+  });
+
+  it("jumps to a node that only an expansion brought in", async () => {
+    await closeGraphPanel();
+    const signup = await openFile("src/signup.ts");
+    const inside = signup.document.positionAt(
+      signup.document.getText().indexOf("input.email") + 3,
+    );
+    await vscode.commands.executeCommand(
+      "codeSpider.showGraph",
+      signup.document.uri,
+      inside,
+    );
+    assert.equal(
+      api.currentGraph()?.slice.focusId,
+      "src/signup.ts#validateUser",
+    );
+    const project = currentProject(api);
+    const createUser = {
+      type: "openInEditor",
+      project,
+      nodeId: "src/signup.ts#createUser",
+    } as const;
+
+    const app = await openFile("src/app.ts");
+    const before = app.selection.start;
+    await api.handleWebviewMessage(createUser);
+    assert.ok(activeEditor().document.uri.path.endsWith("src/app.ts"));
+    assert.ok(activeEditor().selection.start.isEqual(before));
+
+    await api.handleWebviewMessage({
+      type: "expand",
+      project,
+      nodeId: "src/signup.ts#handleSignup",
+      generation: 1,
+    });
+    await api.handleWebviewMessage(createUser);
+
+    const editor = activeEditor();
+    assert.ok(editor.document.uri.path.endsWith("src/signup.ts"));
+    assert.equal(editor.selection.start.line, 7);
+    assert.equal(editor.selection.start.character, 0);
+    assert.ok(
+      editor.document
+        .lineAt(7)
+        .text.startsWith("export async function createUser"),
     );
   });
 });

@@ -87,8 +87,9 @@ The user selects a focus node. The graph shows its immediate callers and callees
 only. Any neighbour can be expanded in place to pull in *its* neighbours,
 growing the picture without losing what has already been uncovered.
 
-Re-focusing on a different node produces a fresh graph and discards prior
-expansions.
+Re-focusing on a different node (Show Graph from the editor) produces a fresh
+graph and discards the visible graph's prior expansions. The Back history, the
+last 20 graphs, keeps them, so Back returns the graph as it was left.
 
 ### 4.4 Edge direction: supplier to consumer
 
@@ -103,10 +104,10 @@ result to `SignupForm`:
 ```
 
 A consequence: arguments travel *against* the arrow. `handleSignup` passes its
-input down into `validateUser`, but the arrow points up. Therefore edge labels
-carry the **return type of the source node**, and argument types live on the
-node's own displayed signature. Putting both on one edge would give a single
-arrow two contradictory labels.
+input down into `validateUser`, but the arrow points up. Therefore labels carry
+the **return type of the supplier** (the edge's source node), and argument types
+live on the node's own displayed signature. Putting both on one edge would give
+a single arrow two contradictory labels.
 
 ## 5. Graph model
 
@@ -156,7 +157,7 @@ type GraphNode = {
   file:       string          // repo-relative; empty for external/unknown
   range:      Range           // declaration range, for click-to-jump
   inputType:  string          // header right slot; '' when there are no params
-  returnType: string          // promise-unwrapped; edge labels read this
+  returnType: string          // promise-unwrapped; type labels read this
   isAsync:    boolean
   lineCount:  number          // pre-clamp source line count, for analytic sizing
   codePreview:    string          // source text shown in the node, capped at 25 lines
@@ -180,9 +181,10 @@ type GraphSlice = {
 }
 ```
 
-### 5.4 Edge labels
+### 5.4 Type labels
 
-`supplies` is the `returnType` of the `from` node, resolved by the type checker
+`supplies` is stored on every edge, and the panel draws it once per supplier
+rather than once per edge (section 7.5). It is the `returnType` of the `from` node, resolved by the type checker
 and formatted for humans. For a class, that is the instance `new` constructs. `Promise<User>` displays as `User` with the source
 node flagged `isAsync` — the promise wrapper is noise on every edge in an async
 codebase.
@@ -305,11 +307,22 @@ typing, even when the user initiated it. The panel shows a spinner meanwhile.
 ### 7.4 Message protocol
 
 ```
-webview → ext:  focus(nodeId) | expand(nodeId) | refresh()
-                | openInEditor(nodeId) | openCallSite(edgeId)
+webview → ext:  ready()
+                | openInEditor(project, nodeId) | openCallSite(project, edgeId)
+                | focus(project, nodeId)
+                | expand(project, nodeId, generation)
+                | setColumnGap(value) | refresh()
 
-ext → webview:  slice(GraphSlice) | analysisError(message) | busy(boolean)
+ext → webview:  slice(GraphSlice, project, mode)
+                | expandFailed(nodeId, generation, message)
+                | analysisError(message) | busy(boolean) | indexing(boolean)
+                | settings(columnGap)
 ```
+
+`project` names the tsconfig a slice came from, so a request reaches the right
+project. `mode` is `centre` (a new graph) or `expansion` (carrying the
+`nodeId` and `generation` it answers). The webview does not send `focus`, since
+re-centring is done from the editor; the extension still handles it.
 
 ### 7.5 Rendering
 
@@ -323,9 +336,15 @@ Cytoscape.js was considered. It scales to thousands of nodes, but node counts
 here are in the tens and its custom-node story is much weaker. Wrong trade.
 
 **Expansion must not reshuffle the canvas.** Naive re-layout on every expand
-destroys the user's mental map. Already-placed nodes are pinned, ELK runs only
-over the newly added subgraph, and insertions animate in. This is expected to
-take a couple of iterations to feel right.
+destroys the user's mental map. Already-placed nodes never move: an expansion's
+new nodes go into the neighbouring columns at the nearest free position, by our
+own column placement, and never overlap an existing node. ELK serves only a new
+centre and Tidy, because it treats existing positions as hints, and insertions
+animate in.
+
+Type labels are drawn once per supplier, beside its outgoing edge and ellipsised
+to the column gap, with the full text on hover. They are not per edge, and
+M2's 40-character cap is gone.
 
 ### 7.6 Node rendering
 
@@ -427,18 +446,26 @@ cluttered the editor, and parsing every open file for it put the whole
 TypeScript compiler in the extension-host bundle. The shortcut is enough.
 
 The command reads the cursor position, runs `analyzeFocus`, opens the panel
-beside the code if it is not already open, and replaces its contents.
+beside the code if it is not already open, and replaces its contents. The
+previous graph goes onto the Back history.
+
+Inside the panel, a double-click on a box expands it in place and a second
+double-click collapses it. A toolbar above the graph has **Back** (a history of
+20 graphs), **Tidy** and a **Spacing** slider for the column gap, whose value is
+stored in the extension's global state. The view (graph, positions, pins and
+history) survives a webview reload. The M3a spec
+(`2026-10-10-code-spider-m3a-design.md`) has the detail.
 
 ### 8.2 Refresh semantics
 
-Analysis runs at exactly three moments: focus command, expand click, and the
-panel's manual **Refresh** button. There is no file watching and no automatic
-re-analysis.
+Analysis runs at exactly three moments: focus command, a double-click that
+expands a box, and the panel's manual **Refresh** button. There is no file
+watching and no automatic re-analysis.
 
 | Action | Focus | Expansions | Analysis |
 |---|---|---|---|
 | Focus command | Changes | Discarded | Fresh slice |
-| Expand `+` | Unchanged | Grows | Slice for expanded node |
+| Expand (double-click) | Unchanged | Grows | Slice for expanded node |
 | Refresh button | Unchanged | **Preserved** | Re-runs focus and all expansions |
 
 The refresh button exists so that after changing code you do not have to click
@@ -483,10 +510,11 @@ provides the development loop: sub-second, no extension host, no clicking.
 drop-orphans-on-refresh rule are plain functions over plain data, unit-tested
 directly. Only rendering touches React.
 
-**The extension gets smoke tests, not thorough ones.** Two or three
-`@vscode/test-electron` cases: the command registers, the panel opens,
-click-to-jump lands on the right line. Integration tests there are slow and
-brittle, and the thin shell is deliberately not where the logic lives.
+**The extension gets smoke tests, not thorough ones.** Six
+`@vscode/test-electron` cases: the commands register, the panel opens,
+click-to-jump and edge-click-to-call-site land on the right line, the extension
+re-centres on a node by its id, and a node brought in by an expansion can be
+jumped to. Integration tests there are slow and brittle, and the thin shell is deliberately not where the logic lives.
 
 ## 10. Milestones
 
@@ -505,15 +533,21 @@ Command, `Shift+Alt+Q`, CodeLens and context menu wired. Click-to-jump works.
 **M3 — Interaction.** Expand-on-demand with position pinning, the refresh
 button, and zoom-based level of detail in node code regions. Added after M2:
 
-- Re-centre from inside the graph: a gesture on a node (double-click or a
-  button) makes it the new focus, so the tree can be walked without returning
-  to the editor. A plain click still jumps to the code.
-- Draggable nodes. A node the user has moved stays pinned where it was put;
-  expansion never moves it.
-- Add the ability to increase the distance between nodes on the x-axis to spread out nodes more and add legibility to longer labels. Preferably with a slider in the code-spider panel.
-- No overlap, ever: nodes placed by an expansion must not land on existing or
-  dragged nodes, and edge labels must not stack on top of each other.
-- Saved-file tracking also picks up changes made outside VS Code (a file
+- Done in M3a: expand-on-demand with pinning. A double-click on a box expands it
+  in place and a second double-click collapses it; a single click still jumps to
+  the code.
+- Done in M3a: draggable nodes. A node the user has moved stays pinned where it
+  was put; expansion never moves it.
+- Done in M3a: a slider to increase the distance between columns on the x-axis,
+  to spread nodes out and make longer labels legible.
+- Done in M3a: no overlap, ever. Nodes placed by an expansion never land on
+  existing or dragged nodes, and type labels are drawn once per supplier so they
+  do not stack.
+- Dropped: re-centre from inside the graph. A single click on a box jumps the
+  editor to it, and `Shift+Alt+Q` there re-centres, so a second gesture adds
+  nothing.
+- M3b: the refresh button, and zoom-based level of detail in node code regions.
+- M3b: saved-file tracking also picks up changes made outside VS Code (a file
   watcher that only tells the worker which files changed; it never triggers
   analysis or redraws by itself), so a `git switch` doesn't leave the warm
   project reading stale files.
@@ -526,9 +560,10 @@ handling, `.vsix`.
 1. **`findReferences` performance** on a large repo is unmeasured. If it proves
    unusably slow, the fallback is a cached reverse index, which is a significant
    design change. Measure during M1, while reacting is still cheap.
-2. **Incremental ELK layout** feeling good on expand is an iteration problem
-   rather than a feasibility problem, but it is the difference between the tool
-   feeling solid and feeling janky.
+2. **Placement feeling good on expand** is an iteration problem rather than a
+   feasibility problem, but it is the difference between the tool feeling solid
+   and feeling janky. An expansion is placed by our own column placement and ELK
+   lays out only a new centre and Tidy, so the risk sits in that placement.
 3. **Which `tsconfig.json`?** Unambiguous for a single Next.js app, ambiguous in
    a monorepo with several. v1 uses the largest `tsconfig.json` between the
    focused file and the git repository root that actually includes the file, so
