@@ -1,4 +1,4 @@
-import type { GraphNode } from "@code-spider/core";
+import type { GraphNode } from "@code-spider/core/types";
 import type { WebviewToExtension } from "../protocol.js";
 
 /** External and unknown nodes have no source file to open. */

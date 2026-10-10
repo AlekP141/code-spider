@@ -1,4 +1,4 @@
-import type { EdgeType } from "@code-spider/core";
+import type { EdgeType } from "@code-spider/core/types";
 
 export type EdgeAppearance = {
   className: string;

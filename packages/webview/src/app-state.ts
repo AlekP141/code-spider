@@ -1,4 +1,4 @@
-import type { GraphSlice } from "@code-spider/core";
+import type { GraphSlice } from "@code-spider/core/types";
 import type { ExtensionToWebview } from "./protocol.js";
 
 export type AppState = {

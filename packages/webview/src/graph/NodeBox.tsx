@@ -1,4 +1,4 @@
-import type { GraphNode } from "@code-spider/core";
+import type { GraphNode } from "@code-spider/core/types";
 import {
   CODE_PADDING_Y,
   HEADER_HEIGHT,

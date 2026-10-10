@@ -1,4 +1,4 @@
-import type { GraphSlice, NodeId } from "@code-spider/core";
+import type { GraphSlice, NodeId } from "@code-spider/core/types";
 
 export type ExtensionToWebview =
   | { type: "slice"; slice: GraphSlice }

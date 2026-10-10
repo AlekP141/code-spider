@@ -1,4 +1,4 @@
-import type { GraphNode, GraphSlice } from "@code-spider/core";
+import type { GraphNode, GraphSlice } from "@code-spider/core/types";
 import type { Edge, Node } from "@xyflow/react";
 import { MAX_EDGE_LABEL_CHARS, NODE_WIDTH } from "./constants.js";
 import { edgeAppearance } from "./edge-appearance.js";

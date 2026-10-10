@@ -1,4 +1,4 @@
-import type { GraphSlice } from "@code-spider/core";
+import type { GraphSlice } from "@code-spider/core/types";
 import { Controls, MarkerType, ReactFlow, type NodeTypes } from "@xyflow/react";
 import type { WebviewToExtension } from "../protocol.js";
 import { edgeClickMessage, nodeClickMessage } from "./jump.js";

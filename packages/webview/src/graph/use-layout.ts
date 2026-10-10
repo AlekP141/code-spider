@@ -1,4 +1,4 @@
-import type { GraphSlice } from "@code-spider/core";
+import type { GraphSlice } from "@code-spider/core/types";
 import { useEffect, useState } from "react";
 import { applyPositions, layoutPositions } from "./layout.js";
 import { toFlow, type SpiderFlowEdge, type SpiderFlowNode } from "./to-flow.js";
