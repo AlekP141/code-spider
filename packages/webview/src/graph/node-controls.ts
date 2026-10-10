@@ -11,12 +11,11 @@ export type NodeControl =
   | "loading"
   | "collapse";
 
-function isWalkable(node: GraphNode): boolean {
-  return node.kind === "function" || node.kind === "component";
-}
-
-export function canRecentre(node: GraphNode, graph: GraphState): boolean {
-  return node.id !== graph.focusId && isWalkable(node);
+function isWalkable(node: GraphNode, graph: GraphState): boolean {
+  return (
+    node.id !== graph.focusId &&
+    (node.kind === "function" || node.kind === "component")
+  );
 }
 
 export function nodeControl(
@@ -24,8 +23,31 @@ export function nodeControl(
   graph: GraphState,
   ui: NodeUi,
 ): NodeControl {
-  if (!canRecentre(node, graph)) return "none";
+  if (!isWalkable(node, graph)) return "none";
   if (ui.loading.includes(node.id)) return "loading";
   if (isExpanded(graph, node.id)) return "collapse";
   return ui.busy ? "expandDisabled" : "expand";
+}
+
+export function doubleClickAction(
+  node: GraphNode,
+  graph: GraphState,
+  ui: NodeUi,
+): "expand" | "collapse" | "none" {
+  const control = nodeControl(node, graph, ui);
+  if (control === "expand" || control === "collapse") return control;
+  return "none";
+}
+
+/** The second click of a double-click on the pin icon lands on the header. */
+export const UNPIN_GUARD_MS = 500;
+
+export type LastUnpin = { nodeId: NodeId; at: number } | undefined;
+
+export function justUnpinned(
+  last: LastUnpin,
+  nodeId: NodeId,
+  now: number,
+): boolean {
+  return last?.nodeId === nodeId && now - last.at < UNPIN_GUARD_MS;
 }

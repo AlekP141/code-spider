@@ -7,18 +7,22 @@ import {
   type OnNodeDrag,
   type OnNodesChange,
 } from "@xyflow/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { AppState, FitRequest } from "../app-state.js";
 import type { WebviewToExtension } from "../protocol.js";
 import type { GraphState, Point } from "../view/types.js";
-import { edgeClickMessage, focusMessage, nodeClickMessage } from "./jump.js";
+import { edgeClickMessage, nodeClickMessage } from "./jump.js";
 import { applyLive, recordLive, type LivePositions } from "./live-positions.js";
 import {
   NodeContext,
   type NodeActions,
   type NodeContextValue,
 } from "./node-context.js";
-import { canRecentre } from "./node-controls.js";
+import {
+  doubleClickAction,
+  justUnpinned,
+  type LastUnpin,
+} from "./node-controls.js";
 import { SpiderNode } from "./SpiderNode.js";
 import {
   toFlow,
@@ -85,9 +89,19 @@ export function GraphView({
         : edge,
     );
   }, [flow.edges, enteringIds]);
+  const nodeUi = useMemo(() => ({ busy, loading }), [busy, loading]);
+  const { onExpand, onCollapse } = actions;
+  const lastUnpin = useRef<LastUnpin>(undefined);
+  const onUnpin = useCallback<NodeActions["onUnpin"]>(
+    (nodeId) => {
+      lastUnpin.current = { nodeId, at: performance.now() };
+      actions.onUnpin(nodeId);
+    },
+    [actions],
+  );
   const context = useMemo<NodeContextValue>(
-    () => ({ graph, ui: { busy, loading }, failures, actions }),
-    [graph, busy, loading, failures, actions],
+    () => ({ graph, ui: nodeUi, failures, onUnpin }),
+    [graph, nodeUi, failures, onUnpin],
   );
 
   const onNodesChange = useCallback<OnNodesChange<SpiderFlowNode>>(
@@ -115,6 +129,7 @@ export function GraphView({
 
   const onNodeClick = useCallback(
     (_event: unknown, node: SpiderFlowNode) => {
+      if (justUnpinned(lastUnpin.current, node.id, performance.now())) return;
       const message = nodeClickMessage(node.data.node, project);
       if (message) onPost(message);
     },
@@ -123,11 +138,12 @@ export function GraphView({
 
   const onNodeDoubleClick = useCallback(
     (_event: unknown, node: SpiderFlowNode) => {
-      if (canRecentre(node.data.node, graph)) {
-        onPost(focusMessage(node.id, project));
-      }
+      if (justUnpinned(lastUnpin.current, node.id, performance.now())) return;
+      const action = doubleClickAction(node.data.node, graph, nodeUi);
+      if (action === "expand") onExpand(node.id);
+      if (action === "collapse") onCollapse(node.id);
     },
-    [graph, project, onPost],
+    [graph, nodeUi, onExpand, onCollapse],
   );
 
   const onEdgeClick = useCallback(

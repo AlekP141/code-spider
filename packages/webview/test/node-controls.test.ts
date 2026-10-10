@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canRecentre, nodeControl } from "../src/graph/node-controls.js";
+import {
+  doubleClickAction,
+  justUnpinned,
+  nodeControl,
+  UNPIN_GUARD_MS,
+} from "../src/graph/node-controls.js";
 import { graphFromSlice, mergeExpansion } from "../src/view/graph-state.js";
 import { graphOf, id, PROJECT, sliceOf } from "./support/graph-states.js";
 import { makeNode, makeSlice } from "./support/slices.js";
@@ -88,14 +93,75 @@ describe("nodeControl", () => {
   });
 });
 
-describe("canRecentre", () => {
-  it("holds only for a function or component that is not the centre", () => {
+describe("doubleClickAction", () => {
+  const expanded = () =>
+    mergeExpansion(graphOf("a", ["b"]), id("b"), sliceOf("b", ["d"])).graph;
+
+  it("expands a collapsed function or component", () => {
+    const graph = graphOf("a", ["b"]);
+    expect(doubleClickAction(graph.nodes[id("b")]!, graph, idle)).toBe(
+      "expand",
+    );
+    const kinds = withKinds();
+    expect(doubleClickAction(kinds.nodes["src/a.ts#C"]!, kinds, idle)).toBe(
+      "expand",
+    );
+  });
+
+  it("does nothing on a collapsed box while busy", () => {
+    const graph = graphOf("a", ["b"]);
+    expect(
+      doubleClickAction(graph.nodes[id("b")]!, graph, {
+        busy: true,
+        loading: [],
+      }),
+    ).toBe("none");
+  });
+
+  it("does nothing while the box is loading, expanded or not", () => {
+    const graph = graphOf("a", ["b"]);
+    const ui = { busy: false, loading: [id("b")] };
+    expect(doubleClickAction(graph.nodes[id("b")]!, graph, ui)).toBe("none");
+    const open = expanded();
+    expect(doubleClickAction(open.nodes[id("b")]!, open, ui)).toBe("none");
+  });
+
+  it("collapses an expanded box, also while busy", () => {
+    const graph = expanded();
+    const fn = graph.nodes[id("b")]!;
+    expect(doubleClickAction(fn, graph, idle)).toBe("collapse");
+    expect(doubleClickAction(fn, graph, { busy: true, loading: [] })).toBe(
+      "collapse",
+    );
+  });
+
+  it("does nothing on the centre or on external, unknown and module boxes", () => {
     const graph = withKinds();
-    const holds = Object.values(graph.nodes)
-      .filter((node) => canRecentre(node, graph))
-      .map((node) => node.id);
-    expect(holds).toEqual(["src/a.ts#C"]);
-    const plain = graphOf("a", ["b"]);
-    expect(canRecentre(plain.nodes[id("b")]!, plain)).toBe(true);
+    for (const node of Object.values(graph.nodes)) {
+      if (node.id === "src/a.ts#C") continue;
+      expect(doubleClickAction(node, graph, idle)).toBe("none");
+    }
+  });
+});
+
+describe("justUnpinned", () => {
+  const last = { nodeId: id("b"), at: 1000 };
+
+  it("is false with no last unpin", () => {
+    expect(justUnpinned(undefined, id("b"), 1000)).toBe(false);
+  });
+
+  it("is true for the same node inside the window", () => {
+    expect(justUnpinned(last, id("b"), 1000)).toBe(true);
+    expect(justUnpinned(last, id("b"), 1000 + UNPIN_GUARD_MS - 1)).toBe(true);
+  });
+
+  it("is false for another node", () => {
+    expect(justUnpinned(last, id("c"), 1000)).toBe(false);
+  });
+
+  it("is false for the same node once the window has passed", () => {
+    expect(justUnpinned(last, id("b"), 1000 + UNPIN_GUARD_MS)).toBe(false);
+    expect(justUnpinned(last, id("b"), 1000 + UNPIN_GUARD_MS + 1)).toBe(false);
   });
 });

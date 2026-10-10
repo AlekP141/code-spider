@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   edgeClickMessage,
   expandMessage,
-  focusMessage,
   nodeClickMessage,
 } from "../src/graph/jump.js";
 import { makeNode } from "./support/slices.js";
@@ -67,16 +66,6 @@ describe("expandMessage", () => {
       project,
       nodeId: "src/a.ts#f",
       generation: 4,
-    });
-  });
-});
-
-describe("focusMessage", () => {
-  it("carries the node and the project", () => {
-    expect(focusMessage("src/a.ts#f", project)).toEqual({
-      type: "focus",
-      project,
-      nodeId: "src/a.ts#f",
     });
   });
 });

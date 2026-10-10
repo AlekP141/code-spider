@@ -7,16 +7,15 @@ import {
   MAX_CODE_LINES,
 } from "./constants.js";
 import type { NodeActions } from "./node-context.js";
-import type { NodeControl } from "./node-controls.js";
 import { codeRegionHeight, hasCodeRegion } from "./node-size.js";
 
 export type NodeBoxProps = {
   node: GraphNode;
   isFocus: boolean;
   pinned?: boolean;
-  control?: NodeControl;
+  loading?: boolean;
   failure?: string;
-  actions?: NodeActions;
+  onUnpin?: NodeActions["onUnpin"];
 };
 
 function nameTitle(node: GraphNode): string {
@@ -38,70 +37,29 @@ function PinIcon() {
   );
 }
 
-function ControlButton({
-  title,
-  label,
-  disabled,
-  onClick,
-}: {
-  title: string;
-  label: string;
-  disabled?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="node-control"
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  );
-}
-
-function Controls({
+function Markers({
   node,
   pinned,
-  control,
-  actions,
-}: Pick<NodeBoxProps, "pinned" | "control" | "actions"> & {
+  loading,
+  onUnpin,
+}: Pick<NodeBoxProps, "pinned" | "loading" | "onUnpin"> & {
   node: GraphNode;
 }) {
-  const expandable = control === "expand" || control === "expandDisabled";
-  if (!pinned && (control === undefined || control === "none")) return null;
+  if (!pinned && !loading) return null;
   return (
     <span className="node-controls nodrag" onClick={stop} onDoubleClick={stop}>
       {pinned ? (
         <button
           type="button"
-          className="node-control node-pin"
+          className="node-control"
           title="Unpin"
           aria-label="Unpin"
-          onClick={() => actions?.onUnpin(node.id)}
+          onClick={() => onUnpin?.(node.id)}
         >
           <PinIcon />
         </button>
       ) : null}
-      {expandable ? (
-        <ControlButton
-          title="Expand"
-          label="+"
-          disabled={control === "expandDisabled"}
-          onClick={() => actions?.onExpand(node.id)}
-        />
-      ) : null}
-      {control === "collapse" ? (
-        <ControlButton
-          title="Collapse"
-          label={"−"}
-          onClick={() => actions?.onCollapse(node.id)}
-        />
-      ) : null}
-      {control === "loading" ? (
+      {loading ? (
         <span className="node-spinner" role="status" aria-label="Loading" />
       ) : null}
     </span>
@@ -116,9 +74,9 @@ export function NodeBox({
   node,
   isFocus,
   pinned,
-  control,
+  loading,
   failure,
-  actions,
+  onUnpin,
 }: NodeBoxProps) {
   const classes = ["node-box", `kind-${node.kind}`];
   if (isFocus) classes.push("is-focus");
@@ -134,11 +92,11 @@ export function NodeBox({
         <span className="node-input" title={node.inputType || undefined}>
           {node.inputType}
         </span>
-        <Controls
+        <Markers
           node={node}
           pinned={pinned}
-          control={control}
-          actions={actions}
+          loading={loading}
+          onUnpin={onUnpin}
         />
       </div>
       {hasCodeRegion(node) ? (

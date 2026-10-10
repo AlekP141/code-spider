@@ -211,17 +211,12 @@
   width: 18px;
 }
 
-.node-control:hover:not(:disabled) {
+.node-control:hover {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
 .node-control:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
-}
-
-.node-control:disabled {
-  cursor: default;
-  opacity: 0.4;
 }
 
 .node-spinner {

@@ -10,9 +10,9 @@ export function SpiderNode({ data }: NodeProps<SpiderFlowNode>) {
   const context = useContext(NodeContext);
   const controls = context && {
     pinned: data.pinned,
-    control: nodeControl(data.node, context.graph, context.ui),
+    loading: nodeControl(data.node, context.graph, context.ui) === "loading",
     failure: context.failures[data.node.id]?.message,
-    actions: context.actions,
+    onUnpin: context.onUnpin,
   };
   return (
     <>

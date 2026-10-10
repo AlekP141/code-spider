@@ -24,10 +24,3 @@ export function expandMessage(
 ): WebviewToExtension {
   return { type: "expand", project, nodeId, generation };
 }
-
-export function focusMessage(
-  nodeId: string,
-  project: string,
-): WebviewToExtension {
-  return { type: "focus", project, nodeId };
-}
