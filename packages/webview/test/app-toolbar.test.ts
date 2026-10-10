@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createAppState,
+  isWorking,
   reduceApp,
   type AppAction,
   type AppState,
@@ -43,20 +44,16 @@ describe("back", () => {
     expect(next.fit).toEqual({ token: before.fit.token + 1, duration: 0 });
   });
 
-  it("clears pending, the error and the transient fields", () => {
-    const base = twoGraphs();
-    const withPending = reduceApp(base, centre("c"));
+  it("clears the error and the transient fields", () => {
     const dirty: AppState = {
-      ...withPending,
+      ...twoGraphs(),
       error: "boom",
       loading: [id("s")],
       failures: { [id("s")]: { message: "x", token: 3 } },
       entering: { ids: [id("s")], token: 4 },
       reveal: { token: 4, rect: { x: 0, y: 0, width: 1, height: 1 } },
     };
-    expect(dirty.pending).toBeDefined();
     const next = reduceApp(dirty, { type: "back" });
-    expect(next.pending).toBeUndefined();
     expect(next.error).toBeUndefined();
     expect(next.loading).toEqual([]);
     expect(next.failures).toEqual({});
@@ -64,16 +61,18 @@ describe("back", () => {
     expect(next.reveal).toBeUndefined();
   });
 
-  it("ignores a late layout for the pending centre it cleared", () => {
+  it("is ignored while a centre waits for ELK, which then commits normally", () => {
     const withPending = reduceApp(twoGraphs(), centre("c"));
-    const lateId = withPending.pending?.id ?? -1;
+    expect(withPending.busy).toBe(false);
     const back = reduceApp(withPending, { type: "back" });
-    const late = reduceApp(back, {
+    expect(back).toBe(withPending);
+    const done = reduceApp(back, {
       type: "centreLaidOut",
-      id: lateId,
+      id: back.pending?.id ?? -1,
       positions: {},
     });
-    expect(late).toBe(back);
+    expect(done.view.current?.focusId).toBe(id("c"));
+    expect(done.pending).toBeUndefined();
   });
 
   it("ignores a late expansion answer for the generation it left", () => {
@@ -102,6 +101,18 @@ describe("back", () => {
   it("does nothing while busy", () => {
     const busy = reduceApp(twoGraphs(), { type: "busy", busy: true });
     expect(reduceApp(busy, { type: "back" })).toBe(busy);
+  });
+});
+
+describe("isWorking", () => {
+  it("is true while busy or while a centre is pending, false otherwise", () => {
+    const idle = createAppState(undefined);
+    expect(isWorking(idle)).toBe(false);
+    expect(isWorking(reduceApp(idle, { type: "busy", busy: true }))).toBe(true);
+    const pending = reduceApp(idle, centre("a"));
+    expect(pending.busy).toBe(false);
+    expect(isWorking(pending)).toBe(true);
+    expect(isWorking(laidOut(idle, "a"))).toBe(false);
   });
 });
 
@@ -182,6 +193,7 @@ describe("a centre laid out while the slider settles", () => {
     expect(done.pending).toBeUndefined();
     expect(done.view.current?.focusId).toBe(id("b"));
     expect(done.view.current?.positions[id("b")]).toEqual({ x: 2, y: 2 });
+    expect(done.view.current?.columnGap).toBe(96);
   });
 
   it("requests nothing extra when the gap did not change", () => {
@@ -193,5 +205,32 @@ describe("a centre laid out while the slider settles", () => {
     });
     expect(done.pending).toBeUndefined();
     expect(done.view.current?.focusId).toBe(id("a"));
+    expect(done.view.current?.columnGap).toBe(192);
+  });
+});
+
+describe("the gap a graph was laid out with", () => {
+  it("is replaced by Tidy with the gap Tidy used, and by nothing else", () => {
+    const shown = laidOut(createAppState(undefined), "a");
+    const moved = reduceApp(shown, { type: "columnGapChanged", value: 480 });
+    expect(moved.view.current?.columnGap).toBe(192);
+    const tidied = reduceApp(moved, {
+      type: "tidied",
+      generation: moved.view.current?.generation ?? -1,
+      columnGap: 480,
+      positions: { [id("a")]: { x: 3, y: 4 } },
+    });
+    expect(tidied.view.current?.columnGap).toBe(480);
+    expect(isViewState(tidied.view)).toBe(true);
+  });
+
+  it("comes back with a graph restored by Back, while the slider keeps its value", () => {
+    const first = laidOut(createAppState(undefined), "a");
+    const moved = reduceApp(first, { type: "columnGapChanged", value: 480 });
+    const second = laidOut(moved, "b");
+    expect(second.view.current?.columnGap).toBe(480);
+    const back = reduceApp(second, { type: "back" });
+    expect(back.view.current?.columnGap).toBe(192);
+    expect(back.view.columnGap).toBe(480);
   });
 });

@@ -5,7 +5,6 @@ import { nodeHeight } from "./node-size.js";
 import { boundingRect } from "./pan-to-reveal.js";
 import type { Rect } from "./placement.js";
 
-/** The box around the given nodes, in flow coordinates; ids not placed are skipped. */
 export function revealRect(
   graph: GraphState,
   ids: readonly NodeId[],

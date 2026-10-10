@@ -27,6 +27,7 @@ describe("tidyGraph", () => {
     );
     expect(outcome).toEqual({
       generation: graph.generation,
+      columnGap: 192,
       positions: {
         [id("a")]: { x: 0, y: 0 },
         [id("b")]: { x: 0, y: 200 },
@@ -60,6 +61,16 @@ describe("tidyGraph", () => {
       expect.any(Array),
       96,
     );
+  });
+
+  it("reports the column gap of the layout it used", async () => {
+    const graph = committed();
+    const outcome = await tidyGraph(
+      () => graph,
+      () => 96,
+      column,
+    );
+    expect(outcome?.columnGap).toBe(96);
   });
 
   it("runs again on the current graph when it changed while ELK ran", async () => {

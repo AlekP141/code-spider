@@ -25,6 +25,10 @@ function everyValue(value: unknown, check: (item: unknown) => boolean) {
   return isRecord(value) && Object.values(value).every(check);
 }
 
+function isNormalisedGap(value: unknown): boolean {
+  return isNumber(value) && normaliseColumnGap(value) === value;
+}
+
 function isPoint(value: unknown): boolean {
   return isRecord(value) && isNumber(value.x) && isNumber(value.y);
 }
@@ -131,6 +135,7 @@ export function isGraphState(value: unknown): value is GraphState {
     everyValue(value.positions, isPoint) &&
     isStringArray(value.pinned) &&
     isNumber(value.revision) &&
+    (value.columnGap === undefined || isNormalisedGap(value.columnGap)) &&
     isConsistent(value as GraphState)
   );
 }
@@ -146,8 +151,7 @@ export function isViewState(value: unknown): value is ViewState {
     value.version === 1 &&
     Number.isInteger(value.nextGeneration) &&
     (value.nextGeneration as number) >= 1 &&
-    isNumber(value.columnGap) &&
-    normaliseColumnGap(value.columnGap) === value.columnGap &&
+    isNormalisedGap(value.columnGap) &&
     (value.current === undefined || isGraphState(value.current)) &&
     Array.isArray(value.history) &&
     value.history.length <= HISTORY_LIMIT &&

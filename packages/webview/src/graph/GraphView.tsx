@@ -53,6 +53,7 @@ const DRAG_THRESHOLD_PX = 4;
 
 export type GraphViewProps = {
   graph: GraphState;
+  /** The view's gap, used for labels when the graph has none of its own. */
   columnGap: number;
   fit: FitRequest;
   ui: Pick<AppState, "busy" | "loading" | "failures" | "entering" | "reveal">;
@@ -160,9 +161,10 @@ export function GraphView({
     [project, onPost],
   );
 
+  const labelGap = graph.columnGap ?? columnGap;
   const canvasStyle = useMemo(
-    () => ({ "--column-gap": `${columnGap}px` }) as CSSProperties,
-    [columnGap],
+    () => ({ "--column-gap": `${labelGap}px` }) as CSSProperties,
+    [labelGap],
   );
 
   return (

@@ -1,4 +1,3 @@
-/** Runs `run` with the latest pushed value once `delayMs` pass without a push. */
 export class TrailingDebounce<T> {
   private timer: ReturnType<typeof setTimeout> | undefined;
 

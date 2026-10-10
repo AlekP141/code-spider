@@ -1,6 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
-import { createAppState, reduceApp } from "./app-state.js";
+import { createAppState, isWorking, reduceApp } from "./app-state.js";
 import { GraphView } from "./graph/GraphView.js";
 import { expandMessage } from "./graph/jump.js";
 import type { NodeActions } from "./graph/node-context.js";
@@ -26,7 +26,8 @@ export function App() {
   const onColumnGap = useSpacingControl(dispatch, tidy);
   usePersistedView(state.view);
   useWalkTimers(state, dispatch);
-  const spinner = useDelayedFlag(state.busy, SPINNER_DELAY_MS);
+  const working = isWorking(state);
+  const spinner = useDelayedFlag(working, SPINNER_DELAY_MS);
   const graph = state.view.current;
   const project = graph?.project;
   const generation = graph?.generation;
@@ -64,7 +65,7 @@ export function App() {
   return (
     <main className="app">
       <Toolbar
-        canBack={canGoBack(state.view) && !state.busy}
+        canBack={canGoBack(state.view) && !working}
         canTidy={graph !== undefined}
         columnGap={state.view.columnGap}
         onBack={onBack}
@@ -90,7 +91,7 @@ export function App() {
             graph={graph}
             columnGap={state.view.columnGap}
             fit={state.fit}
-            ui={state}
+            ui={{ ...state, busy: working }}
             actions={actions}
             onPost={postToExtension}
             onDragStop={onDragStop}

@@ -235,6 +235,7 @@ describe("drag and Tidy results", () => {
     const next = reduceApp(before, {
       type: "tidied",
       generation,
+      columnGap: 192,
       positions: { [id("a")]: { x: 3, y: 4 } },
     });
     expect(next.view.current?.positions[id("a")]).toEqual({ x: 3, y: 4 });
@@ -244,6 +245,7 @@ describe("drag and Tidy results", () => {
     const stale = reduceApp(before, {
       type: "tidied",
       generation: generation + 1,
+      columnGap: 192,
       positions: { [id("a")]: { x: 3, y: 4 } },
     });
     expect(stale).toBe(before);

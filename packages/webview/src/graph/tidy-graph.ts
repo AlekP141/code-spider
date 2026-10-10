@@ -9,6 +9,7 @@ import { toFlow } from "./to-flow.js";
 
 export type TidyOutcome = {
   generation: number;
+  columnGap: number;
   positions: Record<NodeId, Point>;
 };
 
@@ -44,12 +45,14 @@ export async function tidyGraph(
     const graph = getGraph();
     if (!graph) return undefined;
     const { nodes, edges } = toFlow(graph);
-    const elk = await layout(nodes, edges, getColumnGap());
+    const columnGap = getColumnGap();
+    const elk = await layout(nodes, edges, columnGap);
     const latest = getGraph();
     if (latest?.generation !== graph.generation) return undefined;
     if (latest.revision !== graph.revision) continue;
     return {
       generation: graph.generation,
+      columnGap,
       positions: tidyPositions({
         elk,
         sizes: sizesOf(graph),

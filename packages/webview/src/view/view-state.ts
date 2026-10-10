@@ -49,7 +49,6 @@ export function commitCentre(view: ViewState, graph: GraphState): ViewState {
   };
 }
 
-/** Restores the newest history entry as it was, under a fresh generation. */
 export function goBack(view: ViewState): ViewState {
   const restored = view.history.at(-1);
   if (!restored) return view;

@@ -19,6 +19,8 @@ export type GraphState = {
   pinned: NodeId[];
   /** Goes up by one on any change to nodes, edges, pins or positions. */
   revision: number;
+  /** The gap its positions were laid out with; absent in older saves. */
+  columnGap?: number;
 };
 
 export type ViewState = {

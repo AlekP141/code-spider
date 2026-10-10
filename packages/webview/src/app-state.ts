@@ -30,7 +30,6 @@ export type PendingCentre = {
   columnGap: number;
 };
 
-/** The canvas refits whenever `token` changes. */
 export type FitRequest = { token: number; duration: number };
 
 export type AppState = {
@@ -55,7 +54,12 @@ export type LocalAction =
   | { type: "centreLaidOut"; id: number; positions: Record<NodeId, Point> }
   | { type: "centreLayoutFailed"; id: number; message: string }
   | { type: "dragStopped"; positions: Record<NodeId, Point> }
-  | { type: "tidied"; generation: number; positions: Record<NodeId, Point> }
+  | {
+      type: "tidied";
+      generation: number;
+      columnGap: number;
+      positions: Record<NodeId, Point>;
+    }
   | { type: "tidyFailed"; message: string }
   | { type: "expandStarted" | "collapsed" | "unpinned"; nodeId: NodeId }
   | { type: "failureExpired"; nodeId: NodeId; token: number }
@@ -64,6 +68,11 @@ export type LocalAction =
   | { type: "columnGapChanged"; value: number };
 
 export type AppAction = ExtensionToWebview | LocalAction;
+
+/** Busy in the worker, or a centre slice still waiting for ELK. */
+export function isWorking(state: AppState): boolean {
+  return state.busy || state.pending !== undefined;
+}
 
 const LAYOUT_FAILED = "Could not lay out the graph: ";
 
@@ -124,11 +133,10 @@ function relayoutPending(state: AppState, pending: PendingCentre): AppState {
 }
 
 function goBackOnce(state: AppState): AppState {
-  if (state.busy || !canGoBack(state.view)) return state;
+  if (isWorking(state) || !canGoBack(state.view)) return state;
   return {
     ...resetTransient(state),
     view: goBack(state.view),
-    pending: undefined,
     error: undefined,
     fit: refit(state, 0),
   };
@@ -161,7 +169,8 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       if (state.pending.columnGap !== state.view.columnGap) {
         return relayoutPending(state, state.pending);
       }
-      const graph = { ...state.pending.graph, positions: action.positions };
+      const { graph: laidOut, columnGap } = state.pending;
+      const graph = { ...laidOut, positions: action.positions, columnGap };
       return {
         ...resetTransient(state),
         view: commitCentre(state.view, graph),
@@ -187,10 +196,10 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       if (current?.generation !== action.generation) return state;
       return {
         ...state,
-        view: replaceCurrent(
-          state.view,
-          setPositions(current, action.positions),
-        ),
+        view: replaceCurrent(state.view, {
+          ...setPositions(current, action.positions),
+          columnGap: action.columnGap,
+        }),
         fit: refit(state, 250),
       };
     }

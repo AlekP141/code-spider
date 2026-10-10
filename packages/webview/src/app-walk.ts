@@ -40,7 +40,7 @@ export function acceptAnswer(state: AppState, message: SliceMessage): AppState {
   const { view, added } = acceptExpansion(
     state.view,
     { slice: message.slice, project: message.project, mode },
-    state.view.columnGap,
+    state.view.current?.columnGap ?? state.view.columnGap,
   );
   if (view === state.view) return state;
   const loading = state.loading.filter((id) => id !== mode.nodeId);

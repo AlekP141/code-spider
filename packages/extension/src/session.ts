@@ -28,7 +28,6 @@ export type FocusRequest = {
 export type NodeRequest = { project: string; nodeId: NodeId };
 export type ExpandRequest = NodeRequest & { generation: number };
 
-/** What the latest centre request returned. */
 export type CurrentGraph = FocusResult;
 
 export type SessionDeps = {
@@ -48,6 +47,7 @@ export class GraphSession {
   private latest = 0;
   private outstanding = 0;
   private warming = 0;
+  private lastNotifiedCrash: WorkerCrashedError | undefined;
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -76,7 +76,6 @@ export class GraphSession {
     });
   }
 
-  /** Re-centres on a node of a project the panel already shows. */
   async focusNode(request: NodeRequest): Promise<void> {
     const { worker, panel, changes, jumps } = this.deps;
     if (!jumps.has(request.project)) {
@@ -90,7 +89,7 @@ export class GraphSession {
 
   /** Takes no token and no busy state: expansions may overlap each other. */
   async expand(request: ExpandRequest): Promise<void> {
-    const { worker, panel, notifier, changes, jumps } = this.deps;
+    const { worker, panel, changes, jumps } = this.deps;
     const { project, nodeId, generation } = request;
     if (!jumps.has(project)) {
       panel.post({
@@ -119,21 +118,19 @@ export class GraphSession {
       if (!jumps.has(project)) return;
       const message = this.describeFailure(error);
       panel.post({ type: "expandFailed", nodeId, generation, message });
-      if (error instanceof WorkerCrashedError) notifier.error(message);
+      this.notifyCrash(error, message);
     }
   }
 
   /** Loads and warms the project so the first focus is fast (perf note). */
   async warm(file: string): Promise<void> {
-    const { worker, notifier, changes } = this.deps;
+    const { worker, changes } = this.deps;
     this.warming += 1;
     this.setIndexing(true);
     try {
       await worker.warm(file, changes.drain());
     } catch (error) {
-      if (error instanceof WorkerCrashedError) {
-        notifier.error(this.describeFailure(error));
-      }
+      this.notifyCrash(error, this.describeFailure(error));
     } finally {
       this.warming -= 1;
       if (this.warming === 0) this.setIndexing(false);
@@ -144,7 +141,7 @@ export class GraphSession {
   private async replaceGraph(
     analyse: () => Promise<FocusResult>,
   ): Promise<void> {
-    const { panel, notifier, jumps } = this.deps;
+    const { panel, jumps } = this.deps;
     const token = ++this.latest;
     this.outstanding += 1;
     panel.post({ type: "busy", busy: true });
@@ -163,11 +160,19 @@ export class GraphSession {
       if (token !== this.latest || !panel.isOpen()) return;
       const message = this.describeFailure(error);
       panel.post({ type: "analysisError", message });
-      if (error instanceof WorkerCrashedError) notifier.error(message);
+      this.notifyCrash(error, message);
     } finally {
       this.outstanding -= 1;
       if (this.outstanding === 0) panel.post({ type: "busy", busy: false });
     }
+  }
+
+  /** A crash rejects every waiting request with one error: notify once. */
+  private notifyCrash(error: unknown, message: string): void {
+    if (!(error instanceof WorkerCrashedError)) return;
+    if (error === this.lastNotifiedCrash) return;
+    this.lastNotifiedCrash = error;
+    this.deps.notifier.error(message);
   }
 
   private setIndexing(active: boolean): void {
