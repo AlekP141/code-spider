@@ -1,27 +1,25 @@
-import type { GraphEdge, GraphNode } from "@code-spider/core/types";
+import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core/types";
 import type { Edge, Node } from "@xyflow/react";
 import type { GraphState } from "../view/types.js";
-import { MAX_EDGE_LABEL_CHARS, NODE_WIDTH } from "./constants.js";
+import { NODE_WIDTH } from "./constants.js";
 import { edgeAppearance } from "./edge-appearance.js";
 import { nodeHeight } from "./node-size.js";
+import { supplierLabels, type LabelLine } from "./supplier-labels.js";
 
 export type SpiderNodeData = {
   node: GraphNode;
   isFocus: boolean;
   pinned: boolean;
+  labels: readonly LabelLine[];
 };
 export type SpiderFlowNode = Node<SpiderNodeData, "spider">;
-export type SpiderEdgeData = { fullLabel: string };
-export type SpiderFlowEdge = Edge<SpiderEdgeData>;
+export type SpiderFlowEdge = Edge;
 
-export function truncateLabel(
-  text: string,
-  max: number = MAX_EDGE_LABEL_CHARS,
-): string {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-}
-
-function toFlowNode(node: GraphNode, graph: GraphState): SpiderFlowNode {
+function toFlowNode(
+  node: GraphNode,
+  graph: GraphState,
+  labels: ReadonlyMap<NodeId, LabelLine[]>,
+): SpiderFlowNode {
   return {
     id: node.id,
     type: "spider",
@@ -33,6 +31,7 @@ function toFlowNode(node: GraphNode, graph: GraphState): SpiderFlowNode {
       node,
       isFocus: node.id === graph.focusId,
       pinned: graph.pinned.includes(node.id),
+      labels: labels.get(node.id) ?? [],
     },
   };
 }
@@ -44,13 +43,11 @@ function toFlowEdge(edge: GraphEdge): SpiderFlowEdge {
     source: edge.from,
     target: edge.to,
     type: "smoothstep",
-    label: edge.supplies === "" ? undefined : truncateLabel(edge.supplies),
     className: appearance.className,
     style: {
       strokeDasharray: appearance.strokeDasharray,
       strokeWidth: appearance.strokeWidth,
     },
-    data: { fullLabel: edge.supplies },
   };
 }
 
@@ -63,8 +60,11 @@ export function toFlow(graph: GraphState): {
       Object.hasOwn(graph.nodes, edge.from) &&
       Object.hasOwn(graph.nodes, edge.to),
   );
+  const labels = supplierLabels(drawn);
   return {
-    nodes: Object.values(graph.nodes).map((node) => toFlowNode(node, graph)),
+    nodes: Object.values(graph.nodes).map((node) =>
+      toFlowNode(node, graph, labels),
+    ),
     edges: drawn.map(toFlowEdge),
   };
 }

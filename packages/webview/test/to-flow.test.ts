@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NODE_WIDTH } from "../src/graph/constants.js";
 import { nodeHeight } from "../src/graph/node-size.js";
-import { toFlow, truncateLabel } from "../src/graph/to-flow.js";
+import { toFlow } from "../src/graph/to-flow.js";
 import { graphFromSlice, pinNodes } from "../src/view/graph-state.js";
 import { flowOf } from "./support/flow.js";
 import { PROJECT } from "./support/graph-states.js";
@@ -41,7 +41,7 @@ describe("toFlow with a real call-chain slice", () => {
     ]);
   });
 
-  it("points edges from supplier to consumer and labels them with supplies", () => {
+  it("points edges from supplier to consumer with no label or data", () => {
     expect(edges).toHaveLength(slice.edges.length);
     const edge = edges.find(
       (candidate) =>
@@ -52,10 +52,24 @@ describe("toFlow with a real call-chain slice", () => {
       source: "src/signup.ts#validateUser",
       target: "src/signup.ts#handleSignup",
       type: "smoothstep",
-      label: "ValidUserData",
       className: "edge-call",
-      data: { fullLabel: "ValidUserData" },
     });
+    for (const each of edges) {
+      expect(each).not.toHaveProperty("label");
+      expect(each).not.toHaveProperty("data");
+    }
+  });
+
+  it("gives a supplier its label lines and a node supplying nothing none", () => {
+    const labelsOf = (id: string) =>
+      nodes.find((flowNode) => flowNode.id === id)?.data.labels;
+    expect(labelsOf("src/signup.ts#validateUser")).toEqual([
+      { kind: "returns", text: "ValidUserData" },
+    ]);
+    expect(labelsOf("src/signup.ts#handleSignup")).toEqual([
+      { kind: "returns", text: "User" },
+    ]);
+    expect(labelsOf("src/app.ts#main")).toEqual([]);
   });
 });
 
@@ -86,12 +100,16 @@ describe("toFlow positions and pins", () => {
 });
 
 describe("toFlow with a JSX slice", () => {
-  it("styles the JSX edge distinctly and labels it with the props type", () => {
-    const { edges } = flowOf(readGolden("jsx-Page.json"));
+  it("styles the JSX edge distinctly and puts the props type on the supplier", () => {
+    const { nodes, edges } = flowOf(readGolden("jsx-Page.json"));
     expect(edges).toHaveLength(1);
     expect(edges[0]?.className).toBe("edge-jsx");
-    expect(edges[0]?.label).toBe("SignupFormProps");
     expect(edges[0]?.style?.strokeWidth).toBe(2.5);
+    const supplier = nodes.find((flowNode) => flowNode.id === edges[0]?.source);
+    expect(supplier?.data.node.name).toBe("SignupForm");
+    expect(supplier?.data.labels).toEqual([
+      { kind: "jsx", text: "SignupFormProps" },
+    ]);
   });
 });
 
@@ -161,9 +179,27 @@ describe("toFlow with every node and edge kind", () => {
     expect(dash("edge-external")).toBeUndefined();
   });
 
-  it("omits the label of an edge with nothing to supply", () => {
-    const unresolved = edges.find((edge) => edge.source === unknown.id);
-    expect(unresolved?.label).toBeUndefined();
+  it("labels each supplier once and skips edges with nothing to supply", () => {
+    const labelsOf = (id: string) =>
+      nodes.find((flowNode) => flowNode.id === id)?.data.labels;
+    expect(labelsOf(external.id)).toEqual([
+      { kind: "returns", text: "Promise<void>" },
+    ]);
+    expect(labelsOf(unknown.id)).toEqual([]);
+    expect(labelsOf(focus.id)).toEqual([
+      { kind: "passes", text: "() => void" },
+    ]);
+  });
+
+  it("adds no line for an edge whose end is missing", () => {
+    const base = graphFromSlice(makeSlice(focus.id, [focus], []), PROJECT);
+    const dangling = makeEdge(focus.id, "src/missing.ts#gone", {
+      supplies: "Lost",
+    });
+    const graph = { ...base, edges: { [dangling.id]: dangling } };
+    const flow = toFlow(graph);
+    expect(flow.edges).toEqual([]);
+    expect(flow.nodes[0]?.data.labels).toEqual([]);
   });
 
   it("drops edges whose endpoint is not in the graph", () => {
@@ -171,25 +207,5 @@ describe("toFlow with every node and edge kind", () => {
       false,
     );
     expect(edges).toHaveLength(3);
-  });
-});
-
-describe("truncateLabel", () => {
-  it("leaves short labels alone", () => {
-    expect(truncateLabel("User")).toBe("User");
-  });
-
-  it("cuts long labels to the limit with an ellipsis and keeps the full text in data", () => {
-    const long = "A".repeat(100);
-    expect(truncateLabel(long)).toHaveLength(40);
-    expect(truncateLabel(long).endsWith("…")).toBe(true);
-    const slice = makeSlice(
-      "a#a",
-      [makeNode({ id: "a#a" }), makeNode({ id: "a#b" })],
-      [makeEdge("a#b", "a#a", { supplies: long })],
-    );
-    const edge = flowOf(slice).edges[0];
-    expect(edge?.label).toHaveLength(40);
-    expect(edge?.data?.fullLabel).toBe(long);
   });
 });

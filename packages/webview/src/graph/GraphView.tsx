@@ -7,7 +7,13 @@ import {
   type OnNodeDrag,
   type OnNodesChange,
 } from "@xyflow/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import type { AppState, FitRequest } from "../app-state.js";
 import type { WebviewToExtension } from "../protocol.js";
 import type { GraphState, Point } from "../view/types.js";
@@ -47,6 +53,7 @@ const DRAG_THRESHOLD_PX = 4;
 
 export type GraphViewProps = {
   graph: GraphState;
+  columnGap: number;
   fit: FitRequest;
   ui: Pick<AppState, "busy" | "loading" | "failures" | "entering" | "reveal">;
   actions: NodeActions;
@@ -63,6 +70,7 @@ function withClass<T extends { className?: string }>(item: T): T {
 
 export function GraphView({
   graph,
+  columnGap,
   fit,
   ui,
   actions,
@@ -152,8 +160,13 @@ export function GraphView({
     [project, onPost],
   );
 
+  const canvasStyle = useMemo(
+    () => ({ "--column-gap": `${columnGap}px` }) as CSSProperties,
+    [columnGap],
+  );
+
   return (
-    <div className="graph-canvas">
+    <div className="graph-canvas" style={canvasStyle}>
       <NodeContext.Provider value={context}>
         <ReactFlow
           nodes={nodes}

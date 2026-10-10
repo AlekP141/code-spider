@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useContext } from "react";
 import { NodeBox } from "./NodeBox.js";
+import { NodeLabels } from "./NodeLabels.js";
 import { NodeContext } from "./node-context.js";
 import { nodeControl } from "./node-controls.js";
 import type { SpiderFlowNode } from "./to-flow.js";
@@ -18,6 +19,7 @@ export function SpiderNode({ data }: NodeProps<SpiderFlowNode>) {
     <>
       <Handle type="target" position={Position.Left} isConnectable={false} />
       <NodeBox node={data.node} isFocus={data.isFocus} {...controls} />
+      <NodeLabels lines={data.labels} />
       <Handle type="source" position={Position.Right} isConnectable={false} />
     </>
   );

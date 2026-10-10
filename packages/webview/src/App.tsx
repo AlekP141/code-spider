@@ -88,6 +88,7 @@ export function App() {
         {graph ? (
           <GraphView
             graph={graph}
+            columnGap={state.view.columnGap}
             fit={state.fit}
             ui={state}
             actions={actions}

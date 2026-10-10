@@ -1,0 +1,33 @@
+.node-labels {
+  bottom: calc(50% + 4px);
+  display: flex;
+  flex-direction: column-reverse;
+  left: calc(100% + 6px);
+  pointer-events: auto;
+  position: absolute;
+}
+
+.node-label {
+  background: var(--vscode-editor-background);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  line-height: 14px;
+  max-width: calc(var(--column-gap) - 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.node-label.label-returns {
+  color: var(--vscode-descriptionForeground);
+}
+
+.node-label.label-jsx {
+  color: var(--vscode-charts-purple);
+}
+
+.node-label.label-passes {
+  color: var(--vscode-charts-blue);
+  font-style: italic;
+}

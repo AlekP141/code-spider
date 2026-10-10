@@ -7,8 +7,6 @@
   --xy-background-color: var(--vscode-editor-background);
   --xy-edge-stroke: var(--vscode-editorLineNumber-foreground);
   --xy-edge-stroke-selected: var(--vscode-focusBorder);
-  --xy-edge-label-background-color: var(--vscode-editor-background);
-  --xy-edge-label-color: var(--vscode-descriptionForeground);
   --xy-controls-button-background-color: var(--vscode-editorWidget-background);
   --xy-controls-button-background-color-hover: var(
     --vscode-toolbar-hoverBackground
@@ -33,11 +31,6 @@
 .react-flow__handle {
   opacity: 0;
   pointer-events: none;
-}
-
-.react-flow__edge-text {
-  font-family: var(--vscode-editor-font-family);
-  font-size: 11px;
 }
 
 .react-flow__edge.edge-call .react-flow__edge-path {
