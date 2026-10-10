@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import { NODE_WIDTH } from "../src/graph/constants.js";
 import { nodeHeight } from "../src/graph/node-size.js";
 import { toFlow, truncateLabel } from "../src/graph/to-flow.js";
+import { graphFromSlice, pinNodes } from "../src/view/graph-state.js";
+import { flowOf } from "./support/flow.js";
+import { PROJECT } from "./support/graph-states.js";
 import { makeEdge, makeNode, makeSlice, readGolden } from "./support/slices.js";
 
 describe("toFlow with a real call-chain slice", () => {
   const slice = readGolden("basic-handleSignup.json");
-  const { nodes, edges } = toFlow(slice);
+  const { nodes, edges } = flowOf(slice);
 
   it("maps every node with uniform width and analytic height", () => {
     expect(nodes).toHaveLength(slice.nodes.length);
@@ -20,6 +23,15 @@ describe("toFlow with a real call-chain slice", () => {
       (flowNode) => flowNode.id === "src/signup.ts#handleSignup",
     );
     expect(handleSignup?.height).toBe(28 + 6 * 16 + 8);
+  });
+
+  it("gives every node its analytic size as measured, so React Flow never reads the DOM", () => {
+    for (const flowNode of nodes) {
+      expect(flowNode.measured).toEqual({
+        width: NODE_WIDTH,
+        height: nodeHeight(flowNode.data.node),
+      });
+    }
   });
 
   it("flags only the focus node", () => {
@@ -47,9 +59,35 @@ describe("toFlow with a real call-chain slice", () => {
   });
 });
 
+describe("toFlow positions and pins", () => {
+  const slice = readGolden("basic-handleSignup.json");
+
+  it("takes node positions from the graph and falls back to the origin", () => {
+    const { nodes } = flowOf(slice, {
+      "src/signup.ts#handleSignup": { x: 40, y: 60 },
+    });
+    const at = (id: string) => nodes.find((node) => node.id === id)?.position;
+    expect(at("src/signup.ts#handleSignup")).toEqual({ x: 40, y: 60 });
+    expect(at("src/app.ts#main")).toEqual({ x: 0, y: 0 });
+  });
+
+  it("marks exactly the pinned nodes", () => {
+    const graph = pinNodes(graphFromSlice(slice, PROJECT), {
+      "src/app.ts#main": { x: 1, y: 2 },
+    });
+    const { nodes } = toFlow(graph);
+    expect(
+      nodes.filter((node) => node.data.pinned).map((node) => node.id),
+    ).toEqual(["src/app.ts#main"]);
+    expect(
+      nodes.find((node) => node.id === "src/app.ts#main")?.position,
+    ).toEqual({ x: 1, y: 2 });
+  });
+});
+
 describe("toFlow with a JSX slice", () => {
   it("styles the JSX edge distinctly and labels it with the props type", () => {
-    const { edges } = toFlow(readGolden("jsx-Page.json"));
+    const { edges } = flowOf(readGolden("jsx-Page.json"));
     expect(edges).toHaveLength(1);
     expect(edges[0]?.className).toBe("edge-jsx");
     expect(edges[0]?.label).toBe("SignupFormProps");
@@ -97,7 +135,7 @@ describe("toFlow with every node and edge kind", () => {
       makeEdge(focus.id, "src/missing.ts#gone"),
     ],
   );
-  const { nodes, edges } = toFlow(slice);
+  const { nodes, edges } = flowOf(slice);
 
   it("sizes chips as header-only boxes and functions by their lines", () => {
     const heights = Object.fromEntries(
@@ -128,7 +166,7 @@ describe("toFlow with every node and edge kind", () => {
     expect(unresolved?.label).toBeUndefined();
   });
 
-  it("drops edges whose endpoint is not in the slice", () => {
+  it("drops edges whose endpoint is not in the graph", () => {
     expect(edges.some((edge) => edge.target === "src/missing.ts#gone")).toBe(
       false,
     );
@@ -150,7 +188,7 @@ describe("truncateLabel", () => {
       [makeNode({ id: "a#a" }), makeNode({ id: "a#b" })],
       [makeEdge("a#b", "a#a", { supplies: long })],
     );
-    const edge = toFlow(slice).edges[0];
+    const edge = flowOf(slice).edges[0];
     expect(edge?.label).toHaveLength(40);
     expect(edge?.data?.fullLabel).toBe(long);
   });

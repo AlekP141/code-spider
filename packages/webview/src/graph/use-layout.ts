@@ -1,53 +1,55 @@
-import type { GraphSlice } from "@code-spider/core/types";
-import { useEffect, useState } from "react";
-import { applyPositions, layoutPositions } from "./layout.js";
-import { toFlow, type SpiderFlowEdge, type SpiderFlowNode } from "./to-flow.js";
+import { useCallback, useEffect, useRef, type Dispatch } from "react";
+import type { AppAction, AppState } from "../app-state.js";
+import { layoutPositions } from "./layout.js";
+import { tidyGraph } from "./tidy-graph.js";
+import { toFlow } from "./to-flow.js";
 
-export type Laid = {
-  /** Changes with every layout so the canvas remounts and refits the view. */
-  key: number;
-  nodes: SpiderFlowNode[];
-  edges: SpiderFlowEdge[];
-};
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
-type LayoutState = { laid: Laid | undefined; error: string | undefined };
-
-export function useLayout(slice: GraphSlice): LayoutState {
-  const [state, setState] = useState<LayoutState>({
-    laid: undefined,
-    error: undefined,
-  });
-
+/**
+ * Lays out each pending centre slice with ELK, and offers Tidy for the graph on
+ * screen. Stale results are discarded by the reducer, which matches the id of
+ * the pending slice and the generation of the graph.
+ */
+export function useGraphLayout(
+  state: AppState,
+  dispatch: Dispatch<AppAction>,
+): { tidy: () => void } {
+  const { pending } = state;
   useEffect(() => {
-    let cancelled = false;
-    Promise.resolve()
-      .then(() => {
-        const { nodes, edges } = toFlow(slice);
-        return layoutPositions(nodes, edges).then((positions) => ({
-          nodes: applyPositions(nodes, positions),
-          edges,
-        }));
-      })
-      .then(
-        ({ nodes, edges }) => {
-          if (cancelled) return;
-          setState((previous) => ({
-            laid: { key: (previous.laid?.key ?? 0) + 1, nodes, edges },
-            error: undefined,
-          }));
-        },
-        (error: unknown) => {
-          if (cancelled) return;
-          setState({
-            laid: undefined,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        },
-      );
-    return () => {
-      cancelled = true;
-    };
-  }, [slice]);
+    if (!pending) return;
+    const { nodes, edges } = toFlow(pending.graph);
+    layoutPositions(nodes, edges, pending.columnGap).then(
+      (positions) =>
+        dispatch({ type: "centreLaidOut", id: pending.id, positions }),
+      (error: unknown) =>
+        dispatch({
+          type: "centreLayoutFailed",
+          id: pending.id,
+          message: messageOf(error),
+        }),
+    );
+  }, [pending, dispatch]);
 
-  return state;
+  const latest = useRef(state.view);
+  useEffect(() => {
+    latest.current = state.view;
+  }, [state.view]);
+
+  const tidy = useCallback(() => {
+    tidyGraph(
+      () => latest.current.current,
+      () => latest.current.columnGap,
+    ).then(
+      (outcome) => {
+        if (outcome) dispatch({ type: "tidied", ...outcome });
+      },
+      (error: unknown) =>
+        dispatch({ type: "tidyFailed", message: messageOf(error) }),
+    );
+  }, [dispatch]);
+
+  return { tidy };
 }

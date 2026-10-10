@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { buildElkGraph, layoutPositions } from "../src/graph/layout.js";
-import { toFlow } from "../src/graph/to-flow.js";
+import { flowOf } from "./support/flow.js";
 import { makeEdge, makeNode, makeSlice, readGolden } from "./support/slices.js";
 
 describe("buildElkGraph", () => {
   it("asks ELK for a left-to-right layered layout of the sized nodes", () => {
-    const { nodes, edges } = toFlow(readGolden("basic-handleSignup.json"));
-    const graph = buildElkGraph(nodes, edges);
+    const { nodes, edges } = flowOf(readGolden("basic-handleSignup.json"));
+    const graph = buildElkGraph(nodes, edges, 96);
     expect(graph.layoutOptions).toMatchObject({
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
+      "elk.spacing.nodeNode": "32",
     });
     expect(graph.children).toHaveLength(nodes.length);
     expect(graph.children?.[0]).toMatchObject({
@@ -24,6 +25,17 @@ describe("buildElkGraph", () => {
       targets: [edges[0]?.target],
     });
   });
+
+  it("sets the spacing between layers from the column gap", () => {
+    const { nodes, edges } = flowOf(readGolden("basic-handleSignup.json"));
+    for (const gap of [32, 192, 480]) {
+      expect(
+        buildElkGraph(nodes, edges, gap).layoutOptions?.[
+          "elk.layered.spacing.nodeNodeBetweenLayers"
+        ],
+      ).toBe(String(gap));
+    }
+  });
 });
 
 describe("layoutPositions", () => {
@@ -37,11 +49,25 @@ describe("layoutPositions", () => {
       ],
       [makeEdge("a#a", "a#b"), makeEdge("a#b", "a#c")],
     );
-    const { nodes, edges } = toFlow(slice);
-    const positions = await layoutPositions(nodes, edges);
-    const x = (id: string) => positions.get(id)?.x ?? Number.NaN;
+    const { nodes, edges } = flowOf(slice);
+    const positions = await layoutPositions(nodes, edges, 192);
+    const x = (id: string) => positions[id]?.x ?? Number.NaN;
     expect(x("a#a")).toBeLessThan(x("a#b"));
     expect(x("a#b")).toBeLessThan(x("a#c"));
+  });
+
+  it("leaves the column gap between a supplier and its consumer", async () => {
+    const slice = makeSlice(
+      "a#b",
+      [makeNode({ id: "a#a" }), makeNode({ id: "a#b" })],
+      [makeEdge("a#a", "a#b")],
+    );
+    const { nodes, edges } = flowOf(slice);
+    for (const gap of [32, 192, 480]) {
+      const positions = await layoutPositions(nodes, edges, gap);
+      const space = (positions["a#b"]?.x ?? 0) - (positions["a#a"]?.x ?? 0);
+      expect(space).toBe(320 + gap);
+    }
   });
 
   it("stacks several suppliers in one column without overlap", async () => {
@@ -54,12 +80,12 @@ describe("layoutPositions", () => {
       [...suppliers, consumer],
       suppliers.map((supplier) => makeEdge(supplier.id, consumer.id)),
     );
-    const { nodes, edges } = toFlow(slice);
-    const positions = await layoutPositions(nodes, edges);
+    const { nodes, edges } = flowOf(slice);
+    const positions = await layoutPositions(nodes, edges, 192);
 
-    const column = suppliers.map((supplier) => positions.get(supplier.id));
+    const column = suppliers.map((supplier) => positions[supplier.id]);
     expect(new Set(column.map((position) => position?.x)).size).toBe(1);
-    expect(positions.get(consumer.id)?.x).toBeGreaterThan(column[0]?.x ?? 0);
+    expect(positions[consumer.id]?.x).toBeGreaterThan(column[0]?.x ?? 0);
 
     const height = nodes[0]?.height ?? 0;
     const tops = column
@@ -70,18 +96,19 @@ describe("layoutPositions", () => {
   });
 
   it("returns a position for every node and is deterministic", async () => {
-    const { nodes, edges } = toFlow(readGolden("basic-handleSignup.json"));
-    const first = await layoutPositions(nodes, edges);
-    const second = await layoutPositions(nodes, edges);
-    expect([...first.keys()].sort()).toEqual(nodes.map((n) => n.id).sort());
-    expect([...second.entries()]).toEqual([...first.entries()]);
+    const { nodes, edges } = flowOf(readGolden("basic-handleSignup.json"));
+    const first = await layoutPositions(nodes, edges, 192);
+    const second = await layoutPositions(nodes, edges, 192);
+    expect(Object.keys(first).sort()).toEqual(nodes.map((n) => n.id).sort());
+    expect(second).toEqual(first);
   });
 
   it("lays out a lone node and an edgeless graph", async () => {
-    const slice = makeSlice("a#a", [makeNode({ id: "a#a" })], []);
-    const { nodes, edges } = toFlow(slice);
-    const positions = await layoutPositions(nodes, edges);
-    expect(positions.get("a#a")).toEqual({
+    const { nodes, edges } = flowOf(
+      makeSlice("a#a", [makeNode({ id: "a#a" })], []),
+    );
+    const positions = await layoutPositions(nodes, edges, 192);
+    expect(positions["a#a"]).toEqual({
       x: expect.any(Number),
       y: expect.any(Number),
     });

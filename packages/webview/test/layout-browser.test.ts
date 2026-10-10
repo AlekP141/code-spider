@@ -9,8 +9,8 @@ const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const entry = `
 import { layoutPositions } from "./src/graph/layout.ts";
 const node = (id) => ({ id, width: 100, height: 50, position: { x: 0, y: 0 }, data: {} });
-layoutPositions([node("a"), node("b")], [{ id: "e", source: "a", target: "b" }]).then(
-  (positions) => { globalThis.result = JSON.stringify([...positions.entries()]); },
+layoutPositions([node("a"), node("b")], [{ id: "e", source: "a", target: "b" }], 96).then(
+  (positions) => { globalThis.result = JSON.stringify(positions); },
   (error) => { globalThis.failure = String(error); },
 );
 `;
@@ -45,8 +45,9 @@ it("lays out in a browser-like context that forbids string evaluation", async ()
     expect(sandbox.result ?? sandbox.failure).toBeDefined(),
   );
   expect(sandbox.failure).toBeUndefined();
-  const positions = new Map<string, { x: number; y: number }>(
-    JSON.parse(String(sandbox.result)),
-  );
-  expect(positions.get("a")?.x).toBeLessThan(positions.get("b")?.x ?? 0);
+  const positions = JSON.parse(String(sandbox.result)) as Record<
+    string,
+    { x: number; y: number }
+  >;
+  expect(positions.a?.x).toBeLessThan(positions.b?.x ?? 0);
 });

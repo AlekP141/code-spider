@@ -1,13 +1,21 @@
-import type { GraphSlice, NodeId } from "@code-spider/core/types";
+import type { GraphEdge, GraphSlice, NodeId } from "@code-spider/core/types";
 import type { GraphState, Point, SliceRecord } from "./types.js";
 
 export type Merged = { graph: GraphState; added: NodeId[] };
 
-function sliceRecord(slice: GraphSlice, key: NodeId): SliceRecord {
+function sliceRecord(
+  slice: GraphSlice,
+  key: NodeId,
+  edges: readonly GraphEdge[],
+): SliceRecord {
   return {
     members: slice.nodes.map((node) => node.id).filter((id) => id !== key),
-    edgeIds: slice.edges.map((edge) => edge.id),
+    edgeIds: edges.map((edge) => edge.id),
   };
+}
+
+function joinsNodes(edge: GraphEdge, nodes: Record<NodeId, unknown>): boolean {
+  return Object.hasOwn(nodes, edge.from) && Object.hasOwn(nodes, edge.to);
 }
 
 function keepEntries<T>(
@@ -24,13 +32,15 @@ export function graphFromSlice(
   project: string,
   positions: Record<NodeId, Point> = {},
 ): GraphState {
+  const nodes = Object.fromEntries(slice.nodes.map((node) => [node.id, node]));
+  const kept = slice.edges.filter((edge) => joinsNodes(edge, nodes));
   return {
     generation: 0,
     project,
     focusId: slice.focusId,
-    nodes: Object.fromEntries(slice.nodes.map((node) => [node.id, node])),
-    edges: Object.fromEntries(slice.edges.map((edge) => [edge.id, edge])),
-    slices: { [slice.focusId]: sliceRecord(slice, slice.focusId) },
+    nodes,
+    edges: Object.fromEntries(kept.map((edge) => [edge.id, edge])),
+    slices: { [slice.focusId]: sliceRecord(slice, slice.focusId, kept) },
     positions,
     pinned: [],
     revision: 0,
@@ -59,7 +69,8 @@ export function mergeExpansion(
     nodes[node.id] = node;
     added.push(node.id);
   }
-  for (const edge of slice.edges) {
+  const kept = slice.edges.filter((edge) => joinsNodes(edge, nodes));
+  for (const edge of kept) {
     if (Object.hasOwn(edges, edge.id)) continue;
     edges[edge.id] = edge;
     edgeAdded = true;
@@ -70,7 +81,7 @@ export function mergeExpansion(
       ...graph,
       nodes,
       edges,
-      slices: { ...graph.slices, [nodeId]: sliceRecord(slice, nodeId) },
+      slices: { ...graph.slices, [nodeId]: sliceRecord(slice, nodeId, kept) },
       revision: changed ? graph.revision + 1 : graph.revision,
     },
     added,

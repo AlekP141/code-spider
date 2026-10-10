@@ -1,16 +1,30 @@
-import { useEffect, useReducer } from "react";
-import { initialState, reduceMessage } from "./app-state.js";
+import type { NodeId } from "@code-spider/core/types";
+import { useCallback, useEffect, useReducer } from "react";
+import { createAppState, reduceApp } from "./app-state.js";
 import { GraphView } from "./graph/GraphView.js";
+import { useGraphLayout } from "./graph/use-layout.js";
 import { isExtensionMessage } from "./messages.js";
 import { useDelayedFlag } from "./use-delayed-flag.js";
-import { postToExtension } from "./vscode-api.js";
+import { usePersistedView } from "./use-persisted-view.js";
+import { getSavedState, postToExtension } from "./vscode-api.js";
+import type { Point } from "./view/types.js";
 
 /** Work shorter than this never shows a spinner (perf note). */
 export const SPINNER_DELAY_MS = 500;
 
 export function App() {
-  const [state, dispatch] = useReducer(reduceMessage, initialState);
+  const [state, dispatch] = useReducer(reduceApp, undefined, () =>
+    createAppState(getSavedState()),
+  );
+  useGraphLayout(state, dispatch);
+  usePersistedView(state.view);
   const spinner = useDelayedFlag(state.busy, SPINNER_DELAY_MS);
+
+  const onDragStop = useCallback(
+    (positions: Record<NodeId, Point>) =>
+      dispatch({ type: "dragStopped", positions }),
+    [],
+  );
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<unknown>) => {
@@ -21,6 +35,7 @@ export function App() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  const graph = state.view.current;
   return (
     <main className="app">
       {state.indexing ? (
@@ -37,11 +52,12 @@ export function App() {
         <div className="spinner" role="status" aria-label="Analysing" />
       ) : null}
       <section className="content">
-        {state.centre ? (
+        {graph ? (
           <GraphView
-            slice={state.centre.slice}
-            project={state.centre.project}
-            onJump={postToExtension}
+            graph={graph}
+            fit={state.fit}
+            onPost={postToExtension}
+            onDragStop={onDragStop}
           />
         ) : (
           <p className="status">
