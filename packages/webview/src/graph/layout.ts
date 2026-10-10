@@ -1,5 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
+import { rowGap } from "../column-gap.js";
 import type { Point } from "../view/types.js";
 import type { SpiderFlowEdge, SpiderFlowNode } from "./to-flow.js";
 
@@ -17,7 +18,7 @@ export function buildElkGraph(
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
-      "elk.spacing.nodeNode": "32",
+      "elk.spacing.nodeNode": String(rowGap(columnGap)),
       "elk.layered.spacing.nodeNodeBetweenLayers": String(columnGap),
     },
     children: nodes.map((node) => ({

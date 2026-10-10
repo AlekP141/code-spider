@@ -1,9 +1,11 @@
+import type { GraphSlice } from "@code-spider/core/types";
 import { describe, expect, it } from "vitest";
 import {
   createAppState,
   reduceApp,
   type AppState,
 } from "../src/app-state.js";
+import { nodeHeight } from "../src/graph/node-size.js";
 import {
   collapseNode,
   mergeExpansion,
@@ -70,7 +72,11 @@ describe("GraphState.columnGap", () => {
 });
 
 describe("placing an expansion", () => {
-  function expandedAt(graphGap: number | undefined): number | undefined {
+  function expand(
+    graphGap: number | undefined,
+    slice: GraphSlice,
+    viewGap: number,
+  ): AppState {
     const pending = reduceApp(createAppState(undefined), {
       type: "slice",
       slice: sliceOf("a", ["b"]),
@@ -88,13 +94,13 @@ describe("placing an expansion", () => {
       ...shown,
       view: {
         ...shown.view,
-        columnGap: 480,
+        columnGap: viewGap,
         current: { ...current, columnGap: graphGap },
       },
     };
-    const next = reduceApp(state, {
+    return reduceApp(state, {
       type: "slice",
-      slice: sliceOf("b", ["d"], ["a"]),
+      slice,
       project: PROJECT,
       mode: {
         kind: "expansion",
@@ -102,8 +108,12 @@ describe("placing an expansion", () => {
         generation: current.generation,
       },
     });
-    return next.view.current?.positions[id("d")]?.x;
   }
+
+  const expandedAt = (graphGap: number | undefined) =>
+    expand(graphGap, sliceOf("b", ["d"], ["a"]), 480).view.current?.positions[
+      id("d")
+    ]?.x;
 
   it("uses the gap the graph was laid out with", () => {
     expect(expandedAt(192)).toBe(488 - (320 + 192));
@@ -111,5 +121,19 @@ describe("placing an expansion", () => {
 
   it("falls back to the view's gap when the graph has none", () => {
     expect(expandedAt(undefined)).toBe(488 - (320 + 480));
+  });
+
+  it("stacks new boxes the row gap of the graph's own gap apart", () => {
+    const spaceBetween = (graphGap: number | undefined, viewGap: number) => {
+      const next = expand(graphGap, sliceOf("b", ["d", "e"], ["a"]), viewGap);
+      const graph = next.view.current;
+      const d = graph?.positions[id("d")]?.y ?? 0;
+      const e = graph?.positions[id("e")]?.y ?? 0;
+      const node = graph?.nodes[id("d")];
+      return e - d - (node ? nodeHeight(node) : 0);
+    };
+    expect(spaceBetween(480, 192)).toBe(80);
+    expect(spaceBetween(192, 480)).toBe(32);
+    expect(spaceBetween(undefined, 480)).toBe(80);
   });
 });

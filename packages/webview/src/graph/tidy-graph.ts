@@ -1,4 +1,5 @@
 import type { NodeId } from "@code-spider/core/types";
+import { rowGap } from "../column-gap.js";
 import type { GraphState, Point } from "../view/types.js";
 import { NODE_WIDTH } from "./constants.js";
 import { layoutPositions } from "./layout.js";
@@ -57,6 +58,7 @@ export async function tidyGraph(
         elk,
         sizes: sizesOf(graph),
         pinned: pinnedAt(graph),
+        margin: rowGap(columnGap),
       }),
     };
   }

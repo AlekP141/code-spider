@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NODE_MARGIN, isClear, type Rect } from "../src/graph/placement.js";
+import { rowGap } from "../src/column-gap.js";
+import { isClear, type Rect } from "../src/graph/placement.js";
 import { nodeHeight } from "../src/graph/node-size.js";
 import { setPositions } from "../src/view/graph-state.js";
 import { acceptExpansion, applyExpansion } from "../src/view/expansion.js";
@@ -52,7 +53,7 @@ describe("applyExpansion", () => {
       height,
     });
     expect(graph.positions[id("e")]).toEqual({ x: 1000, y: 384 });
-    expect(isClear(rectOf(id("e")), rectOf(id("a")), NODE_MARGIN)).toBe(true);
+    expect(isClear(rectOf(id("e")), rectOf(id("a")), rowGap(192))).toBe(true);
   });
 
   it("never writes a position that already exists", () => {

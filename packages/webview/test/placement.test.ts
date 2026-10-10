@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { rowGap } from "../src/column-gap.js";
 import { NODE_WIDTH } from "../src/graph/constants.js";
 import {
   isClear,
-  NODE_MARGIN,
   nearestFreeY,
   placeExpansion,
   stackTops,
@@ -16,6 +16,8 @@ const rect = (x: number, y: number, width: number, height: number): Rect => ({
   width,
   height,
 });
+
+const MARGIN = rowGap(192);
 
 describe("isClear", () => {
   it("is true when the horizontal or the vertical gap reaches the margin", () => {
@@ -74,12 +76,17 @@ describe("nearestFreeY", () => {
 
 describe("stackTops", () => {
   it("centres a single node and a stack on the given line", () => {
-    expect(stackTops(100, [40])).toEqual([80]);
-    expect(stackTops(100, [40, 60])).toEqual([
+    expect(stackTops(100, [40], 32)).toEqual([80]);
+    expect(stackTops(100, [40, 60], 32)).toEqual([
       100 - (40 + 32 + 60) / 2,
       100 - (40 + 32 + 60) / 2 + 72,
     ]);
-    expect(stackTops(100, [])).toEqual([]);
+    expect(stackTops(100, [], 32)).toEqual([]);
+  });
+
+  it("spaces the stack by the margin it is given", () => {
+    const [first = 0, second = 0] = stackTops(100, [40, 60], 80);
+    expect(second - first).toBe(40 + 80);
   });
 });
 
@@ -91,6 +98,7 @@ describe("placeExpansion", () => {
     added: AddedNode[],
     edges: { from: string; to: string }[],
     existing: Rect[] = [anchor],
+    columnGap = 192,
   ) =>
     placeExpansion({
       expandedId: "x",
@@ -98,7 +106,7 @@ describe("placeExpansion", () => {
       added,
       edges,
       existing,
-      columnGap: 192,
+      columnGap,
     });
 
   it("puts suppliers a column to the left and consumers a column to the right", () => {
@@ -138,6 +146,37 @@ describe("placeExpansion", () => {
     expect(placed.b).toEqual({ x: 1000 + pitch, y: 566 });
   });
 
+  it.each([32, 192, 480])(
+    "stacks new boxes the row gap apart at column gap %i",
+    (columnGap) => {
+      const placed = place(
+        [node("a"), node("b"), node("c")],
+        [
+          { from: "x", to: "a" },
+          { from: "x", to: "b" },
+          { from: "x", to: "c" },
+        ],
+        [anchor],
+        columnGap,
+      );
+      const tops = ["a", "b", "c"].map((name) => placed[name]?.y ?? 0);
+      expect(tops[1]).toBe((tops[0] ?? 0) + 100 + rowGap(columnGap));
+      expect(tops[2]).toBe((tops[1] ?? 0) + 100 + rowGap(columnGap));
+      expect(placed.a?.x).toBe(1000 + NODE_WIDTH + columnGap);
+    },
+  );
+
+  it("clears a dragged box by the row gap at the current column gap", () => {
+    const dragged = rect(1000 + NODE_WIDTH + 480, 480, NODE_WIDTH, 100);
+    const placed = place(
+      [node("c")],
+      [{ from: "x", to: "c" }],
+      [anchor, dragged],
+      480,
+    );
+    expect(placed.c?.y).toBe(480 + 100 + 80);
+  });
+
   it("is pushed down by a dragged node on its slot when the lower end is nearer", () => {
     const dragged = rect(1000 + pitch, 480, NODE_WIDTH, 100);
     const placed = place(
@@ -172,9 +211,9 @@ describe("placeExpansion", () => {
     expect(placed.b).toEqual({ x: 1000 + pitch, y: 664 });
     const a = rect(placed.a?.x ?? 0, placed.a?.y ?? 0, NODE_WIDTH, 100);
     const b = rect(placed.b?.x ?? 0, placed.b?.y ?? 0, NODE_WIDTH, 100);
-    expect(isClear(a, dragged, NODE_MARGIN)).toBe(true);
-    expect(isClear(b, dragged, NODE_MARGIN)).toBe(true);
-    expect(isClear(a, b, NODE_MARGIN)).toBe(true);
+    expect(isClear(a, dragged, MARGIN)).toBe(true);
+    expect(isClear(b, dragged, MARGIN)).toBe(true);
+    expect(isClear(a, b, MARGIN)).toBe(true);
   });
 
   it("does not change its inputs", () => {

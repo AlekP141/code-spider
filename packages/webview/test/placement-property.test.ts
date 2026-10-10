@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { rowGap } from "../src/column-gap.js";
 import { NODE_WIDTH } from "../src/graph/constants.js";
 import {
   isClear,
-  NODE_MARGIN,
   placeExpansion,
   stackTops,
   type AddedNode,
@@ -23,6 +23,7 @@ describe("placeExpansion on random layouts", () => {
     chosen: number,
     column: { x: number; height: number },
     obstacles: readonly Rect[],
+    margin: number,
   ): boolean {
     const reach = Math.abs(chosen - preferred);
     for (
@@ -35,7 +36,7 @@ describe("placeExpansion on random layouts", () => {
       const candidate = rect(column.x, y, NODE_WIDTH, column.height);
       if (
         nearer &&
-        obstacles.every((obstacle) => isClear(candidate, obstacle, NODE_MARGIN))
+        obstacles.every((obstacle) => isClear(candidate, obstacle, margin))
       ) {
         return true;
       }
@@ -52,7 +53,8 @@ describe("placeExpansion on random layouts", () => {
         NODE_WIDTH,
         randomInt(next, 28, 300),
       );
-      const columnGap = 16 * randomInt(next, 2, 30);
+      const columnGap = [32, 192, 480][seed % 4] ?? 16 * randomInt(next, 2, 30);
+      const margin = rowGap(columnGap);
       const pitch = NODE_WIDTH + columnGap;
       const columns = [anchor.x - pitch, anchor.x + pitch];
 
@@ -109,6 +111,7 @@ describe("placeExpansion on random layouts", () => {
         const tops = stackTops(
           centre,
           stack.map((n) => n.height),
+          margin,
         );
         stack.forEach((n, index) => {
           const at = placed[n.id];
@@ -117,7 +120,7 @@ describe("placeExpansion on random layouts", () => {
           const placedRect = rect(at?.x ?? 0, at?.y ?? 0, NODE_WIDTH, n.height);
           for (const obstacle of obstacles) {
             expect(
-              isClear(placedRect, obstacle, NODE_MARGIN),
+              isClear(placedRect, obstacle, margin),
               `seed ${seed} ${n.id} clear`,
             ).toBe(true);
           }
@@ -127,6 +130,7 @@ describe("placeExpansion on random layouts", () => {
               at?.y ?? 0,
               { x: x ?? 0, height: n.height },
               obstacles,
+              margin,
             ),
             `seed ${seed} ${n.id} optimal`,
           ).toBe(false);

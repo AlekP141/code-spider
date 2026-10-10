@@ -48,6 +48,16 @@ describe("tidyGraph", () => {
     expect(outcome?.positions[id("c")]).toEqual({ x: 0, y: 400 });
   });
 
+  it("clears a pinned node by the row gap of the column gap it lays out with", async () => {
+    const graph = pinNodes(committed(), { [id("a")]: { x: 0, y: 200 } });
+    const outcome = await tidyGraph(
+      () => graph,
+      () => 480,
+      column,
+    );
+    expect(outcome?.positions[id("b")]).toEqual({ x: 0, y: 200 - 80 - 84 });
+  });
+
   it("lays out with the column gap it is given", async () => {
     const layout = vi.fn(column);
     const graph = committed();

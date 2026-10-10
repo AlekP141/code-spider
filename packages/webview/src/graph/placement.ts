@@ -1,11 +1,10 @@
 import type { GraphEdge, NodeId } from "@code-spider/core/types";
+import { rowGap } from "../column-gap.js";
 import type { Point } from "../view/types.js";
 import { NODE_WIDTH } from "./constants.js";
 
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Size = { width: number; height: number };
-
-export const NODE_MARGIN = 32;
 
 /** Absorbs floating point error in positions that were computed, not typed. */
 const TOLERANCE = 1e-6;
@@ -52,18 +51,19 @@ export function nearestFreeY(
   return nearestFirst.find(isFree) ?? underAll;
 }
 
-/** Preferred tops for a stack of nodes `NODE_MARGIN` apart, centred on a line. */
+/** Preferred tops for a stack of nodes `margin` apart, centred on a line. */
 export function stackTops(
   centreY: number,
   heights: readonly number[],
+  margin: number,
 ): number[] {
   const total =
     heights.reduce((sum, height) => sum + height, 0) +
-    NODE_MARGIN * Math.max(0, heights.length - 1);
+    margin * Math.max(0, heights.length - 1);
   let top = centreY - total / 2;
   return heights.map((height) => {
     const current = top;
-    top += height + NODE_MARGIN;
+    top += height + margin;
     return current;
   });
 }
@@ -91,6 +91,7 @@ const byId = (a: AddedNode, b: AddedNode) =>
  */
 export function placeExpansion(input: Placement): Record<NodeId, Point> {
   const pitch = NODE_WIDTH + input.columnGap;
+  const margin = rowGap(input.columnGap);
   const suppliers = new Set(
     input.edges
       .filter((edge) => edge.to === input.expandedId)
@@ -113,15 +114,11 @@ export function placeExpansion(input: Placement): Record<NodeId, Point> {
     const tops = stackTops(
       centreY,
       nodes.map((node) => node.height),
+      margin,
     );
     for (const [index, node] of nodes.entries()) {
       const column = { x, width: NODE_WIDTH, height: node.height };
-      const y = nearestFreeY(
-        tops[index] ?? centreY,
-        column,
-        obstacles,
-        NODE_MARGIN,
-      );
+      const y = nearestFreeY(tops[index] ?? centreY, column, obstacles, margin);
       placed[node.id] = { x, y };
       obstacles.push({ ...column, y });
     }

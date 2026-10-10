@@ -1,12 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import type { Point } from "../view/types.js";
-import {
-  isClear,
-  NODE_MARGIN,
-  nearestFreeY,
-  type Rect,
-  type Size,
-} from "./placement.js";
+import { isClear, nearestFreeY, type Rect, type Size } from "./placement.js";
 
 export type TidyInput = {
   /** ELK's layout of every node. */
@@ -14,6 +8,8 @@ export type TidyInput = {
   sizes: Readonly<Record<NodeId, Size>>;
   /** The current position of each pinned node. */
   pinned: Readonly<Record<NodeId, Point>>;
+  /** The space to keep between boxes, from the row gap. */
+  margin: number;
 };
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -44,7 +40,7 @@ export function tidyPositions(input: TidyInput): Record<NodeId, Point> {
   const displaced: [NodeId, Rect][] = [];
   for (const entry of unpinned) {
     const [id, rect] = entry;
-    if (pinnedRects.every((pin) => isClear(rect, pin, NODE_MARGIN))) {
+    if (pinnedRects.every((pin) => isClear(rect, pin, input.margin))) {
       result[id] = { x: rect.x, y: rect.y };
       obstacles.push(rect);
     } else {
@@ -56,7 +52,7 @@ export function tidyPositions(input: TidyInput): Record<NodeId, Point> {
     ([idA, a], [idB, b]) => a.x - b.x || a.y - b.y || compare(idA, idB),
   );
   for (const [id, rect] of displaced) {
-    const y = nearestFreeY(rect.y, rect, obstacles, NODE_MARGIN);
+    const y = nearestFreeY(rect.y, rect, obstacles, input.margin);
     result[id] = { x: rect.x, y };
     obstacles.push({ ...rect, y });
   }

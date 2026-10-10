@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { rowGap } from "../src/column-gap.js";
 import { buildElkGraph, layoutPositions } from "../src/graph/layout.js";
 import { flowOf } from "./support/flow.js";
 import { makeEdge, makeNode, makeSlice, readGolden } from "./support/slices.js";
@@ -6,7 +7,7 @@ import { makeEdge, makeNode, makeSlice, readGolden } from "./support/slices.js";
 describe("buildElkGraph", () => {
   it("asks ELK for a left-to-right layered layout of the sized nodes", () => {
     const { nodes, edges } = flowOf(readGolden("basic-handleSignup.json"));
-    const graph = buildElkGraph(nodes, edges, 96);
+    const graph = buildElkGraph(nodes, edges, 192);
     expect(graph.layoutOptions).toMatchObject({
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
@@ -24,6 +25,15 @@ describe("buildElkGraph", () => {
       sources: [edges[0]?.source],
       targets: [edges[0]?.target],
     });
+  });
+
+  it("sets the spacing inside a column from the row gap", () => {
+    const { nodes, edges } = flowOf(readGolden("basic-handleSignup.json"));
+    const spacing = (gap: number) =>
+      buildElkGraph(nodes, edges, gap).layoutOptions?.["elk.spacing.nodeNode"];
+    expect(spacing(32)).toBe("16");
+    expect(spacing(192)).toBe("32");
+    expect(spacing(480)).toBe("80");
   });
 
   it("sets the spacing between layers from the column gap", () => {
@@ -93,6 +103,32 @@ describe("layoutPositions", () => {
       .sort((a, b) => a - b);
     expect((tops[1] ?? 0) - (tops[0] ?? 0)).toBeGreaterThanOrEqual(height);
     expect((tops[2] ?? 0) - (tops[1] ?? 0)).toBeGreaterThanOrEqual(height);
+  });
+
+  it("keeps the row gap between boxes of one column at every slider value", async () => {
+    const suppliers = ["a#s1", "a#s2", "a#s3"].map((id) =>
+      makeNode({ id, lineCount: 8 }),
+    );
+    const consumer = makeNode({ id: "a#c" });
+    const slice = makeSlice(
+      consumer.id,
+      [...suppliers, consumer],
+      suppliers.map((supplier) => makeEdge(supplier.id, consumer.id)),
+    );
+    const { nodes, edges } = flowOf(slice);
+    const height = nodes[0]?.height ?? 0;
+    for (const gap of [32, 192, 480]) {
+      const positions = await layoutPositions(nodes, edges, gap);
+      const tops = suppliers
+        .map((supplier) => positions[supplier.id]?.y ?? 0)
+        .sort((a, b) => a - b);
+      expect((tops[1] ?? 0) - (tops[0] ?? 0)).toBeGreaterThanOrEqual(
+        height + rowGap(gap),
+      );
+      expect((tops[2] ?? 0) - (tops[1] ?? 0)).toBeGreaterThanOrEqual(
+        height + rowGap(gap),
+      );
+    }
   });
 
   it("returns a position for every node and is deterministic", async () => {
