@@ -38,6 +38,7 @@ function setup() {
 const result = {
   slice: { focusId: "a.ts#f", nodes: [], edges: [], truncated: false },
   repoRoot: "/repo",
+  tsconfig: "/repo/tsconfig.json",
 };
 
 function outOfMemory(): Error {
@@ -73,6 +74,39 @@ describe("WorkerClient", () => {
     ]);
     workers[0]?.reply({ id: 1, kind: "focused", result });
     await expect(pending).resolves.toEqual(result);
+  });
+
+  it("posts sliceForNode requests and resolves with the result", async () => {
+    const { workers, client } = setup();
+    const pending = client.sliceForNode("/repo/tsconfig.json", "a.ts#f", [
+      "/b.ts",
+    ]);
+    expect(workers[0]?.posted).toEqual([
+      {
+        id: 1,
+        kind: "sliceForNode",
+        tsconfig: "/repo/tsconfig.json",
+        nodeId: "a.ts#f",
+        changedFiles: ["/b.ts"],
+      },
+    ]);
+    workers[0]?.reply({ id: 1, kind: "sliced", result });
+    await expect(pending).resolves.toEqual(result);
+  });
+
+  it("rejects sliceForNode with the worker's message and on a mismatched reply", async () => {
+    const { workers, client } = setup();
+    const missing = client.sliceForNode("/repo/tsconfig.json", "a.ts#gone", []);
+    workers[0]?.reply({
+      id: 1,
+      kind: "failed",
+      message: "Node not found: a.ts#gone",
+    });
+    await expect(missing).rejects.toThrow("Node not found");
+
+    const mismatched = client.sliceForNode("/repo/tsconfig.json", "a.ts#f", []);
+    workers[0]?.reply({ id: 2, kind: "focused", result });
+    await expect(mismatched).rejects.toThrow("Unexpected worker response");
   });
 
   it("matches out-of-order replies by id", async () => {

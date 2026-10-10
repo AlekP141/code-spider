@@ -1,11 +1,29 @@
-import type { ExtensionToWebview } from "@code-spider/webview/protocol";
+import type {
+  ExtensionToWebview,
+  SliceMode,
+} from "@code-spider/webview/protocol";
 import { describe, expect, it } from "vitest";
 import { MessageGate } from "../src/panel/message-gate.js";
 
-const slice = (focusId: string): ExtensionToWebview => ({
+const slice = (
+  focusId: string,
+  mode: SliceMode = { kind: "centre" },
+): ExtensionToWebview => ({
   type: "slice",
   slice: { focusId, nodes: [], edges: [], truncated: false },
+  project: "/repo/tsconfig.json",
+  mode,
 });
+
+const expansion = (nodeId: string): ExtensionToWebview =>
+  slice(nodeId, { kind: "expansion", nodeId, generation: 1 });
+
+const failed: ExtensionToWebview = {
+  type: "expandFailed",
+  nodeId: "a#one",
+  generation: 1,
+  message: "gone",
+};
 
 function setup() {
   const sent: ExtensionToWebview[] = [];
@@ -13,14 +31,14 @@ function setup() {
   return { sent, gate };
 }
 
-describe("MessageGate", () => {
-  it("holds messages until the webview is ready", () => {
+describe("MessageGate content", () => {
+  it("holds a centre slice until the webview is ready", () => {
     const { sent, gate } = setup();
     gate.post(slice("a#one"));
     expect(sent).toEqual([]);
   });
 
-  it("delivers only the latest slice on ready", () => {
+  it("delivers only the latest content, once, on the first ready", () => {
     const { sent, gate } = setup();
     gate.post(slice("a#one"));
     gate.post(slice("a#two"));
@@ -34,39 +52,35 @@ describe("MessageGate", () => {
     gate.post({ type: "analysisError", message: "boom" });
     gate.markReady();
     expect(sent).toEqual([{ type: "analysisError", message: "boom" }]);
-  });
 
-  it("replays indexing, then busy, then content", () => {
-    const { sent, gate } = setup();
-    gate.post(slice("a#one"));
-    gate.post({ type: "busy", busy: true });
-    gate.post({ type: "indexing", indexing: true });
-    gate.markReady();
-    expect(sent.map((message) => message.type)).toEqual([
-      "indexing",
-      "busy",
-      "slice",
-    ]);
-  });
-
-  it("sends straight through once ready", () => {
-    const { sent, gate } = setup();
-    gate.markReady();
-    gate.post({ type: "busy", busy: true });
-    gate.post(slice("a#one"));
-    expect(sent.map((message) => message.type)).toEqual(["busy", "slice"]);
-  });
-
-  it("replays the latest state when the webview reloads and says ready again", () => {
-    const { sent, gate } = setup();
-    gate.markReady();
-    gate.post(slice("a#one"));
+    gate.reset();
+    gate.post({ type: "analysisError", message: "boom" });
+    gate.post(slice("a#two"));
     sent.length = 0;
     gate.markReady();
-    expect(sent).toEqual([slice("a#one")]);
+    expect(sent).toEqual([slice("a#two")]);
   });
 
-  it("queues again after reset", () => {
+  it("never replays content when the webview reloads and says ready again", () => {
+    const { sent, gate } = setup();
+    gate.post(slice("a#one"));
+    gate.markReady();
+    sent.length = 0;
+    gate.markReady();
+    expect(sent).toEqual([]);
+  });
+
+  it("sends content straight through once ready and does not keep it", () => {
+    const { sent, gate } = setup();
+    gate.markReady();
+    gate.post(slice("a#one"));
+    expect(sent).toEqual([slice("a#one")]);
+    sent.length = 0;
+    gate.markReady();
+    expect(sent).toEqual([]);
+  });
+
+  it("queues content again after reset", () => {
     const { sent, gate } = setup();
     gate.markReady();
     gate.reset();
@@ -75,17 +89,68 @@ describe("MessageGate", () => {
     gate.markReady();
     expect(sent).toEqual([slice("a#one")]);
   });
+});
 
-  it("forgets content on reset but keeps indexing and busy", () => {
+describe("MessageGate ephemeral messages", () => {
+  it("drops an expansion slice and expandFailed while the webview is not ready", () => {
+    const { sent, gate } = setup();
+    gate.post(expansion("a#one"));
+    gate.post(failed);
+    gate.markReady();
+    expect(sent).toEqual([]);
+  });
+
+  it("sends them straight through once ready", () => {
+    const { sent, gate } = setup();
+    gate.markReady();
+    gate.post(expansion("a#one"));
+    gate.post(failed);
+    expect(sent).toEqual([expansion("a#one"), failed]);
+  });
+});
+
+describe("MessageGate replayed state", () => {
+  it("replays settings, then indexing, then busy, then content", () => {
+    const { sent, gate } = setup();
+    gate.post(slice("a#one"));
+    gate.post({ type: "busy", busy: true });
+    gate.post({ type: "indexing", indexing: true });
+    gate.post({ type: "settings", columnGap: 160 });
+    gate.markReady();
+    expect(sent.map((message) => message.type)).toEqual([
+      "settings",
+      "indexing",
+      "busy",
+      "slice",
+    ]);
+  });
+
+  it("replays the latest value of each on every ready", () => {
+    const { sent, gate } = setup();
+    gate.markReady();
+    gate.post({ type: "settings", columnGap: 160 });
+    gate.post({ type: "settings", columnGap: 224 });
+    gate.post({ type: "busy", busy: true });
+    sent.length = 0;
+    gate.markReady();
+    expect(sent).toEqual([
+      { type: "settings", columnGap: 224 },
+      { type: "busy", busy: true },
+    ]);
+  });
+
+  it("forgets content on reset but keeps settings, indexing and busy", () => {
     const { sent, gate } = setup();
     gate.markReady();
     gate.post(slice("a#one"));
+    gate.post({ type: "settings", columnGap: 160 });
     gate.post({ type: "indexing", indexing: true });
     gate.post({ type: "busy", busy: true });
     sent.length = 0;
     gate.reset();
     gate.markReady();
     expect(sent).toEqual([
+      { type: "settings", columnGap: 160 },
       { type: "indexing", indexing: true },
       { type: "busy", busy: true },
     ]);

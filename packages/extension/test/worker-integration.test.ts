@@ -52,6 +52,25 @@ describe("bundled analysis worker", () => {
     }
   });
 
+  it("slices around a node of a known tsconfig in a real worker thread", async () => {
+    const client = new WorkerClient(() =>
+      spawnAnalysisWorker(workerPath, 2048),
+    );
+    try {
+      const tsconfig = fixturePath("basic", "tsconfig.json");
+      const answer = await client.sliceForNode(
+        tsconfig,
+        "src/signup.ts#validateUser",
+        [],
+      );
+      expect(answer.slice.focusId).toBe("src/signup.ts#validateUser");
+      expect(answer.repoRoot).toBe(fixturePath("basic"));
+      expect(answer.tsconfig).toBe(tsconfig);
+    } finally {
+      client.dispose();
+    }
+  });
+
   it("survives a real out-of-memory worker and starts a fresh one", async () => {
     let spawned = 0;
     const client = new WorkerClient(() => {

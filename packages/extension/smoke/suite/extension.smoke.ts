@@ -35,6 +35,12 @@ function graphPanelTab(): vscode.Tab | undefined {
     );
 }
 
+function currentProject(api: ExtensionApi): string {
+  const graph = api.currentGraph();
+  assert.ok(graph, "no graph: the panel test must pass first");
+  return graph.tsconfig;
+}
+
 describe("Code Spider", () => {
   let api: ExtensionApi;
 
@@ -70,10 +76,9 @@ describe("Code Spider", () => {
   });
 
   it("jumps to the declaration when a node is clicked", async () => {
-    assert.ok(api.currentGraph(), "no graph: the panel test must pass first");
-
     await api.handleWebviewMessage({
       type: "openInEditor",
+      project: currentProject(api),
       nodeId: "src/signup.ts#validateUser",
     });
 
@@ -88,10 +93,9 @@ describe("Code Spider", () => {
   });
 
   it("jumps to the exact call site when an edge is clicked", async () => {
-    assert.ok(api.currentGraph(), "no graph: the panel test must pass first");
-
     await api.handleWebviewMessage({
       type: "openCallSite",
+      project: currentProject(api),
       edgeId: "src/signup.ts#handleSignup->src/app.ts#main",
     });
 

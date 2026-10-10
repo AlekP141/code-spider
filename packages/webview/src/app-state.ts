@@ -2,14 +2,14 @@ import type { GraphSlice } from "@code-spider/core/types";
 import type { ExtensionToWebview } from "./protocol.js";
 
 export type AppState = {
-  slice: GraphSlice | undefined;
+  centre: { slice: GraphSlice; project: string } | undefined;
   error: string | undefined;
   busy: boolean;
   indexing: boolean;
 };
 
 export const initialState: AppState = {
-  slice: undefined,
+  centre: undefined,
   error: undefined,
   busy: false,
   indexing: false,
@@ -21,7 +21,12 @@ export function reduceMessage(
 ): AppState {
   switch (message.type) {
     case "slice":
-      return { ...state, slice: message.slice, error: undefined };
+      if (message.mode.kind !== "centre") return state;
+      return {
+        ...state,
+        centre: { slice: message.slice, project: message.project },
+        error: undefined,
+      };
     case "analysisError":
       return { ...state, error: message.message };
     case "busy":
@@ -32,5 +37,8 @@ export function reduceMessage(
       };
     case "indexing":
       return { ...state, indexing: message.indexing };
+    case "expandFailed":
+    case "settings":
+      return state;
   }
 }

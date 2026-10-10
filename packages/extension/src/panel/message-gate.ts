@@ -1,42 +1,69 @@
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 
-type Channel = "content" | "busy" | "indexing";
+type Replayed = "settings" | "indexing" | "busy";
+type Kind = Replayed | "content" | "ephemeral";
 
-const CHANNEL_OF: Record<ExtensionToWebview["type"], Channel> = {
-  slice: "content",
-  analysisError: "content",
-  busy: "busy",
-  indexing: "indexing",
-};
+function kindOf(message: ExtensionToWebview): Kind {
+  switch (message.type) {
+    case "slice":
+      return message.mode.kind === "centre" ? "content" : "ephemeral";
+    case "analysisError":
+      return "content";
+    case "expandFailed":
+      return "ephemeral";
+    case "settings":
+    case "indexing":
+    case "busy":
+      return message.type;
+  }
+}
 
-const REPLAY_ORDER: Channel[] = ["indexing", "busy", "content"];
+const REPLAY_ORDER: Replayed[] = ["settings", "indexing", "busy"];
 
 /**
  * The webview cannot receive messages until its script has run and posted
- * `ready`. The gate remembers the latest message per channel and replays them
- * on every `ready`, which also restores a reloaded webview.
+ * `ready`, and it restores its own graph from saved state. So the gate keeps
+ * three kinds apart:
+ * - content (a centre slice, an error) waits for the first `ready` and is
+ *   delivered once;
+ * - ephemeral messages (an expansion slice, a failed expansion) are sent when
+ *   ready and dropped otherwise, so a late answer never reaches a new panel;
+ * - settings, indexing and busy are state: the latest of each replays on
+ *   every `ready`.
  */
 export class MessageGate {
   private ready = false;
-  private readonly latest = new Map<Channel, ExtensionToWebview>();
+  private content: ExtensionToWebview | undefined;
+  private readonly replayed = new Map<Replayed, ExtensionToWebview>();
 
   constructor(private readonly send: (message: ExtensionToWebview) => void) {}
 
   post(message: ExtensionToWebview): void {
-    this.latest.set(CHANNEL_OF[message.type], message);
-    if (this.ready) this.send(message);
+    const kind = kindOf(message);
+    if (kind === "settings" || kind === "indexing" || kind === "busy") {
+      this.replayed.set(kind, message);
+    }
+    if (this.ready) {
+      this.send(message);
+    } else if (kind === "content") {
+      this.content = message;
+    }
   }
 
   markReady(): void {
     this.ready = true;
-    for (const channel of REPLAY_ORDER) {
-      const message = this.latest.get(channel);
+    for (const kind of REPLAY_ORDER) {
+      const message = this.replayed.get(kind);
       if (message) this.send(message);
+    }
+    if (this.content) {
+      this.send(this.content);
+      this.content = undefined;
     }
   }
 
   reset(): void {
     this.ready = false;
-    this.latest.delete("content");
+    this.content = undefined;
   }
 }

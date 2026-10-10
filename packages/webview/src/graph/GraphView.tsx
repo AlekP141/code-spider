@@ -14,10 +14,11 @@ const defaultEdgeOptions = {
 
 export type GraphViewProps = {
   slice: GraphSlice;
+  project: string;
   onJump: (message: WebviewToExtension) => void;
 };
 
-export function GraphView({ slice, onJump }: GraphViewProps) {
+export function GraphView({ slice, project, onJump }: GraphViewProps) {
   const { laid, error } = useLayout(slice);
 
   if (error) {
@@ -39,10 +40,12 @@ export function GraphView({ slice, onJump }: GraphViewProps) {
         nodesDraggable={false}
         nodesConnectable={false}
         onNodeClick={(_event, node) => {
-          const message = nodeClickMessage(node.data.node);
+          const message = nodeClickMessage(node.data.node, project);
           if (message) onJump(message);
         }}
-        onEdgeClick={(_event, edge) => onJump(edgeClickMessage(edge.id))}
+        onEdgeClick={(_event, edge) =>
+          onJump(edgeClickMessage(edge.id, project))
+        }
       >
         <Controls showInteractive={false} />
       </ReactFlow>

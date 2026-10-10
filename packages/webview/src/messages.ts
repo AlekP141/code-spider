@@ -1,4 +1,15 @@
-import type { ExtensionToWebview } from "./protocol.js";
+import type { ExtensionToWebview, SliceMode } from "./protocol.js";
+
+function isMode(value: unknown): value is SliceMode {
+  if (typeof value !== "object" || value === null) return false;
+  const mode = value as Record<string, unknown>;
+  if (mode.kind === "centre") return true;
+  return (
+    mode.kind === "expansion" &&
+    typeof mode.nodeId === "string" &&
+    typeof mode.generation === "number"
+  );
+}
 
 export function isExtensionMessage(
   value: unknown,
@@ -7,13 +18,29 @@ export function isExtensionMessage(
   const message = value as Record<string, unknown>;
   switch (message.type) {
     case "slice":
-      return typeof message.slice === "object" && message.slice !== null;
+      return (
+        typeof message.slice === "object" &&
+        message.slice !== null &&
+        typeof message.project === "string" &&
+        isMode(message.mode)
+      );
+    case "expandFailed":
+      return (
+        typeof message.nodeId === "string" &&
+        typeof message.generation === "number" &&
+        typeof message.message === "string"
+      );
     case "analysisError":
       return typeof message.message === "string";
     case "busy":
       return typeof message.busy === "boolean";
     case "indexing":
       return typeof message.indexing === "boolean";
+    case "settings":
+      return (
+        typeof message.columnGap === "number" &&
+        Number.isFinite(message.columnGap)
+      );
     default:
       return false;
   }

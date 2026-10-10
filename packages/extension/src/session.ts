@@ -1,9 +1,11 @@
 import { basename } from "node:path";
+import type { NodeId } from "@code-spider/core";
 import type { ChangeTracker } from "./changes.js";
 import { positionToOffset } from "./positions.js";
 import type {
   AnalysisPort,
   IndexingIndicator,
+  JumpRegistry,
   Notifier,
   PanelPort,
 } from "./ports.js";
@@ -22,7 +24,11 @@ export type FocusRequest = {
   isDirty: boolean;
 };
 
-/** What the panel currently shows; click-to-jump resolves ids against it. */
+/** A node of a project the panel already shows, named by the webview. */
+export type NodeRequest = { project: string; nodeId: NodeId };
+export type ExpandRequest = NodeRequest & { generation: number };
+
+/** What the latest centre request returned. */
 export type CurrentGraph = FocusResult;
 
 export type SessionDeps = {
@@ -32,7 +38,10 @@ export type SessionDeps = {
   indexing: IndexingIndicator;
   changes: ChangeTracker;
   maxHeapMb: () => number;
+  jumps: JumpRegistry;
 };
+
+const UNKNOWN_PROJECT = "Unknown project";
 
 export class GraphSession {
   private graph: CurrentGraph | undefined;
@@ -56,28 +65,61 @@ export class GraphSession {
     }
 
     panel.show();
-    const token = ++this.latest;
-    this.outstanding += 1;
-    panel.post({ type: "busy", busy: true });
-    try {
+    await this.replaceGraph(() => {
       const offset = positionToOffset(
         request.text,
         request.line,
         request.character,
       );
       const changedFiles = [...new Set([...changes.drain(), request.file])];
-      const result = await worker.focus(request.file, offset, changedFiles);
-      if (token !== this.latest) return;
-      this.graph = result;
-      panel.post({ type: "slice", slice: result.slice });
+      return worker.focus(request.file, offset, changedFiles);
+    });
+  }
+
+  /** Re-centres on a node of a project the panel already shows. */
+  async focusNode(request: NodeRequest): Promise<void> {
+    const { worker, panel, changes, jumps } = this.deps;
+    if (!jumps.has(request.project)) {
+      panel.post({ type: "analysisError", message: UNKNOWN_PROJECT });
+      return;
+    }
+    await this.replaceGraph(() =>
+      worker.sliceForNode(request.project, request.nodeId, changes.drain()),
+    );
+  }
+
+  /** Takes no token and no busy state: expansions may overlap each other. */
+  async expand(request: ExpandRequest): Promise<void> {
+    const { worker, panel, notifier, changes, jumps } = this.deps;
+    const { project, nodeId, generation } = request;
+    if (!jumps.has(project)) {
+      panel.post({
+        type: "expandFailed",
+        nodeId,
+        generation,
+        message: UNKNOWN_PROJECT,
+      });
+      return;
+    }
+    try {
+      const result = await worker.sliceForNode(
+        project,
+        nodeId,
+        changes.drain(),
+      );
+      if (!jumps.has(project)) return;
+      jumps.add(result.tsconfig, result);
+      panel.post({
+        type: "slice",
+        slice: result.slice,
+        project: result.tsconfig,
+        mode: { kind: "expansion", nodeId, generation },
+      });
     } catch (error) {
-      if (token !== this.latest) return;
+      if (!jumps.has(project)) return;
       const message = this.describeFailure(error);
-      panel.post({ type: "analysisError", message });
+      panel.post({ type: "expandFailed", nodeId, generation, message });
       if (error instanceof WorkerCrashedError) notifier.error(message);
-    } finally {
-      this.outstanding -= 1;
-      if (this.outstanding === 0) panel.post({ type: "busy", busy: false });
     }
   }
 
@@ -95,6 +137,36 @@ export class GraphSession {
     } finally {
       this.warming -= 1;
       if (this.warming === 0) this.setIndexing(false);
+    }
+  }
+
+  /** The newest centre request wins; older answers are dropped. */
+  private async replaceGraph(
+    analyse: () => Promise<FocusResult>,
+  ): Promise<void> {
+    const { panel, notifier, jumps } = this.deps;
+    const token = ++this.latest;
+    this.outstanding += 1;
+    panel.post({ type: "busy", busy: true });
+    try {
+      const result = await analyse();
+      if (token !== this.latest || !panel.isOpen()) return;
+      this.graph = result;
+      jumps.add(result.tsconfig, result);
+      panel.post({
+        type: "slice",
+        slice: result.slice,
+        project: result.tsconfig,
+        mode: { kind: "centre" },
+      });
+    } catch (error) {
+      if (token !== this.latest || !panel.isOpen()) return;
+      const message = this.describeFailure(error);
+      panel.post({ type: "analysisError", message });
+      if (error instanceof WorkerCrashedError) notifier.error(message);
+    } finally {
+      this.outstanding -= 1;
+      if (this.outstanding === 0) panel.post({ type: "busy", busy: false });
     }
   }
 

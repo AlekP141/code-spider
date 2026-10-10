@@ -2,11 +2,13 @@ import { join } from "node:path";
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 import * as vscode from "vscode";
 import { ChangeTracker } from "./changes.js";
+import { createDispatcher } from "./dispatch.js";
 import {
   COMMAND_SHOW_GRAPH,
   COMMAND_SHOW_IN_CODE_SPIDER,
   SETTING_MAX_HEAP_MB,
 } from "./ids.js";
+import { JumpTable } from "./jump-table.js";
 import { JumpHandler } from "./navigation.js";
 import { GraphPanel } from "./panel/graph-panel.js";
 import { GraphSession, type CurrentGraph } from "./session.js";
@@ -22,7 +24,7 @@ import { WorkerClient } from "./worker/worker-client.js";
 /** What `activate` returns, so the smoke tests can inspect the extension. */
 export type ExtensionApi = {
   currentGraph(): CurrentGraph | undefined;
-  /** The entry point a webview click reaches; tests drive click-to-jump here. */
+  /** The entry point a webview message reaches; tests drive the webview's requests here. */
   handleWebviewMessage(message: WebviewToExtension): Promise<void>;
 };
 
@@ -32,13 +34,18 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     spawnAnalysisWorker(workerPath, getMaxHeapMb()),
   );
   const revealer = new EditorRevealer();
-  const panel = new GraphPanel(context.extensionUri, (message) => {
-    jumps.handle(message).catch((error: unknown) => {
-      notifier.error(
-        `Could not open that location: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    });
-  });
+  const jumpTable = new JumpTable();
+  const panel = new GraphPanel(
+    context.extensionUri,
+    (message) => {
+      dispatch(message).catch((error: unknown) => {
+        notifier.error(
+          `Code Spider could not handle that request: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+    },
+    () => jumpTable.clear(),
+  );
   const statusBar = new IndexingStatusBar();
   const changes = new ChangeTracker();
   const session = new GraphSession({
@@ -48,8 +55,12 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     indexing: statusBar,
     changes,
     maxHeapMb: getMaxHeapMb,
+    jumps: jumpTable,
   });
-  const jumps = new JumpHandler(() => session.currentGraph(), revealer);
+  const dispatch = createDispatcher({
+    jumps: new JumpHandler(jumpTable, revealer),
+    session,
+  });
   const showGraph = async (uri?: vscode.Uri, position?: vscode.Position) => {
     const request = await resolveFocusRequest(uri, position);
     if (request) await session.showGraph(request);
@@ -85,7 +96,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
 
   return {
     currentGraph: () => session.currentGraph(),
-    handleWebviewMessage: (message) => jumps.handle(message),
+    handleWebviewMessage: (message) => dispatch(message),
   };
 }
 

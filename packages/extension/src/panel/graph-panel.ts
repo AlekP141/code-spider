@@ -17,11 +17,16 @@ export class GraphPanel implements vscode.Disposable {
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly onMessage: (message: WebviewToExtension) => void,
+    private readonly onClosed: () => void,
   ) {}
 
-  /** Queued until the webview reports ready, then delivered. */
+  /** Delivery follows the gate's rules: content waits for `ready`, expansions do not. */
   post(message: ExtensionToWebview): void {
     this.gate.post(message);
+  }
+
+  isOpen(): boolean {
+    return this.panel !== undefined;
   }
 
   /** Opens the panel beside the editor, or reveals it without moving it. */
@@ -55,6 +60,7 @@ export class GraphPanel implements vscode.Disposable {
     panel.onDidDispose(() => {
       this.panel = undefined;
       this.gate.reset();
+      this.onClosed();
     });
     this.panel = panel;
   }

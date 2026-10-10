@@ -1,8 +1,9 @@
+import type { NodeId } from "@code-spider/core";
 import type {
-  FocusRequestBody,
+  ExpandResult,
   FocusResult,
-  WarmRequest,
   WorkerRequest,
+  WorkerRequestBody,
   WorkerResponse,
 } from "./protocol.js";
 
@@ -59,6 +60,23 @@ export class WorkerClient {
     return response.result;
   }
 
+  async sliceForNode(
+    tsconfig: string,
+    nodeId: NodeId,
+    changedFiles: string[],
+  ): Promise<ExpandResult> {
+    const response = await this.request({
+      kind: "sliceForNode",
+      tsconfig,
+      nodeId,
+      changedFiles,
+    });
+    if (response.kind !== "sliced") {
+      throw new Error(`Unexpected worker response: ${response.kind}`);
+    }
+    return response.result;
+  }
+
   /** Drops the current worker; the next request starts a fresh one. */
   recycle(): void {
     const worker = this.worker;
@@ -72,9 +90,7 @@ export class WorkerClient {
     this.recycle();
   }
 
-  private request(
-    body: WarmRequest | FocusRequestBody,
-  ): Promise<WorkerResponse> {
+  private request(body: WorkerRequestBody): Promise<WorkerResponse> {
     if (this.disposed) {
       return Promise.reject(
         new Error("The Code Spider analysis worker was disposed."),

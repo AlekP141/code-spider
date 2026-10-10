@@ -1,58 +1,62 @@
 import { join } from "node:path";
+import type { GraphEdge, GraphNode } from "@code-spider/core";
 import { describe, expect, it, vi } from "vitest";
 import {
   callSiteJumpTarget,
   JumpHandler,
   nodeJumpTarget,
   type EditorPort,
+  type JumpLookup,
+  type JumpTarget,
 } from "../src/navigation.js";
-import type { CurrentGraph } from "../src/session.js";
 import { fixturePath, readGolden } from "./support/fixtures.js";
 
 const repoRoot = fixturePath("basic");
-const graph: CurrentGraph = {
-  slice: readGolden("basic-handleSignup.json"),
-  repoRoot,
-};
+const golden = readGolden("basic-handleSignup.json");
+
+function nodeOf(id: string): GraphNode {
+  const node = golden.nodes.find((candidate) => candidate.id === id);
+  if (!node) throw new Error(`golden has no ${id}`);
+  return node;
+}
+
+function edgeOf(id: string): GraphEdge {
+  const edge = golden.edges.find((candidate) => candidate.id === id);
+  if (!edge) throw new Error(`golden has no ${id}`);
+  return edge;
+}
 
 describe("nodeJumpTarget", () => {
   it("resolves a node to its declaration in the repo", () => {
-    expect(nodeJumpTarget(graph, "src/signup.ts#validateUser")).toEqual({
+    expect(
+      nodeJumpTarget(repoRoot, nodeOf("src/signup.ts#validateUser")),
+    ).toEqual({
       file: join(repoRoot, "src/signup.ts"),
       range: { startLine: 2, startCharacter: 0, endLine: 2, endCharacter: 0 },
     });
   });
 
-  it("returns undefined for an id that is not in the current slice", () => {
-    expect(nodeJumpTarget(graph, "src/signup.ts#nope")).toBeUndefined();
+  it("returns undefined when there is no node", () => {
+    expect(nodeJumpTarget(repoRoot, undefined)).toBeUndefined();
   });
 
   it("returns undefined for nodes without a file", () => {
-    const withExternal: CurrentGraph = {
-      repoRoot,
-      slice: {
-        ...graph.slice,
-        nodes: [
-          ...graph.slice.nodes,
-          {
-            ...graph.slice.nodes[0]!,
-            id: "external:tiny-lib#persist",
-            kind: "external",
-            file: "",
-          },
-        ],
-      },
+    const external: GraphNode = {
+      ...nodeOf("src/app.ts#main"),
+      id: "external:tiny-lib#persist",
+      kind: "external",
+      file: "",
     };
-    expect(
-      nodeJumpTarget(withExternal, "external:tiny-lib#persist"),
-    ).toBeUndefined();
+    expect(nodeJumpTarget(repoRoot, external)).toBeUndefined();
   });
 });
 
 describe("callSiteJumpTarget", () => {
   it("opens the call site in the caller's file, not the callee's", () => {
-    const edgeId = "src/signup.ts#createUser->src/signup.ts#handleSignup";
-    expect(callSiteJumpTarget(graph, edgeId)).toEqual({
+    const edge = edgeOf("src/signup.ts#createUser->src/signup.ts#handleSignup");
+    expect(
+      callSiteJumpTarget(repoRoot, edge, nodeOf("src/signup.ts#handleSignup")),
+    ).toEqual({
       file: join(repoRoot, "src/signup.ts"),
       range: {
         startLine: 17,
@@ -64,66 +68,86 @@ describe("callSiteJumpTarget", () => {
   });
 
   it("uses the caller's file when the caller is in another file", () => {
+    const edge = edgeOf("src/signup.ts#handleSignup->src/app.ts#main");
     const target = callSiteJumpTarget(
-      graph,
-      "src/signup.ts#handleSignup->src/app.ts#main",
+      repoRoot,
+      edge,
+      nodeOf("src/app.ts#main"),
     );
     expect(target?.file).toBe(join(repoRoot, "src/app.ts"));
   });
 
-  it("returns undefined for an unknown edge id", () => {
-    expect(callSiteJumpTarget(graph, "nope")).toBeUndefined();
+  it("returns undefined without an edge or a caller that has a file", () => {
+    const edge = edgeOf("src/signup.ts#handleSignup->src/app.ts#main");
+    expect(callSiteJumpTarget(repoRoot, undefined, undefined)).toBeUndefined();
+    expect(callSiteJumpTarget(repoRoot, edge, undefined)).toBeUndefined();
+    expect(
+      callSiteJumpTarget(repoRoot, edge, {
+        ...nodeOf("src/app.ts#main"),
+        file: "",
+      }),
+    ).toBeUndefined();
   });
 });
 
 describe("JumpHandler", () => {
-  function setup(current: CurrentGraph | null = graph) {
+  const nodeTarget: JumpTarget = {
+    file: "/repo/a.ts",
+    range: { startLine: 1, startCharacter: 0, endLine: 1, endCharacter: 0 },
+  };
+  const callTarget: JumpTarget = {
+    file: "/repo/b.ts",
+    range: { startLine: 4, startCharacter: 2, endLine: 4, endCharacter: 9 },
+  };
+
+  function setup(found = true) {
     const editor: EditorPort = { reveal: vi.fn(async () => undefined) };
-    return {
-      editor,
-      jumps: new JumpHandler(() => current ?? undefined, editor),
+    const lookup: JumpLookup = {
+      nodeTarget: vi.fn(() => (found ? nodeTarget : undefined)),
+      callSiteTarget: vi.fn(() => (found ? callTarget : undefined)),
     };
+    return { editor, lookup, jumps: new JumpHandler(lookup, editor) };
   }
 
-  it("reveals the declaration for openInEditor", async () => {
-    const { editor, jumps } = setup();
+  it("reveals the declaration of the node in the named project", async () => {
+    const { editor, lookup, jumps } = setup();
     await jumps.handle({
       type: "openInEditor",
-      nodeId: "src/signup.ts#validateUser",
+      project: "/p/tsconfig.json",
+      nodeId: "src/a.ts#f",
     });
-    expect(editor.reveal).toHaveBeenCalledWith(
-      nodeJumpTarget(graph, "src/signup.ts#validateUser"),
+    expect(lookup.nodeTarget).toHaveBeenCalledWith(
+      "/p/tsconfig.json",
+      "src/a.ts#f",
     );
+    expect(editor.reveal).toHaveBeenCalledWith(nodeTarget);
   });
 
-  it("reveals the call site for openCallSite", async () => {
-    const { editor, jumps } = setup();
-    const edgeId = "src/signup.ts#createUser->src/signup.ts#handleSignup";
-    await jumps.handle({ type: "openCallSite", edgeId });
-    expect(editor.reveal).toHaveBeenCalledWith(
-      callSiteJumpTarget(graph, edgeId),
-    );
-  });
-
-  it("ignores ids it cannot resolve and messages with nothing to open", async () => {
-    const { editor, jumps } = setup();
-    await jumps.handle({ type: "openInEditor", nodeId: "src/x.ts#y" });
-    await jumps.handle({ type: "openCallSite", edgeId: "nope" });
-    await jumps.handle({ type: "focus", nodeId: "src/signup.ts#validateUser" });
+  it("reveals the call site of the edge in the named project", async () => {
+    const { editor, lookup, jumps } = setup();
     await jumps.handle({
-      type: "expand",
-      nodeId: "src/signup.ts#validateUser",
+      type: "openCallSite",
+      project: "/p/tsconfig.json",
+      edgeId: "a->b",
     });
-    await jumps.handle({ type: "refresh" });
-    await jumps.handle({ type: "ready" });
-    expect(editor.reveal).not.toHaveBeenCalled();
+    expect(lookup.callSiteTarget).toHaveBeenCalledWith(
+      "/p/tsconfig.json",
+      "a->b",
+    );
+    expect(editor.reveal).toHaveBeenCalledWith(callTarget);
   });
 
-  it("does nothing before any graph has been shown", async () => {
-    const { editor, jumps } = setup(null);
+  it("reveals nothing when the table cannot resolve the id", async () => {
+    const { editor, jumps } = setup(false);
     await jumps.handle({
       type: "openInEditor",
-      nodeId: "src/signup.ts#validateUser",
+      project: "/p/tsconfig.json",
+      nodeId: "src/x.ts#y",
+    });
+    await jumps.handle({
+      type: "openCallSite",
+      project: "/p/tsconfig.json",
+      edgeId: "nope",
     });
     expect(editor.reveal).not.toHaveBeenCalled();
   });

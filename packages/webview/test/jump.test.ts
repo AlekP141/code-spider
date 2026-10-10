@@ -2,21 +2,30 @@ import { describe, expect, it } from "vitest";
 import { edgeClickMessage, nodeClickMessage } from "../src/graph/jump.js";
 import { makeNode } from "./support/slices.js";
 
+const project = "/repo/tsconfig.json";
+
 describe("nodeClickMessage", () => {
   it("asks the extension to open a repo function at its declaration", () => {
     const node = makeNode({ id: "src/a.ts#f", file: "src/a.ts" });
-    expect(nodeClickMessage(node)).toEqual({
+    expect(nodeClickMessage(node, project)).toEqual({
       type: "openInEditor",
+      project,
       nodeId: "src/a.ts#f",
     });
   });
 
   it("opens module and component nodes too", () => {
     expect(
-      nodeClickMessage(makeNode({ id: "src/m.tsx#<module>", kind: "module" })),
-    ).toEqual({ type: "openInEditor", nodeId: "src/m.tsx#<module>" });
+      nodeClickMessage(
+        makeNode({ id: "src/m.tsx#<module>", kind: "module" }),
+        project,
+      ),
+    ).toEqual({ type: "openInEditor", project, nodeId: "src/m.tsx#<module>" });
     expect(
-      nodeClickMessage(makeNode({ id: "src/c.tsx#C", kind: "component" })),
+      nodeClickMessage(
+        makeNode({ id: "src/c.tsx#C", kind: "component" }),
+        project,
+      ),
     ).toMatchObject({ type: "openInEditor" });
   });
 
@@ -31,15 +40,16 @@ describe("nodeClickMessage", () => {
       kind: "unknown",
       file: "",
     });
-    expect(nodeClickMessage(external)).toBeUndefined();
-    expect(nodeClickMessage(unknown)).toBeUndefined();
+    expect(nodeClickMessage(external, project)).toBeUndefined();
+    expect(nodeClickMessage(unknown, project)).toBeUndefined();
   });
 });
 
 describe("edgeClickMessage", () => {
   it("asks the extension to open the call site of the edge", () => {
-    expect(edgeClickMessage("a#f->a#g")).toEqual({
+    expect(edgeClickMessage("a#f->a#g", project)).toEqual({
       type: "openCallSite",
+      project,
       edgeId: "a#f->a#g",
     });
   });

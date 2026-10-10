@@ -37,8 +37,12 @@ export function App() {
         <div className="spinner" role="status" aria-label="Analysing" />
       ) : null}
       <section className="content">
-        {state.slice ? (
-          <GraphView slice={state.slice} onJump={postToExtension} />
+        {state.centre ? (
+          <GraphView
+            slice={state.centre.slice}
+            project={state.centre.project}
+            onJump={postToExtension}
+          />
         ) : (
           <p className="status">
             Place the cursor in a function and run Code Spider: Show Graph.

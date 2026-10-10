@@ -1,8 +1,7 @@
 import { join } from "node:path";
-import type { NodeId } from "@code-spider/core";
+import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core";
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 import { toZeroBasedRange, type ZeroBasedRange } from "./ranges.js";
-import type { CurrentGraph } from "./session.js";
 
 export type JumpTarget = { file: string; range: ZeroBasedRange };
 
@@ -10,16 +9,25 @@ export interface EditorPort {
   reveal(target: JumpTarget): Promise<void>;
 }
 
+export interface JumpLookup {
+  nodeTarget(project: string, nodeId: NodeId): JumpTarget | undefined;
+  callSiteTarget(project: string, edgeId: string): JumpTarget | undefined;
+}
+
+export type JumpMessage = Extract<
+  WebviewToExtension,
+  { type: "openInEditor" | "openCallSite" }
+>;
+
 /** A node opens with the cursor at its declaration; external and unknown nodes have no file. */
 export function nodeJumpTarget(
-  graph: CurrentGraph,
-  nodeId: NodeId,
+  repoRoot: string,
+  node: GraphNode | undefined,
 ): JumpTarget | undefined {
-  const node = graph.slice.nodes.find((candidate) => candidate.id === nodeId);
   if (!node || node.file === "") return undefined;
   const { startLine, startCharacter } = toZeroBasedRange(node.range);
   return {
-    file: join(graph.repoRoot, node.file),
+    file: join(repoRoot, node.file),
     range: {
       startLine,
       startCharacter,
@@ -31,36 +39,28 @@ export function nodeJumpTarget(
 
 /** An edge opens at its call site, which lies in the consumer (`to`) node's file. */
 export function callSiteJumpTarget(
-  graph: CurrentGraph,
-  edgeId: string,
+  repoRoot: string,
+  edge: GraphEdge | undefined,
+  caller: GraphNode | undefined,
 ): JumpTarget | undefined {
-  const edge = graph.slice.edges.find((candidate) => candidate.id === edgeId);
-  const caller = edge
-    ? graph.slice.nodes.find((candidate) => candidate.id === edge.to)
-    : undefined;
   if (!edge || !caller || caller.file === "") return undefined;
   return {
-    file: join(graph.repoRoot, caller.file),
+    file: join(repoRoot, caller.file),
     range: toZeroBasedRange(edge.callSite),
   };
 }
 
 export class JumpHandler {
   constructor(
-    private readonly graph: () => CurrentGraph | undefined,
+    private readonly lookup: JumpLookup,
     private readonly editor: EditorPort,
   ) {}
 
-  /** `ready` belongs to the panel; `focus`, `expand` and `refresh` arrive in M3. */
-  async handle(message: WebviewToExtension): Promise<void> {
-    const graph = this.graph();
-    if (!graph) return;
+  async handle(message: JumpMessage): Promise<void> {
     const target =
       message.type === "openInEditor"
-        ? nodeJumpTarget(graph, message.nodeId)
-        : message.type === "openCallSite"
-          ? callSiteJumpTarget(graph, message.edgeId)
-          : undefined;
+        ? this.lookup.nodeTarget(message.project, message.nodeId)
+        : this.lookup.callSiteTarget(message.project, message.edgeId);
     if (target) await this.editor.reveal(target);
   }
 }

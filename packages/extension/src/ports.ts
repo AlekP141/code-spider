@@ -1,5 +1,6 @@
+import type { NodeId } from "@code-spider/core";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
-import type { FocusResult } from "./worker/protocol.js";
+import type { ExpandResult, FocusResult } from "./worker/protocol.js";
 
 export interface AnalysisPort {
   warm(file: string, changedFiles: string[]): Promise<void>;
@@ -8,11 +9,23 @@ export interface AnalysisPort {
     offset: number,
     changedFiles: string[],
   ): Promise<FocusResult>;
+  sliceForNode(
+    tsconfig: string,
+    nodeId: NodeId,
+    changedFiles: string[],
+  ): Promise<ExpandResult>;
 }
 
 export interface PanelPort {
   show(): void;
+  isOpen(): boolean;
   post(message: ExtensionToWebview): void;
+}
+
+/** Remembers what was sent to the panel so later clicks can be resolved. */
+export interface JumpRegistry {
+  add(project: string, result: FocusResult): void;
+  has(project: string): boolean;
 }
 
 export interface Notifier {

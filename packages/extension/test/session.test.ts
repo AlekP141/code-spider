@@ -1,27 +1,13 @@
-import type { ExtensionToWebview } from "@code-spider/webview/protocol";
-import { describe, expect, it, vi } from "vitest";
-import { ChangeTracker } from "../src/changes.js";
-import type { AnalysisPort, PanelPort } from "../src/ports.js";
-import { GraphSession, type FocusRequest } from "../src/session.js";
+import { describe, expect, it } from "vitest";
+import type { FocusRequest } from "../src/session.js";
 import type { FocusResult } from "../src/worker/protocol.js";
 import { WorkerCrashedError } from "../src/worker/worker-client.js";
-
-function resultFor(focusId: string): FocusResult {
-  return {
-    slice: { focusId, nodes: [], edges: [], truncated: false },
-    repoRoot: "/repo",
-  };
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
+import {
+  deferred,
+  PROJECT,
+  resultFor,
+  setup,
+} from "./support/session-setup.js";
 
 const request: FocusRequest = {
   file: "/repo/src/a.ts",
@@ -31,35 +17,6 @@ const request: FocusRequest = {
   isDirty: false,
 };
 const REQUEST_OFFSET = 8;
-
-function setup(overrides: Partial<AnalysisPort> = {}) {
-  const posted: ExtensionToWebview[] = [];
-  const panel: PanelPort & { shown: number } = {
-    shown: 0,
-    show() {
-      this.shown += 1;
-    },
-    post: (message) => posted.push(message),
-  };
-  const worker: AnalysisPort = {
-    warm: vi.fn(async () => undefined),
-    focus: vi.fn(async () => resultFor("src/a.ts#f")),
-    ...overrides,
-  };
-  const notifier = { warn: vi.fn(), error: vi.fn() };
-  const indexing = { set: vi.fn() };
-  const changes = new ChangeTracker();
-  const session = new GraphSession({
-    worker,
-    panel,
-    notifier,
-    indexing,
-    changes,
-    maxHeapMb: () => 4096,
-  });
-  const types = () => posted.map((message) => message.type);
-  return { session, panel, worker, notifier, indexing, changes, posted, types };
-}
 
 describe("GraphSession.showGraph", () => {
   it("asks the user to save a dirty document and does nothing else", async () => {
@@ -72,7 +29,7 @@ describe("GraphSession.showGraph", () => {
   });
 
   it("opens the panel, marks busy, posts the slice, then clears busy", async () => {
-    const { session, panel, worker, posted, types } = setup();
+    const { session, panel, worker, jumps, posted, types } = setup();
     await session.showGraph(request);
     expect(panel.shown).toBe(1);
     expect(worker.focus).toHaveBeenCalledWith(
@@ -82,8 +39,15 @@ describe("GraphSession.showGraph", () => {
     );
     expect(types()).toEqual(["busy", "slice", "busy"]);
     expect(posted[0]).toEqual({ type: "busy", busy: true });
+    expect(posted[1]).toEqual({
+      type: "slice",
+      slice: resultFor("src/a.ts#f").slice,
+      project: PROJECT,
+      mode: { kind: "centre" },
+    });
     expect(posted[2]).toEqual({ type: "busy", busy: false });
     expect(session.currentGraph()).toEqual(resultFor("src/a.ts#f"));
+    expect(jumps.nodeTarget(PROJECT, "src/a.ts#f")).toBeDefined();
   });
 
   it("sends the files saved since the last request, once", async () => {

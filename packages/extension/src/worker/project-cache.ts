@@ -21,6 +21,8 @@ export class ProjectCache {
   /** Insertion order doubles as recency: the first key is the oldest. */
   private readonly entries = new Map<string, ProjectEntry>();
   private readonly pending = new Map<string, Set<string>>();
+  /** Focused files outside a tsconfig's include; kept across eviction. */
+  private readonly addedFiles = new Map<string, Set<string>>();
 
   /** Saved files are applied to each project the next time it is used. */
   noteChanged(files: readonly string[]): void {
@@ -30,12 +32,20 @@ export class ProjectCache {
   }
 
   open(file: string): ProjectEntry {
-    const tsconfig = this.tsconfigFor(file);
+    const entry = this.openTsconfig(this.tsconfigFor(file));
+    if (
+      !entry.project.getSourceFile(file) &&
+      entry.project.addSourceFileAtPathIfExists(file)
+    ) {
+      this.rememberAdded(entry.tsconfig, file);
+    }
+    return entry;
+  }
+
+  /** Reuses the warm project, or reloads it if it was evicted. */
+  openTsconfig(tsconfig: string): ProjectEntry {
     const entry = this.touch(tsconfig) ?? this.load(tsconfig);
     this.refreshChanged(entry);
-    if (!entry.project.getSourceFile(file)) {
-      entry.project.addSourceFileAtPathIfExists(file);
-    }
     return entry;
   }
 
@@ -68,6 +78,9 @@ export class ProjectCache {
       project: loadProject(tsconfig),
       warmed: false,
     };
+    for (const file of this.addedFiles.get(tsconfig) ?? []) {
+      entry.project.addSourceFileAtPathIfExists(file);
+    }
     this.entries.set(tsconfig, entry);
     this.pending.set(tsconfig, new Set());
     this.evictOldest();
@@ -82,6 +95,12 @@ export class ProjectCache {
       this.pending.delete(oldest);
       this.forgetFiles(oldest);
     }
+  }
+
+  private rememberAdded(tsconfig: string, file: string): void {
+    const files = this.addedFiles.get(tsconfig) ?? new Set<string>();
+    files.add(file);
+    this.addedFiles.set(tsconfig, files);
   }
 
   private forgetFiles(tsconfig: string): void {
