@@ -3,23 +3,33 @@ import {
   Controls,
   MarkerType,
   ReactFlow,
-  useReactFlow,
   type NodeTypes,
   type OnNodeDrag,
   type OnNodesChange,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FitRequest } from "../app-state.js";
+import { useCallback, useMemo, useState } from "react";
+import type { AppState, FitRequest } from "../app-state.js";
 import type { WebviewToExtension } from "../protocol.js";
 import type { GraphState, Point } from "../view/types.js";
-import { edgeClickMessage, nodeClickMessage } from "./jump.js";
+import { edgeClickMessage, focusMessage, nodeClickMessage } from "./jump.js";
 import { applyLive, recordLive, type LivePositions } from "./live-positions.js";
+import {
+  NodeContext,
+  type NodeActions,
+  type NodeContextValue,
+} from "./node-context.js";
+import { canRecentre } from "./node-controls.js";
 import { SpiderNode } from "./SpiderNode.js";
 import {
   toFlow,
   type SpiderFlowEdge,
   type SpiderFlowNode,
 } from "./to-flow.js";
+import {
+  FIT_OPTIONS,
+  FitOnRequest,
+  RevealOnRequest,
+} from "./viewport-requests.js";
 
 /** Defined once: React Flow re-creates every node if this object changes. */
 const nodeTypes: NodeTypes = { spider: SpiderNode };
@@ -28,42 +38,56 @@ const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
 };
 
-const FIT_OPTIONS = { padding: 0.2, maxZoom: 1 };
-
 /** Pointer travel in px before a press becomes a drag; below it, a click. */
 const DRAG_THRESHOLD_PX = 4;
-
-/** Refits whenever the app asks; the first fit is the `fitView` prop's. */
-function FitOnRequest({ fit }: { fit: FitRequest }) {
-  const { fitView } = useReactFlow();
-  const handled = useRef(fit.token);
-
-  useEffect(() => {
-    if (handled.current === fit.token) return;
-    const frame = requestAnimationFrame(() => {
-      handled.current = fit.token;
-      void fitView({ ...FIT_OPTIONS, duration: fit.duration });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [fit, fitView]);
-
-  return null;
-}
 
 export type GraphViewProps = {
   graph: GraphState;
   fit: FitRequest;
+  ui: Pick<AppState, "busy" | "loading" | "failures" | "entering" | "reveal">;
+  actions: NodeActions;
   onPost: (message: WebviewToExtension) => void;
   onDragStop: (positions: Record<NodeId, Point>) => void;
 };
 
-export function GraphView({ graph, fit, onPost, onDragStop }: GraphViewProps) {
+const ENTERING_CLASS = "is-entering";
+
+function withClass<T extends { className?: string }>(item: T): T {
+  const className = [item.className, ENTERING_CLASS].join(" ").trim();
+  return { ...item, className };
+}
+
+export function GraphView({
+  graph,
+  fit,
+  ui,
+  actions,
+  onPost,
+  onDragStop,
+}: GraphViewProps) {
   const flow = useMemo(() => toFlow(graph), [graph]);
   const { generation, project } = graph;
+  const { busy, loading, failures, entering, reveal } = ui;
   const [live, setLive] = useState<LivePositions | undefined>(undefined);
-  const nodes = useMemo(
-    () => applyLive(flow.nodes, live, generation),
-    [flow.nodes, live, generation],
+  const enteringIds = useMemo(() => new Set(entering.ids), [entering.ids]);
+  const nodes = useMemo(() => {
+    const placed = applyLive(flow.nodes, live, generation);
+    if (enteringIds.size === 0) return placed;
+    return placed.map((node) =>
+      enteringIds.has(node.id) ? withClass(node) : node,
+    );
+  }, [flow.nodes, live, generation, enteringIds]);
+  const edges = useMemo(() => {
+    if (enteringIds.size === 0) return flow.edges;
+    return flow.edges.map((edge) =>
+      enteringIds.has(edge.source) || enteringIds.has(edge.target)
+        ? withClass(edge)
+        : edge,
+    );
+  }, [flow.edges, enteringIds]);
+  const context = useMemo<NodeContextValue>(
+    () => ({ graph, ui: { busy, loading }, failures, actions }),
+    [graph, busy, loading, failures, actions],
   );
 
   const onNodesChange = useCallback<OnNodesChange<SpiderFlowNode>>(
@@ -97,6 +121,15 @@ export function GraphView({ graph, fit, onPost, onDragStop }: GraphViewProps) {
     [project, onPost],
   );
 
+  const onNodeDoubleClick = useCallback(
+    (_event: unknown, node: SpiderFlowNode) => {
+      if (canRecentre(node.data.node, graph)) {
+        onPost(focusMessage(node.id, project));
+      }
+    },
+    [graph, project, onPost],
+  );
+
   const onEdgeClick = useCallback(
     (_event: unknown, edge: SpiderFlowEdge) =>
       onPost(edgeClickMessage(edge.id, project)),
@@ -105,27 +138,31 @@ export function GraphView({ graph, fit, onPost, onDragStop }: GraphViewProps) {
 
   return (
     <div className="graph-canvas">
-      <ReactFlow
-        nodes={nodes}
-        edges={flow.edges}
-        nodeTypes={nodeTypes}
-        defaultEdgeOptions={defaultEdgeOptions}
-        fitView
-        fitViewOptions={FIT_OPTIONS}
-        minZoom={0.1}
-        nodesConnectable={false}
-        nodeDragThreshold={DRAG_THRESHOLD_PX}
-        nodeClickDistance={DRAG_THRESHOLD_PX}
-        selectNodesOnDrag={false}
-        zoomOnDoubleClick={false}
-        onNodesChange={onNodesChange}
-        onNodeDragStop={onNodeDragStop}
-        onNodeClick={onNodeClick}
-        onEdgeClick={onEdgeClick}
-      >
-        <FitOnRequest fit={fit} />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+      <NodeContext.Provider value={context}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
+          fitView
+          fitViewOptions={FIT_OPTIONS}
+          minZoom={0.1}
+          nodesConnectable={false}
+          nodeDragThreshold={DRAG_THRESHOLD_PX}
+          nodeClickDistance={DRAG_THRESHOLD_PX}
+          selectNodesOnDrag={false}
+          zoomOnDoubleClick={false}
+          onNodesChange={onNodesChange}
+          onNodeDragStop={onNodeDragStop}
+          onNodeClick={onNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onEdgeClick={onEdgeClick}
+        >
+          <FitOnRequest fit={fit} />
+          <RevealOnRequest reveal={reveal} />
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </NodeContext.Provider>
     </div>
   );
 }

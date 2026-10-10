@@ -52,6 +52,11 @@ describe("createAppState", () => {
       pending: undefined,
       nextPending: 1,
       fit: { token: 0, duration: 0 },
+      loading: [],
+      failures: {},
+      entering: { ids: [], token: 0 },
+      nextToken: 1,
+      reveal: undefined,
     });
   });
 
@@ -167,16 +172,8 @@ describe("messages about the extension's work", () => {
     expect(next.busy).toBe(false);
   });
 
-  it("ignores expandFailed and settings until later tasks use them", () => {
+  it("ignores settings until a later task uses it", () => {
     const state = showing("a");
-    expect(
-      reduceApp(state, {
-        type: "expandFailed",
-        nodeId: id("a"),
-        generation: 1,
-        message: "gone",
-      }),
-    ).toBe(state);
     expect(reduceApp(state, { type: "settings", columnGap: 96 })).toBe(state);
   });
 });

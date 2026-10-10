@@ -1,11 +1,14 @@
 import type { NodeId } from "@code-spider/core/types";
-import { useCallback, useEffect, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { createAppState, reduceApp } from "./app-state.js";
 import { GraphView } from "./graph/GraphView.js";
+import { expandMessage } from "./graph/jump.js";
+import type { NodeActions } from "./graph/node-context.js";
 import { useGraphLayout } from "./graph/use-layout.js";
 import { isExtensionMessage } from "./messages.js";
 import { useDelayedFlag } from "./use-delayed-flag.js";
 import { usePersistedView } from "./use-persisted-view.js";
+import { useWalkTimers } from "./use-walk-timers.js";
 import { getSavedState, postToExtension } from "./vscode-api.js";
 import type { Point } from "./view/types.js";
 
@@ -18,7 +21,24 @@ export function App() {
   );
   useGraphLayout(state, dispatch);
   usePersistedView(state.view);
+  useWalkTimers(state, dispatch);
   const spinner = useDelayedFlag(state.busy, SPINNER_DELAY_MS);
+  const graph = state.view.current;
+  const project = graph?.project;
+  const generation = graph?.generation;
+
+  const actions = useMemo<NodeActions>(
+    () => ({
+      onExpand: (nodeId) => {
+        if (project === undefined || generation === undefined) return;
+        dispatch({ type: "expandStarted", nodeId });
+        postToExtension(expandMessage(nodeId, project, generation));
+      },
+      onCollapse: (nodeId) => dispatch({ type: "collapsed", nodeId }),
+      onUnpin: (nodeId) => dispatch({ type: "unpinned", nodeId }),
+    }),
+    [project, generation],
+  );
 
   const onDragStop = useCallback(
     (positions: Record<NodeId, Point>) =>
@@ -35,7 +55,6 @@ export function App() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  const graph = state.view.current;
   return (
     <main className="app">
       {state.indexing ? (
@@ -56,6 +75,8 @@ export function App() {
           <GraphView
             graph={graph}
             fit={state.fit}
+            ui={state}
+            actions={actions}
             onPost={postToExtension}
             onDragStop={onDragStop}
           />

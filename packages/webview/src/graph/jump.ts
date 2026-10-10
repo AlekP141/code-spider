@@ -16,3 +16,18 @@ export function edgeClickMessage(
 ): WebviewToExtension {
   return { type: "openCallSite", project, edgeId };
 }
+
+export function expandMessage(
+  nodeId: string,
+  project: string,
+  generation: number,
+): WebviewToExtension {
+  return { type: "expand", project, nodeId, generation };
+}
+
+export function focusMessage(
+  nodeId: string,
+  project: string,
+): WebviewToExtension {
+  return { type: "focus", project, nodeId };
+}

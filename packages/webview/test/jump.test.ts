@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { edgeClickMessage, nodeClickMessage } from "../src/graph/jump.js";
+import {
+  edgeClickMessage,
+  expandMessage,
+  focusMessage,
+  nodeClickMessage,
+} from "../src/graph/jump.js";
 import { makeNode } from "./support/slices.js";
 
 const project = "/repo/tsconfig.json";
@@ -51,6 +56,27 @@ describe("edgeClickMessage", () => {
       type: "openCallSite",
       project,
       edgeId: "a#f->a#g",
+    });
+  });
+});
+
+describe("expandMessage", () => {
+  it("carries the node, the project and the generation", () => {
+    expect(expandMessage("src/a.ts#f", project, 4)).toEqual({
+      type: "expand",
+      project,
+      nodeId: "src/a.ts#f",
+      generation: 4,
+    });
+  });
+});
+
+describe("focusMessage", () => {
+  it("carries the node and the project", () => {
+    expect(focusMessage("src/a.ts#f", project)).toEqual({
+      type: "focus",
+      project,
+      nodeId: "src/a.ts#f",
     });
   });
 });

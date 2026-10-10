@@ -1,6 +1,16 @@
 import type { NodeId } from "@code-spider/core/types";
 import type { ExtensionToWebview } from "./protocol.js";
-import { acceptExpansion } from "./view/expansion.js";
+import {
+  acceptAnswer,
+  collapseExpanded,
+  expireEntering,
+  expireFailure,
+  failExpansion,
+  resetTransient,
+  startExpansion,
+  unpinBox,
+} from "./app-walk.js";
+import type { Rect } from "./graph/placement.js";
 import { graphFromSlice, pinNodes, setPositions } from "./view/graph-state.js";
 import { isViewState } from "./view/persist.js";
 import type { GraphState, Point, ViewState } from "./view/types.js";
@@ -24,6 +34,12 @@ export type AppState = {
   pending: PendingCentre | undefined;
   nextPending: number;
   fit: FitRequest;
+  /** Transient walk state: never part of the persisted view. */
+  loading: NodeId[];
+  failures: Record<NodeId, { message: string; token: number }>;
+  entering: { ids: NodeId[]; token: number };
+  nextToken: number;
+  reveal: { token: number; rect: Rect } | undefined;
 };
 
 export type LocalAction =
@@ -31,7 +47,10 @@ export type LocalAction =
   | { type: "centreLayoutFailed"; id: number; message: string }
   | { type: "dragStopped"; positions: Record<NodeId, Point> }
   | { type: "tidied"; generation: number; positions: Record<NodeId, Point> }
-  | { type: "tidyFailed"; message: string };
+  | { type: "tidyFailed"; message: string }
+  | { type: "expandStarted" | "collapsed" | "unpinned"; nodeId: NodeId }
+  | { type: "failureExpired"; nodeId: NodeId; token: number }
+  | { type: "enteringExpired"; token: number };
 
 export type AppAction = ExtensionToWebview | LocalAction;
 
@@ -46,6 +65,11 @@ export function createAppState(saved: unknown): AppState {
     pending: undefined,
     nextPending: 1,
     fit: { token: 0, duration: 0 },
+    loading: [],
+    failures: {},
+    entering: { ids: [], token: 0 },
+    nextToken: 1,
+    reveal: undefined,
   };
 }
 
@@ -64,17 +88,6 @@ function startCentre(state: AppState, message: SliceMessage): AppState {
   };
 }
 
-function mergeAnswer(state: AppState, message: SliceMessage): AppState {
-  const { mode } = message;
-  if (mode.kind !== "expansion") return state;
-  const { view } = acceptExpansion(
-    state.view,
-    { slice: message.slice, project: message.project, mode },
-    state.view.columnGap,
-  );
-  return view === state.view ? state : { ...state, view };
-}
-
 function refit(state: AppState, duration: number): FitRequest {
   return { token: state.fit.token + 1, duration };
 }
@@ -84,7 +97,7 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
     case "slice":
       return action.mode.kind === "centre"
         ? startCentre(state, action)
-        : mergeAnswer(state, action);
+        : acceptAnswer(state, action);
     case "analysisError":
       return { ...state, error: action.message };
     case "busy":
@@ -96,13 +109,14 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
     case "indexing":
       return { ...state, indexing: action.indexing };
     case "expandFailed":
+      return failExpansion(state, action);
     case "settings":
       return state;
     case "centreLaidOut": {
       if (state.pending?.id !== action.id) return state;
       const graph = { ...state.pending.graph, positions: action.positions };
       return {
-        ...state,
+        ...resetTransient(state),
         view: commitCentre(state.view, graph),
         pending: undefined,
         fit: refit(state, 0),
@@ -135,5 +149,15 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
     }
     case "tidyFailed":
       return { ...state, error: LAYOUT_FAILED + action.message };
+    case "expandStarted":
+      return startExpansion(state, action.nodeId);
+    case "collapsed":
+      return collapseExpanded(state, action.nodeId);
+    case "unpinned":
+      return unpinBox(state, action.nodeId);
+    case "failureExpired":
+      return expireFailure(state, action.nodeId, action.token);
+    case "enteringExpired":
+      return expireEntering(state, action.token);
   }
 }

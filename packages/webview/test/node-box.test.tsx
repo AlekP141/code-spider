@@ -1,15 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { NodeBox } from "../src/graph/NodeBox.js";
+import { NodeBox, type NodeBoxProps } from "../src/graph/NodeBox.js";
 import { codeRegionHeight } from "../src/graph/node-size.js";
 import { makeNode } from "./support/slices.js";
 
 function render(
   overrides: Parameters<typeof makeNode>[0],
   isFocus = false,
+  extra: Partial<NodeBoxProps> = {},
 ): string {
   return renderToStaticMarkup(
-    <NodeBox node={makeNode(overrides)} isFocus={isFocus} />,
+    <NodeBox node={makeNode(overrides)} isFocus={isFocus} {...extra} />,
   );
 }
 
@@ -75,5 +76,56 @@ describe("NodeBox", () => {
     );
     expect(render({ id: "a#F" }, true)).toContain("is-focus");
     expect(render({ id: "a#F" }, false)).not.toContain("is-focus");
+  });
+});
+
+describe("NodeBox controls", () => {
+  const f = { id: "a#f" };
+
+  it("renders the expand, disabled expand and collapse buttons with titles", () => {
+    const expand = render(f, false, { control: "expand" });
+    expect(expand).toContain('title="Expand"');
+    expect(expand).toContain(">+</button>");
+    expect(expand).not.toContain("disabled");
+
+    const disabled = render(f, false, { control: "expandDisabled" });
+    expect(disabled).toContain('title="Expand"');
+    expect(disabled).toContain("disabled");
+
+    const collapse = render(f, false, { control: "collapse" });
+    expect(collapse).toContain('title="Collapse"');
+    expect(collapse).toContain(">\u2212</button>");
+  });
+
+  it("renders a spinner and no button while loading", () => {
+    const html = render(f, false, { control: "loading" });
+    expect(html).toContain('role="status"');
+    expect(html).toContain("node-spinner");
+    expect(html).not.toContain("<button");
+  });
+
+  it("renders no control markup for none or without a control", () => {
+    for (const html of [render(f, false, { control: "none" }), render(f)]) {
+      expect(html).not.toContain("<button");
+      expect(html).not.toContain("node-controls");
+      expect(html).not.toContain("node-spinner");
+    }
+  });
+
+  it("shows the pin icon only when pinned, before the control", () => {
+    expect(render(f, false, { control: "expand" })).not.toContain("Unpin");
+    const html = render(f, false, { control: "expand", pinned: true });
+    expect(html).toContain('title="Unpin"');
+    expect(html).toContain("<svg");
+    expect(html.indexOf("Unpin")).toBeLessThan(html.indexOf('title="Expand"'));
+    expect(render(f, false, { pinned: true })).toContain("Unpin");
+  });
+
+  it("puts the failure message in the strip's text and title", () => {
+    const html = render(f, false, { failure: "Could not expand: gone" });
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('title="Could not expand: gone"');
+    expect(html).toContain(">Could not expand: gone</div>");
+    expect(render(f)).not.toContain('role="alert"');
   });
 });

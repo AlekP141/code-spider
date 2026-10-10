@@ -80,6 +80,8 @@
     var(--vscode-editorWidget-border, var(--vscode-panel-border));
   outline-offset: -1px;
   overflow: hidden;
+  position: relative;
+  user-select: none;
   width: 100%;
 }
 
@@ -184,4 +186,99 @@
   pointer-events: none;
   position: absolute;
   right: 0;
+}
+
+.node-controls {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.node-control {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--vscode-icon-foreground, var(--vscode-editor-foreground));
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  height: 18px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 18px;
+}
+
+.node-control:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.node-control:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.node-control:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.node-spinner {
+  animation: spider-spin 0.8s linear infinite;
+  border: 2px solid var(--vscode-descriptionForeground);
+  border-radius: 50%;
+  border-top-color: transparent;
+  box-sizing: border-box;
+  height: 12px;
+  margin: 0 3px;
+  width: 12px;
+}
+
+.node-failure {
+  background: var(--vscode-inputValidation-errorBackground);
+  border-top: 1px solid var(--vscode-inputValidation-errorBorder);
+  bottom: 0;
+  box-sizing: border-box;
+  color: var(--vscode-editor-foreground);
+  font-size: 11px;
+  left: 0;
+  overflow: hidden;
+  padding: 2px 8px;
+  position: absolute;
+  right: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-flow__node.is-entering,
+.react-flow__edge.is-entering {
+  animation: spider-fade-in 250ms ease-out both;
+}
+
+@keyframes spider-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spider-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__node.is-entering,
+  .react-flow__edge.is-entering {
+    animation: none;
+  }
+
+  .node-spinner {
+    animation-duration: 3s;
+  }
 }
