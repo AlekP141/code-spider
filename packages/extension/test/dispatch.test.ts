@@ -7,7 +7,13 @@ function setup() {
     focusNode: vi.fn(async () => undefined),
     expand: vi.fn(async () => undefined),
   };
-  return { jumps, session, dispatch: createDispatcher({ jumps, session }) };
+  const columnGap = { set: vi.fn(async () => undefined) };
+  return {
+    jumps,
+    session,
+    columnGap,
+    dispatch: createDispatcher({ jumps, session, columnGap }),
+  };
 }
 
 describe("createDispatcher", () => {
@@ -59,13 +65,22 @@ describe("createDispatcher", () => {
     });
   });
 
-  it("ignores ready, refresh and setColumnGap", async () => {
-    const { jumps, session, dispatch } = setup();
-    await dispatch({ type: "ready" });
-    await dispatch({ type: "refresh" });
+  it("routes setColumnGap to the store and runs nothing else", async () => {
+    const { jumps, session, columnGap, dispatch } = setup();
     await dispatch({ type: "setColumnGap", value: 128 });
+    expect(columnGap.set.mock.calls).toEqual([[128]]);
     expect(jumps.handle).not.toHaveBeenCalled();
     expect(session.focusNode).not.toHaveBeenCalled();
     expect(session.expand).not.toHaveBeenCalled();
+  });
+
+  it("ignores ready and refresh", async () => {
+    const { jumps, session, columnGap, dispatch } = setup();
+    await dispatch({ type: "ready" });
+    await dispatch({ type: "refresh" });
+    expect(jumps.handle).not.toHaveBeenCalled();
+    expect(session.focusNode).not.toHaveBeenCalled();
+    expect(session.expand).not.toHaveBeenCalled();
+    expect(columnGap.set).not.toHaveBeenCalled();
   });
 });

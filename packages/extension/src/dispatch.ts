@@ -1,4 +1,5 @@
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
+import type { ColumnGapStore } from "./column-gap.js";
 import type { JumpMessage } from "./navigation.js";
 import type { GraphSession } from "./session.js";
 
@@ -8,13 +9,11 @@ export interface JumpPort {
 
 export type Dispatch = (message: WebviewToExtension) => Promise<void>;
 
-/**
- * `ready` belongs to the panel's gate. `refresh` is M3b, and `setColumnGap`
- * gets its store in a later task.
- */
+/** `ready` belongs to the panel's gate; `refresh` is M3b. */
 export function createDispatcher(deps: {
   jumps: JumpPort;
   session: Pick<GraphSession, "focusNode" | "expand">;
+  columnGap: Pick<ColumnGapStore, "set">;
 }): Dispatch {
   return async (message) => {
     switch (message.type) {
@@ -32,9 +31,10 @@ export function createDispatcher(deps: {
           nodeId: message.nodeId,
           generation: message.generation,
         });
+      case "setColumnGap":
+        return deps.columnGap.set(message.value);
       case "ready":
       case "refresh":
-      case "setColumnGap":
         return;
     }
   };

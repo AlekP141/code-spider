@@ -6,11 +6,14 @@ import { expandMessage } from "./graph/jump.js";
 import type { NodeActions } from "./graph/node-context.js";
 import { useGraphLayout } from "./graph/use-layout.js";
 import { isExtensionMessage } from "./messages.js";
+import { Toolbar } from "./toolbar/Toolbar.js";
+import { useSpacingControl } from "./toolbar/use-spacing-control.js";
 import { useDelayedFlag } from "./use-delayed-flag.js";
 import { usePersistedView } from "./use-persisted-view.js";
 import { useWalkTimers } from "./use-walk-timers.js";
 import { getSavedState, postToExtension } from "./vscode-api.js";
 import type { Point } from "./view/types.js";
+import { canGoBack } from "./view/view-state.js";
 
 /** Work shorter than this never shows a spinner (perf note). */
 export const SPINNER_DELAY_MS = 500;
@@ -19,7 +22,8 @@ export function App() {
   const [state, dispatch] = useReducer(reduceApp, undefined, () =>
     createAppState(getSavedState()),
   );
-  useGraphLayout(state, dispatch);
+  const { tidy } = useGraphLayout(state, dispatch);
+  const onColumnGap = useSpacingControl(dispatch, tidy);
   usePersistedView(state.view);
   useWalkTimers(state, dispatch);
   const spinner = useDelayedFlag(state.busy, SPINNER_DELAY_MS);
@@ -40,6 +44,8 @@ export function App() {
     [project, generation],
   );
 
+  const onBack = useCallback(() => dispatch({ type: "back" }), []);
+
   const onDragStop = useCallback(
     (positions: Record<NodeId, Point>) =>
       dispatch({ type: "dragStopped", positions }),
@@ -57,6 +63,14 @@ export function App() {
 
   return (
     <main className="app">
+      <Toolbar
+        canBack={canGoBack(state.view) && !state.busy}
+        canTidy={graph !== undefined}
+        columnGap={state.view.columnGap}
+        onBack={onBack}
+        onTidy={tidy}
+        onColumnGap={onColumnGap}
+      />
       {state.indexing ? (
         <div className="banner" role="status">
           Indexing the project so the first graph appears quickly...

@@ -10,11 +10,18 @@ import {
   startExpansion,
   unpinBox,
 } from "./app-walk.js";
+import { normaliseColumnGap } from "./column-gap.js";
 import type { Rect } from "./graph/placement.js";
 import { graphFromSlice, pinNodes, setPositions } from "./view/graph-state.js";
 import { isViewState } from "./view/persist.js";
 import type { GraphState, Point, ViewState } from "./view/types.js";
-import { commitCentre, createView, replaceCurrent } from "./view/view-state.js";
+import {
+  canGoBack,
+  commitCentre,
+  createView,
+  goBack,
+  replaceCurrent,
+} from "./view/view-state.js";
 
 /** A centre slice waiting for ELK; the old graph stays on screen meanwhile. */
 export type PendingCentre = {
@@ -40,6 +47,8 @@ export type AppState = {
   entering: { ids: NodeId[]; token: number };
   nextToken: number;
   reveal: { token: number; rect: Rect } | undefined;
+  /** Only the first `settings` message after each load is applied. */
+  settingsApplied: boolean;
 };
 
 export type LocalAction =
@@ -50,7 +59,9 @@ export type LocalAction =
   | { type: "tidyFailed"; message: string }
   | { type: "expandStarted" | "collapsed" | "unpinned"; nodeId: NodeId }
   | { type: "failureExpired"; nodeId: NodeId; token: number }
-  | { type: "enteringExpired"; token: number };
+  | { type: "enteringExpired"; token: number }
+  | { type: "back" }
+  | { type: "columnGapChanged"; value: number };
 
 export type AppAction = ExtensionToWebview | LocalAction;
 
@@ -70,6 +81,7 @@ export function createAppState(saved: unknown): AppState {
     entering: { ids: [], token: 0 },
     nextToken: 1,
     reveal: undefined,
+    settingsApplied: false,
   };
 }
 
@@ -92,6 +104,36 @@ function refit(state: AppState, duration: number): FitRequest {
   return { token: state.fit.token + 1, duration };
 }
 
+function withColumnGap(state: AppState, raw: number): AppState {
+  const columnGap = normaliseColumnGap(raw);
+  if (columnGap === state.view.columnGap) return state;
+  return { ...state, view: { ...state.view, columnGap } };
+}
+
+/** The slider moved while ELK ran, so lay the same centre out again. */
+function relayoutPending(state: AppState, pending: PendingCentre): AppState {
+  return {
+    ...state,
+    pending: {
+      ...pending,
+      id: state.nextPending,
+      columnGap: state.view.columnGap,
+    },
+    nextPending: state.nextPending + 1,
+  };
+}
+
+function goBackOnce(state: AppState): AppState {
+  if (state.busy || !canGoBack(state.view)) return state;
+  return {
+    ...resetTransient(state),
+    view: goBack(state.view),
+    pending: undefined,
+    error: undefined,
+    fit: refit(state, 0),
+  };
+}
+
 export function reduceApp(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "slice":
@@ -111,9 +153,14 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
     case "expandFailed":
       return failExpansion(state, action);
     case "settings":
-      return state;
+      return state.settingsApplied
+        ? state
+        : { ...withColumnGap(state, action.columnGap), settingsApplied: true };
     case "centreLaidOut": {
       if (state.pending?.id !== action.id) return state;
+      if (state.pending.columnGap !== state.view.columnGap) {
+        return relayoutPending(state, state.pending);
+      }
       const graph = { ...state.pending.graph, positions: action.positions };
       return {
         ...resetTransient(state),
@@ -159,5 +206,9 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return expireFailure(state, action.nodeId, action.token);
     case "enteringExpired":
       return expireEntering(state, action.token);
+    case "back":
+      return goBackOnce(state);
+    case "columnGapChanged":
+      return withColumnGap(state, action.value);
   }
 }

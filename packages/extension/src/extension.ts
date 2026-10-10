@@ -2,6 +2,7 @@ import { join } from "node:path";
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 import * as vscode from "vscode";
 import { ChangeTracker } from "./changes.js";
+import { ColumnGapStore } from "./column-gap.js";
 import { createDispatcher } from "./dispatch.js";
 import {
   COMMAND_SHOW_GRAPH,
@@ -57,10 +58,15 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     maxHeapMb: getMaxHeapMb,
     jumps: jumpTable,
   });
+  const columnGap = new ColumnGapStore(context.globalState, (value) =>
+    panel.post({ type: "settings", columnGap: value }),
+  );
   const dispatch = createDispatcher({
     jumps: new JumpHandler(jumpTable, revealer),
     session,
+    columnGap,
   });
+  columnGap.publish();
   const showGraph = async (uri?: vscode.Uri, position?: vscode.Position) => {
     const request = await resolveFocusRequest(uri, position);
     if (request) await session.showGraph(request);

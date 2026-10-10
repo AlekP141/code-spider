@@ -57,6 +57,7 @@ describe("createAppState", () => {
       entering: { ids: [], token: 0 },
       nextToken: 1,
       reveal: undefined,
+      settingsApplied: false,
     });
   });
 
@@ -172,9 +173,11 @@ describe("messages about the extension's work", () => {
     expect(next.busy).toBe(false);
   });
 
-  it("ignores settings until a later task uses it", () => {
+  it("applies the first settings message to the column gap", () => {
     const state = showing("a");
-    expect(reduceApp(state, { type: "settings", columnGap: 96 })).toBe(state);
+    const next = reduceApp(state, { type: "settings", columnGap: 96 });
+    expect(next.view.columnGap).toBe(96);
+    expect(next.settingsApplied).toBe(true);
   });
 });
 
