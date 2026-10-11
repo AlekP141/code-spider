@@ -3,6 +3,7 @@ import type { WebviewToExtension } from "@code-spider/webview/protocol";
 import * as vscode from "vscode";
 import { ChangeTracker } from "./changes.js";
 import { ColumnGapStore } from "./column-gap.js";
+import { TrailingDebounce } from "./debounce.js";
 import { createDispatcher } from "./dispatch.js";
 import {
   COMMAND_SHOW_GRAPH,
@@ -20,8 +21,11 @@ import { resolveFocusRequest } from "./vscode/focus-request.js";
 import { notifier } from "./vscode/notifier.js";
 import { getMaxHeapMb } from "./vscode/settings.js";
 import { IndexingStatusBar } from "./vscode/status-bar.js";
+import { registerChangeWatchers } from "./vscode/watchers.js";
 import { spawnAnalysisWorker } from "./worker/spawn.js";
 import { WorkerClient } from "./worker/worker-client.js";
+
+const SOURCE_CHANGED_DELAY_MS = 200;
 
 /** What `activate` returns, so the smoke tests can inspect the extension. */
 export type ExtensionApi = {
@@ -49,7 +53,11 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     () => jumpTable.clear(),
   );
   const statusBar = new IndexingStatusBar();
-  const changes = new ChangeTracker();
+  const sourceChanged = new TrailingDebounce<number>(
+    SOURCE_CHANGED_DELAY_MS,
+    (version) => panel.post({ type: "sourceChanged", version }),
+  );
+  const changes = new ChangeTracker((version) => sourceChanged.push(version));
   const session = new GraphSession({
     worker,
     panel,
@@ -81,6 +89,8 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     revealer,
     panel,
     statusBar,
+    sourceChanged,
+    registerChangeWatchers((fsPath) => changes.mark(fsPath)),
     vscode.commands.registerCommand(COMMAND_SHOW_GRAPH, showGraph),
     vscode.commands.registerCommand(COMMAND_SHOW_IN_CODE_SPIDER, showGraph),
     vscode.workspace.onDidSaveTextDocument((document) => {

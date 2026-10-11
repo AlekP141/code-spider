@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONFIG_WATCH_GLOB,
   SOURCE_EXTENSIONS,
+  SOURCE_WATCH_GLOB,
   isConfigFile,
   isTrackedPath,
 } from "../src/watched-paths.js";
@@ -49,5 +51,16 @@ describe("isConfigFile", () => {
     expect(isConfigFile("/repo/tsconfig.txt")).toBe(false);
     expect(isConfigFile("/repo/xtsconfig.json")).toBe(false);
     expect(isConfigFile("/repo/package.json")).toBe(false);
+  });
+});
+
+describe("watch globs", () => {
+  it("lists exactly the source extensions", () => {
+    const listed = /^\*\*\/\*\.\{([^}]*)\}$/.exec(SOURCE_WATCH_GLOB)?.[1];
+    expect(listed?.split(",")).toEqual([...SOURCE_EXTENSIONS]);
+  });
+
+  it("names both tsconfig and jsconfig", () => {
+    expect(CONFIG_WATCH_GLOB).toBe("**/{tsconfig,jsconfig}*.json");
   });
 });

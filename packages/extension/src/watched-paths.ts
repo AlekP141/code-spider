@@ -9,6 +9,9 @@ export const SOURCE_EXTENSIONS: readonly string[] = [
   "cjs",
 ];
 
+export const SOURCE_WATCH_GLOB = `**/*.{${SOURCE_EXTENSIONS.join(",")}}`;
+export const CONFIG_WATCH_GLOB = "**/{tsconfig,jsconfig}*.json";
+
 const CONFIG_NAME = /^(?:ts|js)config.*\.json$/;
 
 function segmentsOf(path: string): string[] {
