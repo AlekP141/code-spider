@@ -21,10 +21,24 @@ describe("createView", () => {
       version: 1,
       nextGeneration: 1,
       columnGap: COLUMN_GAP.default,
+      edgeStyle: "stepped",
       current: undefined,
       history: [],
     });
     expect(createView(96).columnGap).toBe(96);
+  });
+
+  it("takes the edge style as its second argument", () => {
+    expect(createView(96, "curved").edgeStyle).toBe("curved");
+  });
+});
+
+describe("the edge style across graph changes", () => {
+  it("is kept by commitCentre and goBack", () => {
+    const first = commitCentre(createView(192, "curved"), graphOf("a", ["b"]));
+    const second = commitCentre(first, graphOf("b", [], ["a"]));
+    expect(second.edgeStyle).toBe("curved");
+    expect(goBack(second).edgeStyle).toBe("curved");
   });
 });
 

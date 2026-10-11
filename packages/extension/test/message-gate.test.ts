@@ -152,7 +152,7 @@ describe("MessageGate replayed state", () => {
     gate.post(slice("a#one"));
     gate.post({ type: "busy", busy: true });
     gate.post({ type: "indexing", indexing: true });
-    gate.post({ type: "settings", columnGap: 160 });
+    gate.post({ type: "settings", columnGap: 160, edgeStyle: "stepped" });
     gate.markReady();
     expect(sent.map((message) => message.type)).toEqual([
       "settings",
@@ -167,7 +167,7 @@ describe("MessageGate replayed state", () => {
     gate.post(slice("a#one"));
     gate.post({ type: "sourceChanged", version: 2 });
     gate.post({ type: "busy", busy: true });
-    gate.post({ type: "settings", columnGap: 160 });
+    gate.post({ type: "settings", columnGap: 160, edgeStyle: "stepped" });
     gate.markReady();
     expect(sent.map((message) => message.type)).toEqual([
       "settings",
@@ -195,13 +195,13 @@ describe("MessageGate replayed state", () => {
   it("replays the latest value of each on every ready", () => {
     const { sent, gate } = setup();
     gate.markReady();
-    gate.post({ type: "settings", columnGap: 160 });
-    gate.post({ type: "settings", columnGap: 224 });
+    gate.post({ type: "settings", columnGap: 160, edgeStyle: "stepped" });
+    gate.post({ type: "settings", columnGap: 224, edgeStyle: "curved" });
     gate.post({ type: "busy", busy: true });
     sent.length = 0;
     gate.markReady();
     expect(sent).toEqual([
-      { type: "settings", columnGap: 224 },
+      { type: "settings", columnGap: 224, edgeStyle: "curved" },
       { type: "busy", busy: true },
     ]);
   });
@@ -210,14 +210,14 @@ describe("MessageGate replayed state", () => {
     const { sent, gate } = setup();
     gate.markReady();
     gate.post(slice("a#one"));
-    gate.post({ type: "settings", columnGap: 160 });
+    gate.post({ type: "settings", columnGap: 160, edgeStyle: "stepped" });
     gate.post({ type: "indexing", indexing: true });
     gate.post({ type: "busy", busy: true });
     sent.length = 0;
     gate.reset();
     gate.markReady();
     expect(sent).toEqual([
-      { type: "settings", columnGap: 160 },
+      { type: "settings", columnGap: 160, edgeStyle: "stepped" },
       { type: "indexing", indexing: true },
       { type: "busy", busy: true },
     ]);

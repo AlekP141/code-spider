@@ -73,6 +73,31 @@ describe("toFlow with a real call-chain slice", () => {
   });
 });
 
+describe("toFlow edge style", () => {
+  const graph = graphFromSlice(readGolden("jsx-Page.json"), PROJECT);
+  const both = readGolden("basic-handleSignup.json");
+
+  it("draws stepped edges as smoothstep and curved ones as default", () => {
+    const types = (style?: "stepped" | "curved") =>
+      toFlow(graphFromSlice(both, PROJECT), style).edges.map(
+        (edge) => edge.type,
+      );
+    const count = both.edges.length;
+    expect(types("stepped")).toEqual(Array(count).fill("smoothstep"));
+    expect(types("curved")).toEqual(Array(count).fill("default"));
+    expect(types()).toEqual(types("stepped"));
+  });
+
+  it("changes nothing else about the edges or the nodes", () => {
+    const stepped = toFlow(graph, "stepped");
+    const curved = toFlow(graph, "curved");
+    const withoutType = (edges: typeof stepped.edges) =>
+      edges.map(({ type: _type, ...rest }) => rest);
+    expect(withoutType(curved.edges)).toEqual(withoutType(stepped.edges));
+    expect(curved.nodes).toEqual(stepped.nodes);
+  });
+});
+
 describe("toFlow positions and pins", () => {
   const slice = readGolden("basic-handleSignup.json");
 

@@ -1,3 +1,4 @@
+import { isEdgeStyle } from "@code-spider/webview/edge-style";
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 
 function isStringArray(value: unknown): value is string[] {
@@ -49,6 +50,10 @@ export function parseWebviewMessage(
     case "setColumnGap":
       return typeof message.value === "number" && Number.isFinite(message.value)
         ? { type: "setColumnGap", value: message.value }
+        : undefined;
+    case "setEdgeStyle":
+      return isEdgeStyle(message.value)
+        ? { type: "setEdgeStyle", value: message.value }
         : undefined;
     default:
       return undefined;

@@ -1,24 +1,40 @@
+import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Toolbar, type ToolbarProps } from "../src/toolbar/Toolbar.js";
 
 const noop = () => undefined;
 
+function props(overrides: Partial<ToolbarProps> = {}): ToolbarProps {
+  return {
+    canBack: true,
+    canTidy: true,
+    canRefresh: true,
+    changedSince: false,
+    columnGap: 192,
+    edgeStyle: "stepped",
+    onBack: noop,
+    onTidy: noop,
+    onRefresh: noop,
+    onColumnGap: noop,
+    onEdgeStyle: noop,
+    ...overrides,
+  };
+}
+
 function render(overrides: Partial<ToolbarProps> = {}): string {
-  return renderToStaticMarkup(
-    <Toolbar
-      canBack
-      canTidy
-      canRefresh
-      changedSince={false}
-      columnGap={192}
-      onBack={noop}
-      onTidy={noop}
-      onRefresh={noop}
-      onColumnGap={noop}
-      {...overrides}
-    />,
-  );
+  return renderToStaticMarkup(<Toolbar {...props(overrides)} />);
+}
+
+type Pressable = ReactElement<{ "aria-pressed"?: boolean; onClick(): void }>;
+
+/** Toolbar is a plain function component, so its element tree can be walked. */
+function pressableButtons(node: ReactNode): Pressable[] {
+  if (!isValidElement<{ children?: ReactNode }>(node)) {
+    return Array.isArray(node) ? node.flatMap(pressableButtons) : [];
+  }
+  const own = "aria-pressed" in node.props ? [node as Pressable] : [];
+  return [...own, ...pressableButtons(node.props.children)];
 }
 
 function buttonTag(html: string, label: string): string {
@@ -75,6 +91,37 @@ describe("Toolbar", () => {
       "disabled",
     );
     expect(buttonTag(render(), "Refresh")).not.toContain("disabled");
+  });
+
+  it("puts the Lines group between Refresh and Spacing", () => {
+    const html = render();
+    expect(html).toMatch(/<div[^>]*role="group"[^>]*aria-label="Lines"/);
+    expect(html.indexOf("Refresh")).toBeLessThan(html.indexOf("Lines"));
+    expect(html.indexOf("Lines")).toBeLessThan(html.indexOf("Spacing"));
+    expect(html.indexOf("Stepped")).toBeLessThan(html.indexOf("Curved"));
+  });
+
+  it("presses the button of the active style only", () => {
+    const stepped = render({ edgeStyle: "stepped" });
+    expect(buttonTag(stepped, "Stepped")).toContain('aria-pressed="true"');
+    expect(buttonTag(stepped, "Curved")).toContain('aria-pressed="false"');
+    const curved = render({ edgeStyle: "curved" });
+    expect(buttonTag(curved, "Stepped")).toContain('aria-pressed="false"');
+    expect(buttonTag(curved, "Curved")).toContain('aria-pressed="true"');
+  });
+
+  it("reports a click on the other style and ignores one on the active style", () => {
+    const picked: string[] = [];
+    const tree = Toolbar({
+      ...props(),
+      edgeStyle: "stepped",
+      onEdgeStyle: (value) => picked.push(value),
+    });
+    const [stepped, curved] = pressableButtons(tree);
+    stepped?.props.onClick();
+    expect(picked).toEqual([]);
+    curved?.props.onClick();
+    expect(picked).toEqual(["curved"]);
   });
 
   it("carries the slider's range, step and current value", () => {

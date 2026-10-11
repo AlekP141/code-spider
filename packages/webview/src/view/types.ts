@@ -1,4 +1,5 @@
 import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core/types";
+import type { EdgeStyle } from "../edge-style.js";
 
 export type Point = { x: number; y: number };
 
@@ -29,6 +30,8 @@ export type ViewState = {
   version: 1;
   nextGeneration: number;
   columnGap: number;
+  /** Absent in older saves: the default. */
+  edgeStyle?: EdgeStyle;
   current: GraphState | undefined;
   history: GraphState[];
 };

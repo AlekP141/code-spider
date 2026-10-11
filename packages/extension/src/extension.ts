@@ -5,6 +5,7 @@ import { ChangeTracker } from "./changes.js";
 import { ColumnGapStore } from "./column-gap.js";
 import { TrailingDebounce } from "./debounce.js";
 import { createDispatcher } from "./dispatch.js";
+import { EdgeStyleStore } from "./edge-style-store.js";
 import {
   COMMAND_SHOW_GRAPH,
   COMMAND_SHOW_IN_CODE_SPIDER,
@@ -68,15 +69,21 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     jumps: jumpTable,
     documents: workspaceDocuments,
   });
-  const columnGap = new ColumnGapStore(context.globalState, (value) =>
-    panel.post({ type: "settings", columnGap: value }),
-  );
+  const announce = () =>
+    panel.post({
+      type: "settings",
+      columnGap: columnGap.get(),
+      edgeStyle: edgeStyle.get(),
+    });
+  const columnGap = new ColumnGapStore(context.globalState, announce);
+  const edgeStyle = new EdgeStyleStore(context.globalState, announce);
   const dispatch = createDispatcher({
     jumps: new JumpHandler(jumpTable, revealer),
     session,
     columnGap,
+    edgeStyle,
   });
-  columnGap.publish();
+  announce();
   const showGraph = async (uri?: vscode.Uri, position?: vscode.Position) => {
     const request = await resolveFocusRequest(uri, position);
     if (request) await session.showGraph(request);

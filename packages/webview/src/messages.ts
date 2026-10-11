@@ -1,3 +1,4 @@
+import { isEdgeStyle } from "./edge-style.js";
 import type { ExtensionToWebview, SliceMode } from "./protocol.js";
 
 function isFiniteNumber(value: unknown): value is number {
@@ -51,7 +52,9 @@ export function isExtensionMessage(
     case "indexing":
       return typeof message.indexing === "boolean";
     case "settings":
-      return isFiniteNumber(message.columnGap);
+      return (
+        isFiniteNumber(message.columnGap) && isEdgeStyle(message.edgeStyle)
+      );
     case "refreshed":
       return (
         typeof message.project === "string" &&

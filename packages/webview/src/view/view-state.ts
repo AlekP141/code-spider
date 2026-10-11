@@ -1,13 +1,18 @@
 import { COLUMN_GAP } from "../column-gap.js";
+import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../edge-style.js";
 import type { GraphState, ViewState } from "./types.js";
 
 export const HISTORY_LIMIT = 20;
 
-export function createView(columnGap: number = COLUMN_GAP.default): ViewState {
+export function createView(
+  columnGap: number = COLUMN_GAP.default,
+  edgeStyle: EdgeStyle = DEFAULT_EDGE_STYLE,
+): ViewState {
   return {
     version: 1,
     nextGeneration: 1,
     columnGap,
+    edgeStyle,
     current: undefined,
     history: [],
   };

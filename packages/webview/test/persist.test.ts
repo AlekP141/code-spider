@@ -29,6 +29,14 @@ describe("isViewState", () => {
     expect(isViewState(populated)).toBe(true);
   });
 
+  it("accepts a view without an edgeStyle and rejects an unknown name", () => {
+    const { edgeStyle: _omitted, ...older } = createView();
+    expect(isViewState(older)).toBe(true);
+    expect(isViewState({ ...createView(), edgeStyle: "curved" })).toBe(true);
+    expect(isViewState({ ...createView(), edgeStyle: "wavy" })).toBe(false);
+    expect(isViewState({ ...createView(), edgeStyle: 3 })).toBe(false);
+  });
+
   it("rejects values that are not a view state", () => {
     for (const value of [undefined, null, 3, "x", [], {}]) {
       expect(isViewState(value)).toBe(false);

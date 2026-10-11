@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     "./protocol": "./src/protocol.ts",
-    "./column-gap": "./src/column-gap.ts"
+    "./column-gap": "./src/column-gap.ts",
+    "./edge-style": "./src/edge-style.ts"
   },
   "scripts": {
     "build": "node build.mjs",

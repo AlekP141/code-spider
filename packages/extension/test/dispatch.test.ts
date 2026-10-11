@@ -9,11 +9,13 @@ function setup() {
     refresh: vi.fn(async () => undefined),
   };
   const columnGap = { set: vi.fn(async () => undefined) };
+  const edgeStyle = { set: vi.fn(async () => undefined) };
   return {
     jumps,
     session,
     columnGap,
-    dispatch: createDispatcher({ jumps, session, columnGap }),
+    edgeStyle,
+    dispatch: createDispatcher({ jumps, session, columnGap, edgeStyle }),
   };
 }
 
@@ -75,8 +77,19 @@ describe("createDispatcher", () => {
     expect(session.expand).not.toHaveBeenCalled();
   });
 
+  it("routes setEdgeStyle to its store and runs nothing else", async () => {
+    const { jumps, session, columnGap, edgeStyle, dispatch } = setup();
+    await dispatch({ type: "setEdgeStyle", value: "curved" });
+    expect(edgeStyle.set.mock.calls).toEqual([["curved"]]);
+    expect(columnGap.set).not.toHaveBeenCalled();
+    expect(jumps.handle).not.toHaveBeenCalled();
+    expect(session.focusNode).not.toHaveBeenCalled();
+    expect(session.expand).not.toHaveBeenCalled();
+    expect(session.refresh).not.toHaveBeenCalled();
+  });
+
   it("routes refresh to the session with its four fields and runs nothing else", async () => {
-    const { jumps, session, columnGap, dispatch } = setup();
+    const { jumps, session, columnGap, edgeStyle, dispatch } = setup();
     await dispatch({
       type: "refresh",
       project: "/p/tsconfig.json",
@@ -98,15 +111,17 @@ describe("createDispatcher", () => {
     expect(session.focusNode).not.toHaveBeenCalled();
     expect(session.expand).not.toHaveBeenCalled();
     expect(columnGap.set).not.toHaveBeenCalled();
+    expect(edgeStyle.set).not.toHaveBeenCalled();
   });
 
   it("ignores ready", async () => {
-    const { jumps, session, columnGap, dispatch } = setup();
+    const { jumps, session, columnGap, edgeStyle, dispatch } = setup();
     await dispatch({ type: "ready" });
     expect(jumps.handle).not.toHaveBeenCalled();
     expect(session.focusNode).not.toHaveBeenCalled();
     expect(session.expand).not.toHaveBeenCalled();
     expect(session.refresh).not.toHaveBeenCalled();
     expect(columnGap.set).not.toHaveBeenCalled();
+    expect(edgeStyle.set).not.toHaveBeenCalled();
   });
 });

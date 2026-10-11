@@ -176,7 +176,11 @@ describe("messages about the extension's work", () => {
 
   it("applies the first settings message to the column gap", () => {
     const state = showing("a");
-    const next = reduceApp(state, { type: "settings", columnGap: 96 });
+    const next = reduceApp(state, {
+      type: "settings",
+      columnGap: 96,
+      edgeStyle: "stepped",
+    });
     expect(next.view.columnGap).toBe(96);
     expect(next.settingsApplied).toBe(true);
   });

@@ -9,7 +9,7 @@ export type MementoPort = {
 export class ColumnGapStore {
   constructor(
     private readonly memento: MementoPort,
-    private readonly announce: (columnGap: number) => void,
+    private readonly announce: () => void,
   ) {}
 
   get(): number {
@@ -17,12 +17,7 @@ export class ColumnGapStore {
   }
 
   async set(raw: unknown): Promise<void> {
-    const columnGap = normaliseColumnGap(raw);
-    await this.memento.update(STATE_COLUMN_GAP, columnGap);
-    this.announce(columnGap);
-  }
-
-  publish(): void {
-    this.announce(this.get());
+    await this.memento.update(STATE_COLUMN_GAP, normaliseColumnGap(raw));
+    this.announce();
   }
 }

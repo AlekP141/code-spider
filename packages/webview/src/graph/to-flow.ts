@@ -1,5 +1,6 @@
 import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core/types";
 import type { Edge, Node } from "@xyflow/react";
+import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../edge-style.js";
 import type { GraphState } from "../view/types.js";
 import { NODE_WIDTH } from "./constants.js";
 import { edgeAppearance } from "./edge-appearance.js";
@@ -36,13 +37,18 @@ function toFlowNode(
   };
 }
 
-function toFlowEdge(edge: GraphEdge): SpiderFlowEdge {
+const EDGE_TYPES: Record<EdgeStyle, string> = {
+  stepped: "smoothstep",
+  curved: "default",
+};
+
+function toFlowEdge(edge: GraphEdge, edgeStyle: EdgeStyle): SpiderFlowEdge {
   const appearance = edgeAppearance(edge.kind, edge.resolved);
   return {
     id: edge.id,
     source: edge.from,
     target: edge.to,
-    type: "smoothstep",
+    type: EDGE_TYPES[edgeStyle],
     className: appearance.className,
     style: {
       strokeDasharray: appearance.strokeDasharray,
@@ -51,7 +57,10 @@ function toFlowEdge(edge: GraphEdge): SpiderFlowEdge {
   };
 }
 
-export function toFlow(graph: GraphState): {
+export function toFlow(
+  graph: GraphState,
+  edgeStyle: EdgeStyle = DEFAULT_EDGE_STYLE,
+): {
   nodes: SpiderFlowNode[];
   edges: SpiderFlowEdge[];
 } {
@@ -65,6 +74,6 @@ export function toFlow(graph: GraphState): {
     nodes: Object.values(graph.nodes).map((node) =>
       toFlowNode(node, graph, labels),
     ),
-    edges: drawn.map(toFlowEdge),
+    edges: drawn.map((edge) => toFlowEdge(edge, edgeStyle)),
   };
 }

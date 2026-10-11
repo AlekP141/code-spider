@@ -145,7 +145,11 @@ describe("settings", () => {
 
   it("applies the first one, normalised, without a fit", () => {
     const state = twoGraphs();
-    const next = reduceApp(state, { type: "settings", columnGap: 100 });
+    const next = reduceApp(state, {
+      type: "settings",
+      columnGap: 100,
+      edgeStyle: "stepped",
+    });
     expect(next.view.columnGap).toBe(96);
     expect(next.settingsApplied).toBe(true);
     expect(next.fit).toBe(state.fit);
@@ -154,8 +158,16 @@ describe("settings", () => {
   });
 
   it("ignores later ones", () => {
-    const first = reduceApp(twoGraphs(), { type: "settings", columnGap: 128 });
-    const again = reduceApp(first, { type: "settings", columnGap: 256 });
+    const first = reduceApp(twoGraphs(), {
+      type: "settings",
+      columnGap: 128,
+      edgeStyle: "stepped",
+    });
+    const again = reduceApp(first, {
+      type: "settings",
+      columnGap: 256,
+      edgeStyle: "curved",
+    });
     expect(again).toBe(first);
     expect(again.view.columnGap).toBe(128);
   });
@@ -164,6 +176,7 @@ describe("settings", () => {
     const applied = reduceApp(createAppState(undefined), {
       type: "settings",
       columnGap: 128,
+      edgeStyle: "curved",
     });
     expect(createAppState(applied.view).settingsApplied).toBe(false);
   });

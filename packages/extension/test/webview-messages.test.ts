@@ -82,6 +82,20 @@ describe("parseWebviewMessage", () => {
     });
   });
 
+  it("accepts setEdgeStyle with a known name and drops any other", () => {
+    for (const value of ["stepped", "curved"]) {
+      expect(parseWebviewMessage({ type: "setEdgeStyle", value })).toEqual({
+        type: "setEdgeStyle",
+        value,
+      });
+    }
+    for (const value of ["wavy", "Curved", 1, null, undefined]) {
+      expect(
+        parseWebviewMessage({ type: "setEdgeStyle", value }),
+      ).toBeUndefined();
+    }
+  });
+
   it("drops anything malformed or unknown", () => {
     expect(parseWebviewMessage(null)).toBeUndefined();
     expect(parseWebviewMessage("ready")).toBeUndefined();

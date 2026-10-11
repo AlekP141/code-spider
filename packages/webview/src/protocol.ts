@@ -1,4 +1,5 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
+import type { EdgeStyle } from "./edge-style.js";
 
 export type SliceMode =
   | { kind: "centre"; sourceVersion: number }
@@ -15,7 +16,7 @@ export type ExtensionToWebview =
   | { type: "analysisError"; message: string }
   | { type: "busy"; busy: boolean }
   | { type: "indexing"; indexing: boolean }
-  | { type: "settings"; columnGap: number }
+  | { type: "settings"; columnGap: number; edgeStyle: EdgeStyle }
   | {
       type: "refreshed";
       project: string;
@@ -34,6 +35,7 @@ export type WebviewToExtension =
   | { type: "focus"; project: string; nodeId: NodeId }
   | { type: "expand"; project: string; nodeId: NodeId; generation: number }
   | { type: "setColumnGap"; value: number }
+  | { type: "setEdgeStyle"; value: EdgeStyle }
   | {
       type: "refresh";
       project: string;

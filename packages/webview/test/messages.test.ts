@@ -38,7 +38,24 @@ describe("isExtensionMessage", () => {
     expect(isExtensionMessage({ type: "indexing", indexing: false })).toBe(
       true,
     );
-    expect(isExtensionMessage({ type: "settings", columnGap: 192 })).toBe(true);
+    expect(
+      isExtensionMessage({
+        type: "settings",
+        columnGap: 192,
+        edgeStyle: "curved",
+      }),
+    ).toBe(true);
+  });
+
+  it("needs a known edgeStyle on settings", () => {
+    const settings = { type: "settings", columnGap: 192 };
+    expect(isExtensionMessage(settings)).toBe(false);
+    for (const edgeStyle of ["wavy", 1, null]) {
+      expect(isExtensionMessage({ ...settings, edgeStyle })).toBe(false);
+    }
+    expect(isExtensionMessage({ ...settings, edgeStyle: "stepped" })).toBe(
+      true,
+    );
   });
 
   it("accepts refreshed and refreshFailed when well-formed", () => {
@@ -106,9 +123,13 @@ describe("isExtensionMessage", () => {
     expect(isExtensionMessage("busy")).toBe(false);
     expect(isExtensionMessage({ type: "busy", busy: "yes" })).toBe(false);
     expect(isExtensionMessage({ type: "analysisError" })).toBe(false);
-    expect(isExtensionMessage({ type: "settings", columnGap: "wide" })).toBe(
-      false,
-    );
+    expect(
+      isExtensionMessage({
+        type: "settings",
+        columnGap: "wide",
+        edgeStyle: "stepped",
+      }),
+    ).toBe(false);
     expect(isExtensionMessage({ type: "expandFailed", nodeId: "a#b" })).toBe(
       false,
     );
@@ -184,9 +205,13 @@ describe("isExtensionMessage", () => {
       expect(isExtensionMessage({ type: "sourceChanged", version: bad })).toBe(
         false,
       );
-      expect(isExtensionMessage({ type: "settings", columnGap: bad })).toBe(
-        false,
-      );
+      expect(
+        isExtensionMessage({
+          type: "settings",
+          columnGap: bad,
+          edgeStyle: "stepped",
+        }),
+      ).toBe(false);
     }
   });
 });

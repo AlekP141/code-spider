@@ -2,6 +2,7 @@ import type { NodeId } from "@code-spider/core/types";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { canRefresh, showsChangeDot } from "./app-refresh.js";
 import { createAppState, isWorking, reduceApp } from "./app-state.js";
+import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "./edge-style.js";
 import { GraphView } from "./graph/GraphView.js";
 import { expandMessage, refreshMessage } from "./graph/jump.js";
 import type { NodeActions } from "./graph/node-context.js";
@@ -29,6 +30,7 @@ export function App() {
   useWalkTimers(state, dispatch);
   const working = isWorking(state);
   const spinner = useDelayedFlag(working, SPINNER_DELAY_MS);
+  const edgeStyle = state.view.edgeStyle ?? DEFAULT_EDGE_STYLE;
   const graph = state.view.current;
   const project = graph?.project;
   const generation = graph?.generation;
@@ -55,6 +57,11 @@ export function App() {
     postToExtension(refreshMessage(graph));
   }, [refreshable, graph]);
 
+  const onEdgeStyle = useCallback((value: EdgeStyle) => {
+    dispatch({ type: "edgeStyleChanged", value });
+    postToExtension({ type: "setEdgeStyle", value });
+  }, []);
+
   const onDragStop = useCallback(
     (positions: Record<NodeId, Point>) =>
       dispatch({ type: "dragStopped", positions }),
@@ -78,10 +85,12 @@ export function App() {
         canRefresh={refreshable}
         changedSince={showsChangeDot(state)}
         columnGap={state.view.columnGap}
+        edgeStyle={edgeStyle}
         onBack={onBack}
         onTidy={tidy}
         onRefresh={onRefresh}
         onColumnGap={onColumnGap}
+        onEdgeStyle={onEdgeStyle}
       />
       {state.indexing ? (
         <div className="banner" role="status">
@@ -101,6 +110,7 @@ export function App() {
           <GraphView
             graph={graph}
             columnGap={state.view.columnGap}
+            edgeStyle={edgeStyle}
             fit={state.fit}
             ui={{ ...state, busy: working }}
             actions={actions}

@@ -1,5 +1,6 @@
 import type { EdgeType, NodeKind } from "@code-spider/core/types";
 import { normaliseColumnGap } from "../column-gap.js";
+import { isEdgeStyle } from "../edge-style.js";
 import type { GraphState, ViewState } from "./types.js";
 import { HISTORY_LIMIT } from "./view-state.js";
 
@@ -153,6 +154,7 @@ export function isViewState(value: unknown): value is ViewState {
     Number.isInteger(value.nextGeneration) &&
     (value.nextGeneration as number) >= 1 &&
     isNormalisedGap(value.columnGap) &&
+    (value.edgeStyle === undefined || isEdgeStyle(value.edgeStyle)) &&
     (value.current === undefined || isGraphState(value.current)) &&
     Array.isArray(value.history) &&
     value.history.length <= HISTORY_LIMIT &&

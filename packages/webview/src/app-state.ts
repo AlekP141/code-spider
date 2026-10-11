@@ -6,6 +6,7 @@ import {
   noteSourceChanged,
   startRefresh,
 } from "./app-refresh.js";
+import { applySettings, withColumnGap, withEdgeStyle } from "./app-settings.js";
 import {
   acceptAnswer,
   collapseExpanded,
@@ -17,7 +18,7 @@ import {
   unpinBox,
 } from "./app-walk.js";
 import { isWorking } from "./app-working.js";
-import { normaliseColumnGap } from "./column-gap.js";
+import type { EdgeStyle } from "./edge-style.js";
 import type { Rect } from "./graph/placement.js";
 import { graphFromSlice, pinNodes, setPositions } from "./view/graph-state.js";
 import { isViewState } from "./view/persist.js";
@@ -77,7 +78,8 @@ export type LocalAction =
   | { type: "enteringExpired"; token: number }
   | { type: "back" }
   | { type: "refreshStarted" }
-  | { type: "columnGapChanged"; value: number };
+  | { type: "columnGapChanged"; value: number }
+  | { type: "edgeStyleChanged"; value: EdgeStyle };
 
 export type AppAction = ExtensionToWebview | LocalAction;
 
@@ -131,12 +133,6 @@ function refit(state: AppState, duration: number): FitRequest {
   return { token: state.fit.token + 1, duration };
 }
 
-function withColumnGap(state: AppState, raw: number): AppState {
-  const columnGap = normaliseColumnGap(raw);
-  if (columnGap === state.view.columnGap) return state;
-  return { ...state, view: { ...state.view, columnGap } };
-}
-
 /** The slider moved while ELK ran, so lay the same centre out again. */
 function relayoutPending(state: AppState, pending: PendingCentre): AppState {
   return {
@@ -186,9 +182,7 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
     case "sourceChanged":
       return noteSourceChanged(state, action.version);
     case "settings":
-      return state.settingsApplied
-        ? state
-        : { ...withColumnGap(state, action.columnGap), settingsApplied: true };
+      return applySettings(state, action);
     case "centreLaidOut": {
       if (state.pending?.id !== action.id) return state;
       if (state.pending.columnGap !== state.view.columnGap) {
@@ -246,5 +240,7 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return startRefresh(state);
     case "columnGapChanged":
       return withColumnGap(state, action.value);
+    case "edgeStyleChanged":
+      return withEdgeStyle(state, action.value);
   }
 }

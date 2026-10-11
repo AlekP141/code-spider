@@ -1,4 +1,5 @@
 import { COLUMN_GAP } from "../column-gap.js";
+import { EDGE_STYLES, type EdgeStyle } from "../edge-style.js";
 
 export type ToolbarProps = {
   canBack: boolean;
@@ -6,13 +7,19 @@ export type ToolbarProps = {
   canRefresh: boolean;
   changedSince: boolean;
   columnGap: number;
+  edgeStyle: EdgeStyle;
   onBack(): void;
   onTidy(): void;
   onRefresh(): void;
   onColumnGap(value: number): void;
+  onEdgeStyle(value: EdgeStyle): void;
 };
 
 const REFRESH_TITLE = "Re-read the code for this graph";
+const STYLE_LABELS: Record<EdgeStyle, string> = {
+  stepped: "Stepped",
+  curved: "Curved",
+};
 const CHANGED_LABEL = "Files changed since this graph was drawn";
 
 export function Toolbar(props: ToolbarProps) {
@@ -46,6 +53,24 @@ export function Toolbar(props: ToolbarProps) {
           <span className="toolbar-dot" role="img" aria-label={CHANGED_LABEL} />
         ) : null}
       </button>
+      <div className="toolbar-lines" role="group" aria-label="Lines">
+        {EDGE_STYLES.map((style) => {
+          const pressed = style === props.edgeStyle;
+          return (
+            <button
+              key={style}
+              type="button"
+              className="toolbar-button toolbar-toggle"
+              aria-pressed={pressed}
+              onClick={() => {
+                if (!pressed) props.onEdgeStyle(style);
+              }}
+            >
+              {STYLE_LABELS[style]}
+            </button>
+          );
+        })}
+      </div>
       <label className="toolbar-spacing">
         <span>Spacing</span>
         <input
