@@ -107,6 +107,33 @@ describe("isGraphState", () => {
     expect(isGraphState({ ...graph, generation: "1" })).toBe(false);
   });
 
+  it("accepts a missing or numeric sourceVersion and rejects the rest", () => {
+    expect(isGraphState({ ...graph, sourceVersion: undefined })).toBe(true);
+    expect(isGraphState({ ...graph, sourceVersion: 0 })).toBe(true);
+    expect(isGraphState({ ...graph, sourceVersion: 7 })).toBe(true);
+    expect(isGraphState({ ...graph, sourceVersion: "7" })).toBe(false);
+    expect(isGraphState({ ...graph, sourceVersion: Number.NaN })).toBe(false);
+    expect(isGraphState({ ...graph, sourceVersion: Infinity })).toBe(false);
+  });
+
+  it("checks sourceVersion on the current graph and on history", () => {
+    const view = commitCentre(createView(), graphOf("a", ["b"]));
+    const current = view.current;
+    if (!current) throw new Error("no graph");
+    const good = { ...current, sourceVersion: 4 };
+    const bad = { ...current, sourceVersion: Number.NaN };
+    expect(isViewState({ ...view, current: good })).toBe(true);
+    expect(isViewState({ ...view, current: bad })).toBe(false);
+    expect(isViewState({ ...view, current: undefined, history: [good] })).toBe(
+      true,
+    );
+    expect(isViewState({ ...view, current: undefined, history: [bad] })).toBe(
+      false,
+    );
+    const stringy = { ...current, sourceVersion: "4" };
+    expect(isViewState({ ...view, history: [stringy] })).toBe(false);
+  });
+
   it("rejects nodes with a wrong kind, range or flag", () => {
     const node = graph.nodes[id("a")];
     for (const broken of [

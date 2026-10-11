@@ -21,6 +21,8 @@ export type GraphState = {
   revision: number;
   /** The gap its positions were laid out with; absent in older saves. */
   columnGap?: number;
+  /** The change counter when this graph's data was read; absent in older saves. */
+  sourceVersion?: number;
 };
 
 export type ViewState = {

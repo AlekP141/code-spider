@@ -1,6 +1,7 @@
-import type { GraphSlice } from "@code-spider/core/types";
+import type { GraphNode, GraphSlice } from "@code-spider/core/types";
 import { graphFromSlice } from "../../src/view/graph-state.js";
-import type { GraphState } from "../../src/view/types.js";
+import type { RefreshAnswer } from "../../src/view/refresh.js";
+import type { GraphState, Point } from "../../src/view/types.js";
 import { makeEdge, makeNode, makeSlice } from "./slices.js";
 
 export const PROJECT = "/repo/tsconfig.json";
@@ -37,4 +38,40 @@ export function nodeIds(graph: GraphState): string[] {
 
 export function edgeIds(graph: GraphState): string[] {
   return Object.keys(graph.edges).sort();
+}
+
+export function withPositions(
+  graph: GraphState,
+  positions: Record<string, Point>,
+): GraphState {
+  return { ...graph, positions };
+}
+
+export function tweakNode(
+  slice: GraphSlice,
+  name: string,
+  patch: Partial<GraphNode>,
+): GraphSlice {
+  return {
+    ...slice,
+    nodes: slice.nodes.map((node) =>
+      node.id === id(name) ? { ...node, ...patch } : node,
+    ),
+  };
+}
+
+export function answerOf(
+  current: GraphState,
+  centre: GraphSlice,
+  expansions: RefreshAnswer["expansions"] = [],
+  sourceVersion = 1,
+): RefreshAnswer {
+  return {
+    type: "refreshed",
+    project: current.project,
+    generation: current.generation,
+    sourceVersion,
+    centre,
+    expansions,
+  };
 }

@@ -80,8 +80,10 @@ export type Placement = {
   columnGap: number;
 };
 
-const byId = (a: AddedNode, b: AddedNode) =>
-  a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+export const compareIds = (a: string, b: string) =>
+  a < b ? -1 : a > b ? 1 : 0;
+
+const byId = (a: AddedNode, b: AddedNode) => compareIds(a.id, b.id);
 
 /**
  * Suppliers of the expanded node go one column to its left, everything else one

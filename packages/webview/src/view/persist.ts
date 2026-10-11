@@ -135,6 +135,7 @@ export function isGraphState(value: unknown): value is GraphState {
     everyValue(value.positions, isPoint) &&
     isStringArray(value.pinned) &&
     isNumber(value.revision) &&
+    (value.sourceVersion === undefined || isNumber(value.sourceVersion)) &&
     (value.columnGap === undefined || isNormalisedGap(value.columnGap)) &&
     isConsistent(value as GraphState)
   );

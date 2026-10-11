@@ -15,7 +15,7 @@ export type ExpansionAnswer = {
 
 export type Accepted = { view: ViewState; added: NodeId[] };
 
-function rectsOf(graph: GraphState): Rect[] {
+export function rectsOf(graph: GraphState): Rect[] {
   return Object.entries(graph.positions).flatMap(([nodeId, at]) => {
     const node = graph.nodes[nodeId];
     return node ? [{ ...at, width: NODE_WIDTH, height: nodeHeight(node) }] : [];
