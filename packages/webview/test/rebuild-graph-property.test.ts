@@ -140,6 +140,9 @@ describe("rebuildGraph on random graphs", () => {
       );
       const { graph } = result;
       const pinned = new Set(graph.pinned);
+      const suppliers = new Set(
+        Object.values(graph.edges).map((edge) => edge.from),
+      );
 
       const kept = Object.keys(graph.nodes).filter((nodeId) =>
         Object.hasOwn(current.positions, nodeId),
@@ -155,9 +158,11 @@ describe("rebuildGraph on random graphs", () => {
         if (pinned.has(nodeId)) {
           expect(after.y, `${label} ${nodeId} pinned`).toBe(before.y);
         } else {
-          expect(after.y, `${label} ${nodeId} up`).toBeGreaterThanOrEqual(
-            before.y,
-          );
+          if (!suppliers.has(nodeId)) {
+            expect(after.y, `${label} ${nodeId} up`).toBeGreaterThanOrEqual(
+              before.y,
+            );
+          }
           if (after.y > before.y) slid += 1;
         }
       }

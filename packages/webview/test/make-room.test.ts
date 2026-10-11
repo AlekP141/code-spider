@@ -109,4 +109,50 @@ describe("makeRoom", () => {
     makeRoom(boxes, none, GAP);
     expect(boxes).toEqual(before);
   });
+
+  describe("with chains", () => {
+    const boxes = [
+      box("m1", 0, 0, 356),
+      box("m2", 0, 388, 84),
+      box("p", 0, 20, 84),
+      box("q", 0, 520, 84),
+    ];
+    const pinned = new Set(["p", "q"]);
+    const below = 520 + 84 + MARGIN;
+
+    it("lets a pinned box push a box past one that comes after it when there is no chain", () => {
+      expect(makeRoom(boxes, pinned, GAP)).toEqual({ m1: { x: 0, y: below } });
+      expect(makeRoom(boxes, pinned, GAP, [])).toEqual(
+        makeRoom(boxes, pinned, GAP),
+      );
+    });
+
+    it("keeps a chain top to bottom by starting each member below the one before it", () => {
+      expect(makeRoom(boxes, pinned, GAP, [["m1", "m2"]])).toEqual({
+        m1: { x: 0, y: below },
+        m2: { x: 0, y: below + 356 + MARGIN },
+      });
+    });
+
+    it("uses the nearest earlier member of the chain that was given its place", () => {
+      const three = [...boxes, box("m3", 0, 900, 50)];
+      expect(makeRoom(three, pinned, GAP, [["m1", "m2", "m3"]])).toEqual({
+        m1: { x: 0, y: below },
+        m2: { x: 0, y: below + 356 + MARGIN },
+        m3: { x: 0, y: below + 356 + MARGIN + 84 + MARGIN },
+      });
+    });
+
+    it("skips chain members that are not among the boxes", () => {
+      expect(makeRoom(boxes, pinned, GAP, [["m1", "gone", "m2"]])).toEqual({
+        m1: { x: 0, y: below },
+        m2: { x: 0, y: below + 356 + MARGIN },
+      });
+    });
+
+    it("does not move a chain whose order already holds", () => {
+      const tidy = [box("c1", 0, 0, 100), box("c2", 0, 100 + MARGIN, 100)];
+      expect(makeRoom(tidy, none, GAP, [["c1", "c2"]])).toEqual({});
+    });
+  });
 });

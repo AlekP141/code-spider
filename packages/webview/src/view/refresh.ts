@@ -6,14 +6,13 @@ import { placeExpansion } from "../graph/placement.js";
 import type { ExtensionToWebview } from "../protocol.js";
 import { rectsOf } from "./expansion.js";
 import { graphFromSlice, isExpanded, mergeExpansion } from "./graph-state.js";
+import { freshPerSlice, restackPass, type Applied } from "./refresh-order.js";
 import type { GraphState, Point } from "./types.js";
 
 export type RefreshAnswer = Extract<ExtensionToWebview, { type: "refreshed" }>;
 
 /** `added` holds the nodes that had no position to keep. */
 export type Rebuilt = { graph: GraphState; added: NodeId[] };
-
-type Applied = { key: NodeId; slice: GraphSlice };
 
 /** Like `mergeExpansion`, but a node or edge already there is replaced. */
 function applySlice(
@@ -79,6 +78,42 @@ function keptBoxes(
   });
 }
 
+function placePass(input: {
+  rebuilt: GraphState;
+  applied: readonly Applied[];
+  fresh: readonly (readonly NodeId[])[];
+  positions: Record<NodeId, Point>;
+  heights: Readonly<Record<NodeId, number>>;
+  columnGap: number;
+}): { positions: Record<NodeId, Point>; added: NodeId[] } {
+  let positions = input.positions;
+  const added: NodeId[] = [];
+  for (const [index, { key, slice }] of input.applied.entries()) {
+    const unplaced = (input.fresh[index] ?? []).filter(
+      (nodeId) => !Object.hasOwn(positions, nodeId),
+    );
+    if (unplaced.length === 0) continue;
+    const placed = placeExpansion({
+      expandedId: key,
+      anchor: {
+        ...(positions[key] ?? { x: 0, y: 0 }),
+        width: NODE_WIDTH,
+        height: input.heights[key] ?? 0,
+      },
+      added: unplaced.map((nodeId) => ({
+        id: nodeId,
+        height: input.heights[nodeId] ?? 0,
+      })),
+      edges: slice.edges,
+      existing: rectsOf({ ...input.rebuilt, positions }),
+      columnGap: input.columnGap,
+    });
+    positions = { ...positions, ...placed };
+    added.push(...Object.keys(placed));
+  }
+  return { positions, added };
+}
+
 /**
  * The graph a refresh answer describes, with the user's positions and pins
  * kept, the boxes that grew given room, and the new nodes placed around the
@@ -93,36 +128,39 @@ export function rebuildGraph(
   const { graph: rebuilt, applied } = rebuildSlices(current, answer);
   const has = (nodeId: NodeId) => Object.hasOwn(rebuilt.nodes, nodeId);
   const pinned = current.pinned.filter(has);
+  const pinnedIds = new Set(pinned);
   const kept = Object.fromEntries(
     Object.entries(current.positions).filter(([nodeId]) => has(nodeId)),
   );
-  let positions: Record<NodeId, Point> = {
-    ...kept,
-    ...makeRoom(keptBoxes(rebuilt, kept), new Set(pinned), columnGap),
-  };
+  const heights = Object.fromEntries(
+    Object.values(rebuilt.nodes).map((node) => [node.id, nodeHeight(node)]),
+  );
+  const fresh = freshPerSlice(applied, new Set(Object.keys(kept)));
 
-  const claimed = new Set(Object.keys(kept));
-  const added: NodeId[] = [];
-  for (const { key, slice } of applied) {
-    const fresh = slice.nodes.filter((node) => !claimed.has(node.id));
-    if (fresh.length === 0) continue;
-    for (const node of fresh) claimed.add(node.id);
-    const anchorNode = rebuilt.nodes[key];
-    const placed = placeExpansion({
-      expandedId: key,
-      anchor: {
-        ...(positions[key] ?? { x: 0, y: 0 }),
-        width: NODE_WIDTH,
-        height: anchorNode ? nodeHeight(anchorNode) : 0,
-      },
-      added: fresh.map((node) => ({ id: node.id, height: nodeHeight(node) })),
-      edges: slice.edges,
-      existing: rectsOf({ ...rebuilt, positions }),
-      columnGap,
-    });
-    positions = { ...positions, ...placed };
-    added.push(...Object.keys(placed));
-  }
+  const restacked = restackPass({
+    applied,
+    fresh,
+    positions: kept,
+    pinned: pinnedIds,
+    heights,
+    columnGap,
+  });
+  const room = makeRoom(
+    keptBoxes(rebuilt, restacked.positions),
+    pinnedIds,
+    columnGap,
+    restacked.chains,
+  );
+  const placed = placePass({
+    rebuilt,
+    applied,
+    fresh,
+    positions: { ...restacked.positions, ...room },
+    heights,
+    columnGap,
+  });
+  const positions = placed.positions;
+  const added = [...restacked.added, ...placed.added];
 
   return {
     graph: {
