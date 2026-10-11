@@ -4,11 +4,48 @@ import { parseWebviewMessage } from "../src/panel/messages.js";
 const project = "/repo/tsconfig.json";
 
 describe("parseWebviewMessage", () => {
-  it("accepts the messages with no payload", () => {
+  it("accepts ready with no payload", () => {
     expect(parseWebviewMessage({ type: "ready" })).toEqual({ type: "ready" });
-    expect(parseWebviewMessage({ type: "refresh" })).toEqual({
+  });
+
+  it("accepts refresh with all four fields", () => {
+    const refresh = {
       type: "refresh",
+      project,
+      generation: 2,
+      focusId: "a.ts#f",
+      expanded: ["a.ts#g", "b.ts#h"],
+    };
+    expect(parseWebviewMessage(refresh)).toEqual(refresh);
+    expect(parseWebviewMessage({ ...refresh, expanded: [] })).toEqual({
+      ...refresh,
+      expanded: [],
     });
+  });
+
+  it("drops a refresh with a missing or mistyped field", () => {
+    const refresh = {
+      type: "refresh",
+      project,
+      generation: 2,
+      focusId: "a.ts#f",
+      expanded: ["a.ts#g"],
+    };
+    expect(parseWebviewMessage({ type: "refresh" })).toBeUndefined();
+    for (const bad of [
+      { project: undefined },
+      { project: 3 },
+      { generation: undefined },
+      { generation: "2" },
+      { generation: 1.5 },
+      { focusId: undefined },
+      { focusId: 7 },
+      { expanded: undefined },
+      { expanded: "a.ts#g" },
+      { expanded: ["a.ts#g", 4] },
+    ]) {
+      expect(parseWebviewMessage({ ...refresh, ...bad })).toBeUndefined();
+    }
   });
 
   it("accepts node messages with a project and a string nodeId", () => {

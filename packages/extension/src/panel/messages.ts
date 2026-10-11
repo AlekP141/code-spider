@@ -1,5 +1,11 @@
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
 /** Messages arrive from a script context, so shape-check before trusting them. */
 export function parseWebviewMessage(
   value: unknown,
@@ -9,8 +15,21 @@ export function parseWebviewMessage(
   const { project, nodeId } = message;
   switch (message.type) {
     case "ready":
+      return { type: "ready" };
     case "refresh":
-      return { type: message.type };
+      return typeof project === "string" &&
+        typeof message.generation === "number" &&
+        Number.isInteger(message.generation) &&
+        typeof message.focusId === "string" &&
+        isStringArray(message.expanded)
+        ? {
+            type: "refresh",
+            project,
+            generation: message.generation,
+            focusId: message.focusId,
+            expanded: message.expanded,
+          }
+        : undefined;
     case "openInEditor":
     case "focus":
       return typeof project === "string" && typeof nodeId === "string"

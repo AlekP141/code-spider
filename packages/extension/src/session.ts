@@ -8,6 +8,12 @@ import type {
   Notifier,
   PanelPort,
 } from "./ports.js";
+import {
+  CENTRE_GONE_MESSAGE,
+  recordRefresh,
+  refreshedMessage,
+  refreshFailedMessage,
+} from "./session-refresh.js";
 import type { FocusResult } from "./worker/protocol.js";
 import { WorkerCrashedError } from "./worker/worker-client.js";
 
@@ -24,6 +30,13 @@ export type FocusRequest = {
 /** A node of a project the panel already shows, named by the webview. */
 export type NodeRequest = { project: string; nodeId: NodeId };
 export type ExpandRequest = NodeRequest & { generation: number };
+
+export type RefreshGraphRequest = {
+  project: string;
+  generation: number;
+  focusId: NodeId;
+  expanded: NodeId[];
+};
 
 export type CurrentGraph = FocusResult;
 
@@ -125,6 +138,36 @@ export class GraphSession {
     }
   }
 
+  /** Rebuilds the graph on screen; never starts a newer centre request. */
+  async refresh(request: RefreshGraphRequest): Promise<void> {
+    const { worker, panel, changes, jumps } = this.deps;
+    const { project, generation, focusId, expanded } = request;
+    if (!jumps.has(project)) {
+      panel.post(refreshFailedMessage(generation, UNKNOWN_PROJECT));
+      return;
+    }
+    const token = this.latest;
+    await this.withBusy(async () => {
+      try {
+        const { files, version } = changes.drain();
+        const result = await worker.refresh(project, focusId, expanded, files);
+        if (token !== this.latest || !panel.isOpen()) return;
+        const { centre } = result;
+        if (!centre) {
+          panel.post(refreshFailedMessage(generation, CENTRE_GONE_MESSAGE));
+          return;
+        }
+        this.graph = recordRefresh(jumps, result, centre);
+        panel.post(refreshedMessage(generation, version, result, centre));
+      } catch (error) {
+        if (token !== this.latest || !panel.isOpen()) return;
+        const message = this.describeFailure(error);
+        panel.post(refreshFailedMessage(generation, message));
+        this.notifyCrash(error, message);
+      }
+    });
+  }
+
   /** Loads and warms the project so the first focus is fast (perf note). */
   async warm(file: string): Promise<void> {
     const { worker, changes } = this.deps;
@@ -146,24 +189,34 @@ export class GraphSession {
   ): Promise<void> {
     const { panel, jumps } = this.deps;
     const token = ++this.latest;
+    await this.withBusy(async () => {
+      try {
+        const result = await analyse();
+        if (token !== this.latest || !panel.isOpen()) return;
+        this.graph = result;
+        jumps.add(result.tsconfig, result);
+        panel.post({
+          type: "slice",
+          slice: result.slice,
+          project: result.tsconfig,
+          mode: { kind: "centre" },
+        });
+      } catch (error) {
+        if (token !== this.latest || !panel.isOpen()) return;
+        const message = this.describeFailure(error);
+        panel.post({ type: "analysisError", message });
+        this.notifyCrash(error, message);
+      }
+    });
+  }
+
+  /** Busy stays on until every centre request and refresh has settled. */
+  private async withBusy(work: () => Promise<void>): Promise<void> {
+    const { panel } = this.deps;
     this.outstanding += 1;
     panel.post({ type: "busy", busy: true });
     try {
-      const result = await analyse();
-      if (token !== this.latest || !panel.isOpen()) return;
-      this.graph = result;
-      jumps.add(result.tsconfig, result);
-      panel.post({
-        type: "slice",
-        slice: result.slice,
-        project: result.tsconfig,
-        mode: { kind: "centre" },
-      });
-    } catch (error) {
-      if (token !== this.latest || !panel.isOpen()) return;
-      const message = this.describeFailure(error);
-      panel.post({ type: "analysisError", message });
-      this.notifyCrash(error, message);
+      await work();
     } finally {
       this.outstanding -= 1;
       if (this.outstanding === 0) panel.post({ type: "busy", busy: false });

@@ -10,6 +10,8 @@ function kindOf(message: ExtensionToWebview): Kind {
     case "analysisError":
       return "content";
     case "expandFailed":
+    case "refreshed":
+    case "refreshFailed":
       return "ephemeral";
     case "settings":
     case "indexing":
@@ -26,8 +28,9 @@ const REPLAY_ORDER: Replayed[] = ["settings", "indexing", "busy"];
  * three kinds apart:
  * - content (a centre slice, an error) waits for the first `ready` and is
  *   delivered once;
- * - ephemeral messages (an expansion slice, a failed expansion) are sent when
- *   ready and dropped otherwise, so a late answer never reaches a new panel;
+ * - ephemeral messages (an expansion slice, a failed expansion, a refresh
+ *   answer) are sent when ready and dropped otherwise, so a late answer
+ *   never reaches a new panel;
  * - settings, indexing and busy are state: the latest of each replays on
  *   every `ready`.
  */

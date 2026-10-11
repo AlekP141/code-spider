@@ -15,9 +15,17 @@ export type ExtensionToWebview =
   | { type: "analysisError"; message: string }
   | { type: "busy"; busy: boolean }
   | { type: "indexing"; indexing: boolean }
-  | { type: "settings"; columnGap: number };
+  | { type: "settings"; columnGap: number }
+  | {
+      type: "refreshed";
+      project: string;
+      generation: number;
+      sourceVersion: number;
+      centre: GraphSlice;
+      expansions: { nodeId: NodeId; slice: GraphSlice }[];
+    }
+  | { type: "refreshFailed"; generation: number; message: string };
 
-/** `refresh` is in the spec's protocol; M3b handles it. */
 export type WebviewToExtension =
   | { type: "ready" }
   | { type: "openInEditor"; project: string; nodeId: NodeId }
@@ -25,4 +33,10 @@ export type WebviewToExtension =
   | { type: "focus"; project: string; nodeId: NodeId }
   | { type: "expand"; project: string; nodeId: NodeId; generation: number }
   | { type: "setColumnGap"; value: number }
-  | { type: "refresh" };
+  | {
+      type: "refresh";
+      project: string;
+      generation: number;
+      focusId: NodeId;
+      expanded: NodeId[];
+    };

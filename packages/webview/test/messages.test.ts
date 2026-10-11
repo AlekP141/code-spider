@@ -33,6 +33,66 @@ describe("isExtensionMessage", () => {
     expect(isExtensionMessage({ type: "settings", columnGap: 192 })).toBe(true);
   });
 
+  it("accepts refreshed and refreshFailed when well-formed", () => {
+    expect(
+      isExtensionMessage({
+        type: "refreshed",
+        project,
+        generation: 2,
+        sourceVersion: 5,
+        centre: slice,
+        expansions: [{ nodeId: "a#c", slice }],
+      }),
+    ).toBe(true);
+    expect(
+      isExtensionMessage({
+        type: "refreshed",
+        project,
+        generation: 2,
+        sourceVersion: 0,
+        centre: slice,
+        expansions: [],
+      }),
+    ).toBe(true);
+    expect(
+      isExtensionMessage({
+        type: "refreshFailed",
+        generation: 2,
+        message: "x",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects malformed refreshed and refreshFailed messages", () => {
+    const refreshed = {
+      type: "refreshed",
+      project,
+      generation: 2,
+      sourceVersion: 5,
+      centre: slice,
+      expansions: [],
+    };
+    for (const bad of [
+      { project: undefined },
+      { generation: "2" },
+      { sourceVersion: undefined },
+      { centre: null },
+      { centre: undefined },
+      { expansions: undefined },
+      { expansions: [null] },
+      { expansions: [{ nodeId: 3, slice }] },
+      { expansions: [{ nodeId: "a#c", slice: null }] },
+    ]) {
+      expect(isExtensionMessage({ ...refreshed, ...bad })).toBe(false);
+    }
+    expect(isExtensionMessage({ type: "refreshFailed", message: "x" })).toBe(
+      false,
+    );
+    expect(isExtensionMessage({ type: "refreshFailed", generation: 2 })).toBe(
+      false,
+    );
+  });
+
   it("rejects malformed payloads", () => {
     expect(isExtensionMessage(undefined)).toBe(false);
     expect(isExtensionMessage("busy")).toBe(false);

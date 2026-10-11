@@ -6,6 +6,7 @@ function setup() {
   const session = {
     focusNode: vi.fn(async () => undefined),
     expand: vi.fn(async () => undefined),
+    refresh: vi.fn(async () => undefined),
   };
   const columnGap = { set: vi.fn(async () => undefined) };
   return {
@@ -74,13 +75,38 @@ describe("createDispatcher", () => {
     expect(session.expand).not.toHaveBeenCalled();
   });
 
-  it("ignores ready and refresh", async () => {
+  it("routes refresh to the session with its four fields and runs nothing else", async () => {
     const { jumps, session, columnGap, dispatch } = setup();
-    await dispatch({ type: "ready" });
-    await dispatch({ type: "refresh" });
+    await dispatch({
+      type: "refresh",
+      project: "/p/tsconfig.json",
+      generation: 6,
+      focusId: "a.ts#f",
+      expanded: ["a.ts#g"],
+    });
+    expect(session.refresh.mock.calls).toEqual([
+      [
+        {
+          project: "/p/tsconfig.json",
+          generation: 6,
+          focusId: "a.ts#f",
+          expanded: ["a.ts#g"],
+        },
+      ],
+    ]);
     expect(jumps.handle).not.toHaveBeenCalled();
     expect(session.focusNode).not.toHaveBeenCalled();
     expect(session.expand).not.toHaveBeenCalled();
+    expect(columnGap.set).not.toHaveBeenCalled();
+  });
+
+  it("ignores ready", async () => {
+    const { jumps, session, columnGap, dispatch } = setup();
+    await dispatch({ type: "ready" });
+    expect(jumps.handle).not.toHaveBeenCalled();
+    expect(session.focusNode).not.toHaveBeenCalled();
+    expect(session.expand).not.toHaveBeenCalled();
+    expect(session.refresh).not.toHaveBeenCalled();
     expect(columnGap.set).not.toHaveBeenCalled();
   });
 });

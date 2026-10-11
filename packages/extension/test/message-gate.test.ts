@@ -109,6 +109,43 @@ describe("MessageGate ephemeral messages", () => {
   });
 });
 
+describe("MessageGate refresh answers", () => {
+  const refreshed: ExtensionToWebview = {
+    type: "refreshed",
+    project: "/repo/tsconfig.json",
+    generation: 2,
+    sourceVersion: 5,
+    centre: { focusId: "a#one", nodes: [], edges: [], truncated: false },
+    expansions: [],
+  };
+  const refreshFailed: ExtensionToWebview = {
+    type: "refreshFailed",
+    generation: 2,
+    message: "gone",
+  };
+
+  it("sends them straight through once ready", () => {
+    const { sent, gate } = setup();
+    gate.markReady();
+    gate.post(refreshed);
+    gate.post(refreshFailed);
+    expect(sent).toEqual([refreshed, refreshFailed]);
+    sent.length = 0;
+    gate.markReady();
+    expect(sent).toEqual([]);
+  });
+
+  it("drops them while the webview is not ready and never replays them", () => {
+    const { sent, gate } = setup();
+    gate.post(refreshed);
+    gate.post(refreshFailed);
+    gate.markReady();
+    expect(sent).toEqual([]);
+    gate.markReady();
+    expect(sent).toEqual([]);
+  });
+});
+
 describe("MessageGate replayed state", () => {
   it("replays settings, then indexing, then busy, then content", () => {
     const { sent, gate } = setup();

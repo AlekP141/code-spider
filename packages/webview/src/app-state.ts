@@ -160,6 +160,9 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return { ...state, indexing: action.indexing };
     case "expandFailed":
       return failExpansion(state, action);
+    case "refreshed":
+    case "refreshFailed":
+      return state;
     case "settings":
       return state.settingsApplied
         ? state

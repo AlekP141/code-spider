@@ -9,10 +9,10 @@ export interface JumpPort {
 
 export type Dispatch = (message: WebviewToExtension) => Promise<void>;
 
-/** `ready` belongs to the panel's gate; `refresh` is M3b. */
+/** `ready` belongs to the panel's gate. */
 export function createDispatcher(deps: {
   jumps: JumpPort;
-  session: Pick<GraphSession, "focusNode" | "expand">;
+  session: Pick<GraphSession, "focusNode" | "expand" | "refresh">;
   columnGap: Pick<ColumnGapStore, "set">;
 }): Dispatch {
   return async (message) => {
@@ -31,10 +31,16 @@ export function createDispatcher(deps: {
           nodeId: message.nodeId,
           generation: message.generation,
         });
+      case "refresh":
+        return deps.session.refresh({
+          project: message.project,
+          generation: message.generation,
+          focusId: message.focusId,
+          expanded: message.expanded,
+        });
       case "setColumnGap":
         return deps.columnGap.set(message.value);
       case "ready":
-      case "refresh":
         return;
     }
   };

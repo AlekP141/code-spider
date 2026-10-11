@@ -11,6 +11,16 @@ function isMode(value: unknown): value is SliceMode {
   );
 }
 
+function isExpansionAnswer(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const answer = value as Record<string, unknown>;
+  return (
+    typeof answer.nodeId === "string" &&
+    typeof answer.slice === "object" &&
+    answer.slice !== null
+  );
+}
+
 export function isExtensionMessage(
   value: unknown,
 ): value is ExtensionToWebview {
@@ -40,6 +50,21 @@ export function isExtensionMessage(
       return (
         typeof message.columnGap === "number" &&
         Number.isFinite(message.columnGap)
+      );
+    case "refreshed":
+      return (
+        typeof message.project === "string" &&
+        typeof message.generation === "number" &&
+        typeof message.sourceVersion === "number" &&
+        typeof message.centre === "object" &&
+        message.centre !== null &&
+        Array.isArray(message.expansions) &&
+        message.expansions.every(isExpansionAnswer)
+      );
+    case "refreshFailed":
+      return (
+        typeof message.generation === "number" &&
+        typeof message.message === "string"
       );
     default:
       return false;
