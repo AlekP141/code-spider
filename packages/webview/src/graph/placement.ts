@@ -1,6 +1,7 @@
-import type { GraphEdge, NodeId } from "@code-spider/core/types";
+import type { NodeId } from "@code-spider/core/types";
 import { rowGap } from "../column-gap.js";
 import type { Point } from "../view/types.js";
+import { calledInOrder, type CallEdge } from "./call-order.js";
 import { compareIds } from "./compare-ids.js";
 import { NODE_WIDTH } from "./constants.js";
 
@@ -52,6 +53,25 @@ export function nearestFreeY(
   return nearestFirst.find(isFree) ?? underAll;
 }
 
+/** The smallest y from `rect.y` down where `rect` is clear of the obstacles. */
+export function lowestClearY(
+  rect: Rect,
+  obstacles: readonly Rect[],
+  margin: number,
+): number {
+  const candidates = [
+    rect.y,
+    ...obstacles.map((obstacle) => obstacle.y + obstacle.height + margin),
+  ]
+    .filter((y) => y >= rect.y)
+    .sort((a, b) => a - b);
+  return (
+    candidates.find((y) =>
+      obstacles.every((obstacle) => isClear({ ...rect, y }, obstacle, margin)),
+    ) ?? rect.y
+  );
+}
+
 /** Preferred tops for a stack of nodes `margin` apart, centred on a line. */
 export function stackTops(
   centreY: number,
@@ -75,7 +95,7 @@ export type Placement = {
   expandedId: NodeId;
   anchor: Rect;
   added: readonly AddedNode[];
-  edges: readonly Pick<GraphEdge, "from" | "to">[];
+  edges: readonly CallEdge[];
   /** Every node already in the graph, the anchor included. */
   existing: readonly Rect[];
   columnGap: number;
@@ -84,27 +104,27 @@ export type Placement = {
 const byId = (a: AddedNode, b: AddedNode) => compareIds(a.id, b.id);
 
 /**
- * Suppliers of the expanded node go one column to its left, everything else one
- * column to its right. Each column is a stack in id order centred on the
- * anchor, and each node then moves to the nearest free y, so nothing already in
- * the graph, dragged or not, is ever covered.
+ * Called functions of the expanded node go one column to its left in code
+ * order, everything else one column to its right in id order. Each column is a
+ * stack centred on the anchor. The first box takes the nearest free y; every
+ * later box takes the lowest free y at or below its preferred top and the box
+ * before it, so a column keeps its order and nothing already in the graph,
+ * dragged or not, is ever covered.
  */
 export function placeExpansion(input: Placement): Record<NodeId, Point> {
   const pitch = NODE_WIDTH + input.columnGap;
   const margin = rowGap(input.columnGap);
-  const suppliers = new Set(
-    input.edges
-      .filter((edge) => edge.to === input.expandedId)
-      .map((edge) => edge.from),
-  );
+  const addedById = new Map(input.added.map((node) => [node.id, node]));
+  const called = calledInOrder(input.expandedId, input.edges).flatMap((id) => {
+    const node = addedById.get(id);
+    return node ? [node] : [];
+  });
+  const calledIds = new Set(called.map((node) => node.id));
   const columns = [
-    {
-      x: input.anchor.x - pitch,
-      nodes: input.added.filter((node) => suppliers.has(node.id)).sort(byId),
-    },
+    { x: input.anchor.x - pitch, nodes: called },
     {
       x: input.anchor.x + pitch,
-      nodes: input.added.filter((node) => !suppliers.has(node.id)).sort(byId),
+      nodes: input.added.filter((node) => !calledIds.has(node.id)).sort(byId),
     },
   ];
   const centreY = input.anchor.y + input.anchor.height / 2;
@@ -116,11 +136,21 @@ export function placeExpansion(input: Placement): Record<NodeId, Point> {
       nodes.map((node) => node.height),
       margin,
     );
+    let previousBottom = Number.NEGATIVE_INFINITY;
     for (const [index, node] of nodes.entries()) {
       const column = { x, width: NODE_WIDTH, height: node.height };
-      const y = nearestFreeY(tops[index] ?? centreY, column, obstacles, margin);
+      const preferred = tops[index] ?? centreY;
+      const y =
+        index === 0
+          ? nearestFreeY(preferred, column, obstacles, margin)
+          : lowestClearY(
+              { ...column, y: Math.max(preferred, previousBottom + margin) },
+              obstacles,
+              margin,
+            );
       placed[node.id] = { x, y };
       obstacles.push({ ...column, y });
+      previousBottom = y + node.height;
     }
   }
   return placed;

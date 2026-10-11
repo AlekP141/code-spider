@@ -2,30 +2,12 @@ import type { NodeId } from "@code-spider/core/types";
 import { rowGap } from "../column-gap.js";
 import type { Point } from "../view/types.js";
 import { compareIds } from "./compare-ids.js";
-import { isClear, type Rect } from "./placement.js";
+import { lowestClearY, type Rect } from "./placement.js";
 
 export type RoomBox = { id: NodeId; rect: Rect };
 
 const inOrder = (a: RoomBox, b: RoomBox) =>
   a.rect.y - b.rect.y || a.rect.x - b.rect.x || compareIds(a.id, b.id);
-
-function lowestClearY(
-  rect: Rect,
-  obstacles: readonly Rect[],
-  margin: number,
-): number {
-  const candidates = [
-    rect.y,
-    ...obstacles.map((obstacle) => obstacle.y + obstacle.height + margin),
-  ]
-    .filter((y) => y >= rect.y)
-    .sort((a, b) => a - b);
-  return (
-    candidates.find((y) =>
-      obstacles.every((obstacle) => isClear({ ...rect, y }, obstacle, margin)),
-    ) ?? rect.y
-  );
-}
 
 /**
  * Slides unpinned boxes down, never sideways or up, until none is closer than

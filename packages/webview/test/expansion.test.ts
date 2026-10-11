@@ -7,6 +7,7 @@ import { acceptExpansion, applyExpansion } from "../src/view/expansion.js";
 import { commitCentre, createView } from "../src/view/view-state.js";
 import type { GraphState } from "../src/view/types.js";
 import {
+  calledSlice,
   graphOf,
   id,
   nodeIds,
@@ -40,6 +41,20 @@ describe("applyExpansion", () => {
     expect(added).toEqual([id("d"), id("f")]);
     expect(graph.positions[id("d")]).toEqual({ x: 488 - PITCH, y: 1500 });
     expect(graph.positions[id("f")]).toEqual({ x: 488 + PITCH, y: 1500 });
+  });
+
+  it("puts new suppliers in code order beside the expanded node", () => {
+    const { graph } = applyExpansion(
+      placedGraph(),
+      id("b"),
+      calledSlice("b", ["f", "e", "d"]),
+      192,
+    );
+    const placed = ["f", "e", "d"].map((name) => graph.positions[id(name)]);
+    expect(placed.map((at) => at?.x)).toEqual(Array(3).fill(488 - PITCH));
+    const ys = placed.map((at) => at?.y ?? 0);
+    expect(ys[0]).toBeLessThan(ys[1] ?? 0);
+    expect(ys[1]).toBeLessThan(ys[2] ?? 0);
   });
 
   it("keeps the new nodes clear of nodes already there, wherever they were dragged", () => {

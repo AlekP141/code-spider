@@ -9,6 +9,7 @@ import {
   type AddedNode,
   type Rect,
 } from "../src/graph/placement.js";
+import { site } from "./support/slices.js";
 
 const rect = (x: number, y: number, width: number, height: number): Rect => ({
   x,
@@ -18,6 +19,12 @@ const rect = (x: number, y: number, width: number, height: number): Rect => ({
 });
 
 const MARGIN = rowGap(192);
+
+const edge = (from: string, to: string, line = 2) => ({
+  from,
+  to,
+  callSite: site(line),
+});
 
 describe("isClear", () => {
   it("is true when the horizontal or the vertical gap reaches the margin", () => {
@@ -96,7 +103,7 @@ describe("placeExpansion", () => {
   const node = (id: string, height = 100): AddedNode => ({ id, height });
   const place = (
     added: AddedNode[],
-    edges: { from: string; to: string }[],
+    edges: ReturnType<typeof edge>[],
     existing: Rect[] = [anchor],
     columnGap = 192,
   ) =>
@@ -112,10 +119,7 @@ describe("placeExpansion", () => {
   it("puts suppliers a column to the left and consumers a column to the right", () => {
     const placed = place(
       [node("s", 100), node("c", 60)],
-      [
-        { from: "s", to: "x" },
-        { from: "x", to: "c" },
-      ],
+      [edge("s", "x"), edge("x", "c")],
     );
     expect(placed).toEqual({
       s: { x: 1000 - pitch, y: 500 },
@@ -124,23 +128,14 @@ describe("placeExpansion", () => {
   });
 
   it("treats a node linked both ways as a supplier", () => {
-    const placed = place(
-      [node("n")],
-      [
-        { from: "x", to: "n" },
-        { from: "n", to: "x" },
-      ],
-    );
+    const placed = place([node("n")], [edge("x", "n"), edge("n", "x")]);
     expect(placed.n?.x).toBe(1000 - pitch);
   });
 
   it("stacks a column in id order, a margin apart, centred on the anchor", () => {
     const placed = place(
       [node("b"), node("a")],
-      [
-        { from: "x", to: "a" },
-        { from: "x", to: "b" },
-      ],
+      [edge("x", "a"), edge("x", "b")],
     );
     expect(placed.a).toEqual({ x: 1000 + pitch, y: 434 });
     expect(placed.b).toEqual({ x: 1000 + pitch, y: 566 });
@@ -151,11 +146,7 @@ describe("placeExpansion", () => {
     (columnGap) => {
       const placed = place(
         [node("a"), node("b"), node("c")],
-        [
-          { from: "x", to: "a" },
-          { from: "x", to: "b" },
-          { from: "x", to: "c" },
-        ],
+        [edge("x", "a"), edge("x", "b"), edge("x", "c")],
         [anchor],
         columnGap,
       );
@@ -168,32 +159,19 @@ describe("placeExpansion", () => {
 
   it("clears a dragged box by the row gap at the current column gap", () => {
     const dragged = rect(1000 + NODE_WIDTH + 480, 480, NODE_WIDTH, 100);
-    const placed = place(
-      [node("c")],
-      [{ from: "x", to: "c" }],
-      [anchor, dragged],
-      480,
-    );
+    const placed = place([node("c")], [edge("x", "c")], [anchor, dragged], 480);
     expect(placed.c?.y).toBe(480 + 100 + 80);
   });
 
   it("is pushed down by a dragged node on its slot when the lower end is nearer", () => {
     const dragged = rect(1000 + pitch, 480, NODE_WIDTH, 100);
-    const placed = place(
-      [node("c")],
-      [{ from: "x", to: "c" }],
-      [anchor, dragged],
-    );
+    const placed = place([node("c")], [edge("x", "c")], [anchor, dragged]);
     expect(placed.c).toEqual({ x: 1000 + pitch, y: 612 });
   });
 
   it("is pushed up by a dragged node on its slot when the upper end is nearer", () => {
     const dragged = rect(1000 + pitch, 530, NODE_WIDTH, 100);
-    const placed = place(
-      [node("c")],
-      [{ from: "x", to: "c" }],
-      [anchor, dragged],
-    );
+    const placed = place([node("c")], [edge("x", "c")], [anchor, dragged]);
     expect(placed.c).toEqual({ x: 1000 + pitch, y: 398 });
   });
 
@@ -201,10 +179,7 @@ describe("placeExpansion", () => {
     const dragged = rect(1000 + pitch, 300, NODE_WIDTH, 200);
     const placed = place(
       [node("a"), node("b")],
-      [
-        { from: "x", to: "a" },
-        { from: "x", to: "b" },
-      ],
+      [edge("x", "a"), edge("x", "b")],
       [anchor, dragged],
     );
     expect(placed.a).toEqual({ x: 1000 + pitch, y: 532 });
@@ -219,10 +194,7 @@ describe("placeExpansion", () => {
   it("does not change its inputs", () => {
     const added = [node("b"), node("a")];
     const existing = [anchor, rect(1000 + pitch, 300, NODE_WIDTH, 200)];
-    const edges = [
-      { from: "x", to: "a" },
-      { from: "b", to: "x" },
-    ];
+    const edges = [edge("x", "a"), edge("b", "x")];
     const snapshot = structuredClone({ added, existing, edges });
     placeExpansion({
       expandedId: "x",

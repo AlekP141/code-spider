@@ -1,5 +1,8 @@
+import type { Range } from "@code-spider/core/types";
 import { describe, expect, it } from "vitest";
 import { rowGap } from "../src/column-gap.js";
+import { calledInOrder } from "../src/graph/call-order.js";
+import { compareIds } from "../src/graph/compare-ids.js";
 import { NODE_WIDTH } from "../src/graph/constants.js";
 import {
   isClear,
@@ -9,6 +12,7 @@ import {
   type Rect,
 } from "../src/graph/placement.js";
 import { mulberry32, randomInt } from "./support/random.js";
+import { site } from "./support/slices.js";
 
 const rect = (x: number, y: number, width: number, height: number): Rect => ({
   x,
@@ -44,7 +48,23 @@ describe("placeExpansion on random layouts", () => {
     return false;
   }
 
-  it("places every node in its column, clear of everything, as near as it can", () => {
+  function clearBetween(
+    from: number,
+    to: number,
+    column: { x: number; height: number },
+    obstacles: readonly Rect[],
+    margin: number,
+  ): boolean {
+    for (let y = from; y < to; y += 0.5) {
+      const candidate = rect(column.x, y, NODE_WIDTH, column.height);
+      if (obstacles.every((obstacle) => isClear(candidate, obstacle, margin))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  it("places every node in its column, clear of everything, as near as the order allows", () => {
     for (let seed = 1; seed <= 300; seed += 1) {
       const next = mulberry32(seed);
       const anchor = rect(
@@ -75,12 +95,15 @@ describe("placeExpansion on random layouts", () => {
       }
 
       const added: AddedNode[] = [];
-      const edges: { from: string; to: string }[] = [];
+      const edges: { from: string; to: string; callSite: Range }[] = [];
       for (let index = randomInt(next, 0, 12); index > 0; index -= 1) {
         const id = `n${String(index).padStart(2, "0")}`;
         added.push({ id, height: randomInt(next, 28, 450) });
+        const callSite = site(randomInt(next, 1, 30));
         edges.push(
-          next() < 0.5 ? { from: id, to: "x" } : { from: "x", to: id },
+          next() < 0.5
+            ? { from: id, to: "x", callSite }
+            : { from: "x", to: id, callSite },
         );
       }
 
@@ -93,12 +116,12 @@ describe("placeExpansion on random layouts", () => {
         columnGap,
       });
 
-      const isSupplier = (id: string) =>
-        edges.some((edge) => edge.from === id && edge.to === "x");
-      const byId = (a: AddedNode, b: AddedNode) => a.id.localeCompare(b.id);
+      const supplierIds = calledInOrder("x", edges);
       const order = [
-        ...added.filter((n) => isSupplier(n.id)).sort(byId),
-        ...added.filter((n) => !isSupplier(n.id)).sort(byId),
+        ...supplierIds.flatMap((id) => added.filter((n) => n.id === id)),
+        ...added
+          .filter((n) => !supplierIds.includes(n.id))
+          .sort((a, b) => compareIds(a.id, b.id)),
       ];
       expect(Object.keys(placed).sort(), `seed ${seed}`).toEqual(
         added.map((n) => n.id).sort(),
@@ -107,7 +130,10 @@ describe("placeExpansion on random layouts", () => {
       const centre = anchor.y + anchor.height / 2;
       const obstacles = [...existing];
       for (const supplier of [true, false]) {
-        const stack = order.filter((n) => isSupplier(n.id) === supplier);
+        let previousBottom = Number.NEGATIVE_INFINITY;
+        const stack = order.filter(
+          (n) => supplierIds.includes(n.id) === supplier,
+        );
         const tops = stackTops(
           centre,
           stack.map((n) => n.height),
@@ -124,16 +150,31 @@ describe("placeExpansion on random layouts", () => {
               `seed ${seed} ${n.id} clear`,
             ).toBe(true);
           }
-          expect(
-            nearerClearExists(
-              tops[index] ?? 0,
+          const preferred = tops[index] ?? 0;
+          const column = { x: x ?? 0, height: n.height };
+          if (index === 0) {
+            expect(
+              nearerClearExists(
+                preferred,
+                at?.y ?? 0,
+                column,
+                obstacles,
+                margin,
+              ),
+              `seed ${seed} ${n.id} optimal`,
+            ).toBe(false);
+          } else {
+            const bound = Math.max(preferred, previousBottom + margin);
+            expect(
               at?.y ?? 0,
-              { x: x ?? 0, height: n.height },
-              obstacles,
-              margin,
-            ),
-            `seed ${seed} ${n.id} optimal`,
-          ).toBe(false);
+              `seed ${seed} ${n.id} bound`,
+            ).toBeGreaterThanOrEqual(bound);
+            expect(
+              clearBetween(bound, at?.y ?? 0, column, obstacles, margin),
+              `seed ${seed} ${n.id} lowest`,
+            ).toBe(false);
+          }
+          previousBottom = placedRect.y + n.height;
           obstacles.push(placedRect);
         });
       }
