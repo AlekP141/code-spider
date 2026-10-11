@@ -8,7 +8,7 @@ export type Rect = { x: number; y: number; width: number; height: number };
 export type Size = { width: number; height: number };
 
 /** Absorbs floating point error in positions that were computed, not typed. */
-const TOLERANCE = 1e-6;
+export const TOLERANCE = 1e-6;
 
 function gap(startA: number, sizeA: number, startB: number, sizeB: number) {
   return Math.max(startA - (startB + sizeB), startB - (startA + sizeA));

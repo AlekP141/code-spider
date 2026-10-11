@@ -27,6 +27,14 @@ describe("buildElkGraph", () => {
     });
   });
 
+  it("asks ELK to keep the model order of nodes and edges", () => {
+    const { nodes, edges } = flowOf(readGolden("basic-handleSignup.json"));
+    expect(buildElkGraph(nodes, edges, 192).layoutOptions).toMatchObject({
+      "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+      "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
+    });
+  });
+
   it("sets the spacing inside a column from the row gap", () => {
     const { nodes, edges } = flowOf(readGolden("basic-handleSignup.json"));
     const spacing = (gap: number) =>

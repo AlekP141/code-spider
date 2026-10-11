@@ -2,11 +2,10 @@ import type { NodeId } from "@code-spider/core/types";
 import { rowGap } from "../column-gap.js";
 import type { GraphState, Point } from "../view/types.js";
 import { NODE_WIDTH } from "./constants.js";
-import { layoutPositions } from "./layout.js";
+import { layoutGraph } from "./layout.js";
 import { nodeHeight } from "./node-size.js";
 import type { Size } from "./placement.js";
 import { tidyPositions } from "./tidy.js";
-import { toFlow } from "./to-flow.js";
 
 export type TidyOutcome = {
   generation: number;
@@ -40,14 +39,13 @@ function pinnedAt(graph: GraphState): Record<NodeId, Point> {
 export async function tidyGraph(
   getGraph: () => GraphState | undefined,
   getColumnGap: () => number,
-  layout: typeof layoutPositions = layoutPositions,
+  layout: typeof layoutGraph = layoutGraph,
 ): Promise<TidyOutcome | undefined> {
   for (;;) {
     const graph = getGraph();
     if (!graph) return undefined;
-    const { nodes, edges } = toFlow(graph);
     const columnGap = getColumnGap();
-    const elk = await layout(nodes, edges, columnGap);
+    const elk = await layout(graph, columnGap);
     const latest = getGraph();
     if (latest?.generation !== graph.generation) return undefined;
     if (latest.revision !== graph.revision) continue;

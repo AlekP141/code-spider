@@ -7,9 +7,21 @@ import { expect, it, vi } from "vitest";
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const entry = `
-import { layoutPositions } from "./src/graph/layout.ts";
-const node = (id) => ({ id, width: 100, height: 50, position: { x: 0, y: 0 }, data: {} });
-layoutPositions([node("a"), node("b")], [{ id: "e", source: "a", target: "b" }], 96).then(
+import { layoutGraph } from "./src/graph/layout.ts";
+const node = (id) => ({ id, kind: "function", name: id, file: "a.ts", range: { startLine: 1, startColumn: 1, endLine: 3, endColumn: 2 }, inputType: "", returnType: "", isAsync: false, lineCount: 3, codePreview: "function f() {}" });
+const site = { startLine: 2, startColumn: 3, endLine: 2, endColumn: 9 };
+const graph = {
+  generation: 0,
+  project: "/repo/tsconfig.json",
+  focusId: "b",
+  nodes: { a: node("a"), b: node("b") },
+  edges: { "a->b": { id: "a->b", from: "a", to: "b", kind: "call", supplies: "", callSite: site, resolved: true } },
+  slices: { b: { members: ["a"], edgeIds: ["a->b"] } },
+  positions: {},
+  pinned: [],
+  revision: 0,
+};
+layoutGraph(graph, 96).then(
   (positions) => { globalThis.result = JSON.stringify(positions); },
   (error) => { globalThis.failure = String(error); },
 );

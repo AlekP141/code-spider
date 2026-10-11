@@ -1,14 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import type { layoutPositions } from "../src/graph/layout.js";
+import type { layoutGraph } from "../src/graph/layout.js";
 import { tidyGraph } from "../src/graph/tidy-graph.js";
 import { pinNodes, setPositions } from "../src/view/graph-state.js";
 import type { GraphState } from "../src/view/types.js";
 import { commitCentre, createView } from "../src/view/view-state.js";
 import { graphOf, id } from "./support/graph-states.js";
 
-const column: typeof layoutPositions = async (nodes) =>
+const column: typeof layoutGraph = async (graph) =>
   Object.fromEntries(
-    nodes.map((node, index) => [node.id, { x: 0, y: index * 200 }]),
+    Object.keys(graph.nodes).map((nodeId, index) => [
+      nodeId,
+      { x: 0, y: index * 200 },
+    ]),
   );
 
 function committed(): GraphState {
@@ -66,11 +69,7 @@ describe("tidyGraph", () => {
       () => 96,
       layout,
     );
-    expect(layout).toHaveBeenCalledWith(
-      expect.any(Array),
-      expect.any(Array),
-      96,
-    );
+    expect(layout).toHaveBeenCalledWith(graph, 96);
   });
 
   it("reports the column gap of the layout it used", async () => {
@@ -87,9 +86,9 @@ describe("tidyGraph", () => {
     const first = committed();
     const second = setPositions(first, { [id("a")]: { x: 5, y: 5 } });
     let current = first;
-    const layout = vi.fn<typeof layoutPositions>(async (nodes, edges, gap) => {
+    const layout = vi.fn<typeof layoutGraph>(async (graph, gap) => {
       if (layout.mock.calls.length === 1) current = second;
-      return column(nodes, edges, gap);
+      return column(graph, gap);
     });
 
     const outcome = await tidyGraph(
@@ -105,9 +104,9 @@ describe("tidyGraph", () => {
   it("gives up when the graph was replaced while ELK ran", async () => {
     const first = committed();
     let current: GraphState | undefined = first;
-    const layout: typeof layoutPositions = async (nodes, edges, gap) => {
+    const layout: typeof layoutGraph = async (graph, gap) => {
       current = { ...first, generation: first.generation + 1 };
-      return column(nodes, edges, gap);
+      return column(graph, gap);
     };
     expect(
       await tidyGraph(
@@ -132,7 +131,7 @@ describe("tidyGraph", () => {
 
   it("passes a layout failure on", async () => {
     const graph = committed();
-    const failing: typeof layoutPositions = async () => {
+    const failing: typeof layoutGraph = async () => {
       throw new Error("elk blew up");
     };
     await expect(

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, type Dispatch } from "react";
 import type { AppAction, AppState } from "../app-state.js";
-import { layoutPositions } from "./layout.js";
+import { layoutGraph } from "./layout.js";
 import { tidyGraph } from "./tidy-graph.js";
-import { toFlow } from "./to-flow.js";
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -20,8 +19,7 @@ export function useGraphLayout(
   const { pending } = state;
   useEffect(() => {
     if (!pending) return;
-    const { nodes, edges } = toFlow(pending.graph);
-    layoutPositions(nodes, edges, pending.columnGap).then(
+    layoutGraph(pending.graph, pending.columnGap).then(
       (positions) =>
         dispatch({ type: "centreLaidOut", id: pending.id, positions }),
       (error: unknown) =>
