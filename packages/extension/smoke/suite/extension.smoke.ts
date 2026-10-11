@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ExtensionApi } from "../../src/extension.js";
 
@@ -50,6 +53,25 @@ async function closeGraphPanel(): Promise<void> {
     assert.ok(Date.now() < deadline, "the Code Spider panel did not close");
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
+}
+
+function centreCode(api: ExtensionApi): string {
+  const slice = api.currentGraph()?.slice;
+  assert.ok(slice, "no graph is showing");
+  const centre = slice.nodes.find((node) => node.id === slice.focusId);
+  assert.ok(centre, "the graph has no centre node");
+  return centre.codePreview;
+}
+
+async function closeEditorsUnder(directory: string): Promise<void> {
+  const tabs = vscode.window.tabGroups.all
+    .flatMap((group) => group.tabs)
+    .filter(
+      (tab) =>
+        tab.input instanceof vscode.TabInputText &&
+        tab.input.uri.fsPath.startsWith(directory),
+    );
+  await vscode.window.tabGroups.close(tabs);
 }
 
 describe("Code Spider", () => {
@@ -178,5 +200,56 @@ describe("Code Spider", () => {
         .lineAt(7)
         .text.startsWith("export async function createUser"),
     );
+  });
+
+  it("refreshes the centre after a file changes", async () => {
+    const fixture = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    assert.ok(fixture, "no workspace folder is open");
+    const copy = fs.mkdtempSync(path.join(os.tmpdir(), "code-spider-smoke-"));
+    try {
+      fs.cpSync(fixture, copy, { recursive: true });
+      const document = await vscode.workspace.openTextDocument(
+        vscode.Uri.file(path.join(copy, "src/signup.ts")),
+      );
+      await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+      const inside = document.positionAt(
+        document.getText().indexOf("validateUser(input)") + 3,
+      );
+      await vscode.commands.executeCommand(
+        "codeSpider.showGraph",
+        document.uri,
+        inside,
+      );
+      assert.equal(
+        api.currentGraph()?.slice.focusId,
+        "src/signup.ts#handleSignup",
+      );
+      const project = currentProject(api);
+      assert.ok(project.startsWith(copy), "the graph is not of the copy");
+
+      const marker = "console.log('refreshed marker')";
+      assert.ok(!centreCode(api).includes(marker));
+      const edit = new vscode.WorkspaceEdit();
+      const insertAt = document.positionAt(
+        document.getText().indexOf("  const user = await createUser"),
+      );
+      edit.insert(document.uri, insertAt, `  ${marker}\n`);
+      assert.ok(await vscode.workspace.applyEdit(edit));
+      assert.ok(await document.save());
+      assert.ok(!centreCode(api).includes(marker));
+
+      await api.handleWebviewMessage({
+        type: "refresh",
+        project,
+        generation: 1,
+        focusId: "src/signup.ts#handleSignup",
+        expanded: [],
+      });
+
+      assert.ok(centreCode(api).includes(marker));
+    } finally {
+      await closeEditorsUnder(copy);
+      fs.rmSync(copy, { recursive: true, force: true });
+    }
   });
 });

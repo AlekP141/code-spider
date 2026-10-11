@@ -32,7 +32,8 @@ is the problem restated, not solved.
 
 Recorded explicitly so they do not creep back in:
 
-- Live file watching or auto-refresh as code changes.
+- Live updates: re-analysing or redrawing as code changes. The M3b file watcher
+  only records which files changed.
 - LLM-assisted analysis or annotation.
 - The def-use overlay (intra-body value chaining).
 - Rename tracking across edits.
@@ -225,15 +226,22 @@ common callee.
 per-focus. This is what makes the tool viable on a large codebase and what keeps
 a focus-to-render cycle fast.
 
-The core package exposes exactly two functions:
+The core package exposes two analysis operations, focus and expand:
 
 ```ts
-analyzeFocus(project, { file, offset }): GraphSlice
-expandNode(project, nodeId):             GraphSlice
+analyzeFocus(project, { file, offset }):                GraphSlice
+analyzeFocusAt(project, { file, line, character }):     GraphSlice
+expandNode(project, nodeId):                            GraphSlice
 ```
 
-Both return the same shape. The webview merges slices into whatever the user has
-uncovered. That is the entire core API surface.
+Focus is addressed by offset (`analyzeFocus`) or by zero-based line and
+character (`analyzeFocusAt`), which converts them against the text the project
+holds for that file. `expandNode` throws `NodeNotFoundError` when its node is
+gone. All three return the same shape. The webview merges slices
+into whatever the user has uncovered. Core also exports `positionToOffset`
+(text, line and character to an offset; `\r\n`, `\n` and a lone `\r` each end
+a line, a column past the end of a line is clamped, and a leading byte-order
+mark is not a character of the first line).
 
 A slice is produced in five steps.
 
@@ -311,18 +319,29 @@ webview → ext:  ready()
                 | openInEditor(project, nodeId) | openCallSite(project, edgeId)
                 | focus(project, nodeId)
                 | expand(project, nodeId, generation)
-                | setColumnGap(value) | refresh()
+                | setColumnGap(value) | setEdgeStyle(value)
+                | refresh(project, generation, focusId, expanded)
 
 ext → webview:  slice(GraphSlice, project, mode)
                 | expandFailed(nodeId, generation, message)
                 | analysisError(message) | busy(boolean) | indexing(boolean)
-                | settings(columnGap)
+                | settings(columnGap, edgeStyle)
+                | refreshed(project, generation, sourceVersion,
+                            centre, expansions)
+                | refreshFailed(generation, message)
+                | sourceChanged(version)
 ```
 
 `project` names the tsconfig a slice came from, so a request reaches the right
-project. `mode` is `centre` (a new graph) or `expansion` (carrying the
-`nodeId` and `generation` it answers). The webview does not send `focus`, since
-re-centring is done from the editor; the extension still handles it.
+project. `mode` is `centre` (a new graph, carrying the `sourceVersion` its files
+were read at) or `expansion` (carrying the `nodeId` and `generation` it
+answers). `refresh` names the graph on screen: its centre and the ids of its
+expanded boxes. `refreshed` answers with the centre slice and one slice per
+expanded box that still exists. `refreshFailed` carries a message for the
+banner. `sourceChanged` carries the extension's change counter, which the
+webview compares with the `sourceVersion` of the graph on screen. The webview
+does not send `focus`, since re-centring is done from the editor; the extension
+still handles it.
 
 ### 7.5 Rendering
 
@@ -345,6 +364,10 @@ animate in.
 Type labels are drawn once per supplier, beside its outgoing edge and ellipsised
 to the column gap, with the full text on hover. They are not per edge, and
 M2's 40-character cap is gone.
+
+Edges are drawn stepped by default and curved on request. The choice is a
+toolbar switch, stored in the extension's global state, and it applies to every
+graph, current and in the Back history. It moves no box and needs no layout.
 
 ### 7.6 Node rendering
 
@@ -395,9 +418,10 @@ slower, asynchronous, and a well-known source of layout race conditions.
 A side benefit: variable heights make a zoomed-out graph encode complexity
 visually. A tall box is a long function, spotted without reading anything.
 
-**Zoom as level of detail.** Below a zoom threshold the code region renders as
-greyed placeholder lines; above it, as real monospace text. Two implementation
-constraints:
+**Zoom as level of detail.** Below a zoom of 0.5 the code region renders as
+grey bars, one per line, each with the length and indentation of its line; at
+0.5 and above, as real monospace text. The header and the type labels stay text.
+Two implementation constraints:
 
 - Subscribe to viewport zoom **once** at the canvas container and toggle a CSS
   class. Per-node zoom subscriptions re-render every node on every wheel tick,
@@ -412,9 +436,11 @@ re-layout.
 scroll the code, or zoom the canvas? — with no comfortable resolution. The code
 region clips instead.
 
-**Sizing and refresh.** If a function grows, refreshing changes its node's height
-and the layout shifts accordingly. That is correct: the code changed. Position
-pinning still applies during expansion, where existing nodes do not change size.
+**Sizing and refresh.** If a function grows, refreshing changes its node's
+height. That is correct: the code changed. The refreshed box takes its new
+height, boxes it now touches move down just enough to clear it, and everything
+else stays, pinned boxes included. Position pinning still applies during
+expansion, where existing nodes do not change size.
 
 ### 7.7 Editor integration
 
@@ -445,22 +471,28 @@ A `⧉ Graph` CodeLens above every declaration shipped in M2 and was removed: it
 cluttered the editor, and parsing every open file for it put the whole
 TypeScript compiler in the extension-host bundle. The shortcut is enough.
 
-The command reads the cursor position, runs `analyzeFocus`, opens the panel
+The command reads the cursor's line and character and sends them to the worker,
+which converts them against the file on disk (`analyzeFocusAt`), so a file with
+mixed line endings focuses the function under the cursor. It opens the panel
 beside the code if it is not already open, and replaces its contents. The
 previous graph goes onto the Back history.
 
 Inside the panel, a double-click on a box expands it in place and a second
 double-click collapses it. A toolbar above the graph has **Back** (a history of
-20 graphs), **Tidy** and a **Spacing** slider for the column gap, whose value is
-stored in the extension's global state. The view (graph, positions, pins and
+20 graphs), **Tidy**, **Refresh**, a **Lines** switch (Stepped or Curved) and a
+**Spacing** slider for the column gap; the column gap and the line style are
+stored in the extension's global state. Refresh shows a dot when a source file
+changed since the graph was drawn. The view (graph, positions, pins and
 history) survives a webview reload. The M3a spec
-(`2026-10-10-code-spider-m3a-design.md`) has the detail.
+(`2026-10-10-code-spider-m3a-design.md`) and the M3b spec
+(`2026-10-11-code-spider-m3b-design.md`) have the detail.
 
 ### 8.2 Refresh semantics
 
 Analysis runs at exactly three moments: focus command, a double-click that
-expands a box, and the panel's manual **Refresh** button. There is no file
-watching and no automatic re-analysis.
+expands a box, and the panel's manual **Refresh** button. A file watcher records
+which files changed, so the warm project can apply them and the Refresh button
+can show a dot; nothing re-analyses on its own.
 
 | Action | Focus | Expansions | Analysis |
 |---|---|---|---|
@@ -469,10 +501,14 @@ watching and no automatic re-analysis.
 | Refresh button | Unchanged | **Preserved** | Re-runs focus and all expansions |
 
 The refresh button exists so that after changing code you do not have to click
-back into the editor to update the panel.
+back into the editor to update the panel. It re-reads the centre and every
+expanded box in one worker request. Positions, pins, expansions and the
+viewport stay.
 
 If a refresh finds that an expanded node no longer exists, that node is dropped
-along with anything reachable only through it.
+along with anything reachable only through it. A pinned box that the rebuilt
+graph no longer reaches is removed too, unlike Collapse. If the centre no longer
+exists, the refresh fails with a message and the graph stays as it was.
 
 The `ts-morph` project is kept warm between invocations, with changed files
 refreshed from disk at the start of each run. This is the difference between a
@@ -502,19 +538,29 @@ which doubles as the TDD plan for the analyser:
 9. A default export.
 
 **The CLI is the test harness.** `code-spider test-code/basic/src/index.ts:12:5`
-prints a slice as JSON. It accepts `line:col` for human convenience and converts
-to the character offset that `analyzeFocus` expects. It generates the goldens and
-provides the development loop: sub-second, no extension host, no clicking.
+prints a slice as JSON. It accepts `line:col` for human convenience and passes
+it to core's `analyzeFocusAt`, which does the conversion. It generates the
+goldens and provides the development loop: sub-second, no extension host, no
+clicking.
 
 **Webview logic stays pure.** Slice merging, expansion bookkeeping, and the
 drop-orphans-on-refresh rule are plain functions over plain data, unit-tested
 directly. Only rendering touches React.
 
-**The extension gets smoke tests, not thorough ones.** Six
+**The extension gets smoke tests, not thorough ones.** Seven
 `@vscode/test-electron` cases: the commands register, the panel opens,
 click-to-jump and edge-click-to-call-site land on the right line, the extension
-re-centres on a node by its id, and a node brought in by an expansion can be
-jumped to. Integration tests there are slow and brittle, and the thin shell is deliberately not where the logic lives.
+re-centres on a node by its id, a node brought in by an expansion can be
+jumped to, and a refresh after a saved edit shows the new code (on a copy of the
+fixture in a temporary directory). Integration tests there are slow and
+brittle, and the thin shell is deliberately not where the logic lives.
+
+- **The real webview bundle has an Electron probe.** `pnpm probe` opens the
+  built webview in the VS Code build the smoke tests download, with a fake
+  `acquireVsCodeApi`, the page's real content security policy and real mouse
+  input, and runs nine checks: drawing, click, double-click expand, drag,
+  reload, refresh, the dot, zoom level of detail and the Lines switch. It is
+  separate from `pnpm -r test`.
 
 ## 10. Milestones
 
@@ -546,11 +592,20 @@ button, and zoom-based level of detail in node code regions. Added after M2:
 - Dropped: re-centre from inside the graph. A single click on a box jumps the
   editor to it, and `Shift+Alt+Q` there re-centres, so a second gesture adds
   nothing.
-- M3b: the refresh button, and zoom-based level of detail in node code regions.
-- M3b: saved-file tracking also picks up changes made outside VS Code (a file
-  watcher that only tells the worker which files changed; it never triggers
+- Done in M3b: the refresh button. It re-reads the centre and every expansion
+  and keeps expansions, pins, positions and the viewport.
+- Done in M3b: zoom-based level of detail in node code regions (grey bars below
+  a zoom of 0.5).
+- Done in M3b: saved-file tracking also picks up changes made outside VS Code (a
+  file watcher that only tells the worker which files changed; it never triggers
   analysis or redraws by itself), so a `git switch` doesn't leave the warm
   project reading stale files.
+- Done in M3b: a dot on Refresh when a source file changed since the graph was
+  drawn.
+- Done in M3b: a Lines switch for stepped or curved edges.
+- Done in M3b: the cursor position is converted in core, so a file with mixed
+  line endings focuses the right function.
+- Done in M3b: a checked-in Electron script that tests the real webview bundle.
 
 **M4 — Polish and package.** Theming, truncation and unknown-node states, error
 handling, `.vsix`.
@@ -584,22 +639,24 @@ Ordered roughly by expected value:
   annotations: resolving indirection static analysis cannot follow, grouping long
   traces into phases, naming poorly-named nodes. Attaches at the `unknown` node
   and never blocks correctness.
-- **Live updates.** File watching with debounce and graph diffing.
+- **Live updates.** Re-analysing and redrawing as code changes, with graph
+  diffing. The M3b watcher only records which files changed and lights a dot on
+  Refresh.
 - **A second-language analyser** behind the same `GraphSlice` contract.
 - **Graph-to-code editing** — the bidirectional vision.
 
 ## 13. Working agreement
 
 Agents build the implementation. Each plan task gets one implementer agent and
-one independent reviewer agent; the repository owner reviews the result and
-makes every commit, one task at a time. Nothing is staged, committed or pushed
-without the owner asking.
+one independent reviewer agent, and one integration reviewer checks the whole at
+the end. The coordinator (Claude) commits each task once its review is approved
+and the checks have been re-run: one commit per task, a plain one-line message,
+no prefixes and no attribution trailers. Nothing is ever pushed.
 
-Plans are therefore written **for an agent with no context on this codebase**:
-exact files, interfaces between tasks, test code, commands and expected output
-for every step. The analyser plan (M0 + M1) predates this and was written for a
-human learner; plans from M2 onward follow this agreement.
+Plans are plans, not line-for-line code: files, interfaces between tasks,
+behaviour rules, traps, and tests as named cases, written for an agent with no
+context on this codebase. The analyser plan (M0 + M1) predates this and was
+written for a human learner; plans from M2 onward follow this agreement.
 
 Claude coordinates: it writes each plan through an author agent, checks it
-against this spec, dispatches the per-task agents, and stops after every task so
-the owner can commit.
+against this spec, and dispatches the per-task agents.
