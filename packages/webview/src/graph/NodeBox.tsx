@@ -1,5 +1,6 @@
 import type { GraphNode } from "@code-spider/core/types";
-import type { MouseEvent } from "react";
+import { Fragment, type MouseEvent } from "react";
+import { splitCodeLines } from "./code-lines.js";
 import {
   CODE_PADDING_Y,
   HEADER_HEIGHT,
@@ -108,7 +109,15 @@ export function NodeBox({
             padding: `${CODE_PADDING_Y}px 8px`,
           }}
         >
-          {node.codePreview}
+          {splitCodeLines(node.codePreview).map((line, index) => (
+            <Fragment key={index}>
+              {index > 0 ? "\n" : null}
+              {line.indent}
+              {line.text === "" ? null : (
+                <span className="code-text">{line.text}</span>
+              )}
+            </Fragment>
+          ))}
         </pre>
       ) : null}
       {failure ? (

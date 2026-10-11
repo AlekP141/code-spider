@@ -166,6 +166,12 @@
   white-space: pre;
 }
 
+.is-zoomed-out .code-text {
+  background: var(--vscode-editorLineNumber-foreground);
+  border-radius: 2px;
+  color: transparent;
+}
+
 .node-code.is-clipped::after {
   background: linear-gradient(
     to bottom,

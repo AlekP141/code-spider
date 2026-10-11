@@ -79,6 +79,58 @@ describe("NodeBox", () => {
   });
 });
 
+describe("NodeBox code lines", () => {
+  const codePreview = "function f() {\n  const a = 1;\n\n\t\treturn a;\n}";
+
+  function preHtml(overrides: Parameters<typeof makeNode>[0]): string {
+    return /<pre[\s\S]*<\/pre>/.exec(render(overrides))?.[0] ?? "";
+  }
+
+  function preText(html: string): string {
+    return html
+      .replace(/<[^>]*>/g, "")
+      .replaceAll("&lt;", "<")
+      .replaceAll("&gt;", ">")
+      .replaceAll("&amp;", "&");
+  }
+
+  it("renders indent then a code-text span for each non-blank line", () => {
+    const html = preHtml({ id: "a#f", lineCount: 5, codePreview });
+    expect(html).toContain(
+      '\n  <span class="code-text">const a = 1;</span>\n',
+    );
+    expect(html).toContain(
+      '\n\t\t<span class="code-text">return a;</span>\n',
+    );
+    expect(html).toContain('<span class="code-text">function f() {</span>');
+  });
+
+  it("renders blank lines without a span", () => {
+    const html = preHtml({ id: "a#f", lineCount: 3, codePreview: "a\n\n \nb" });
+    expect(html).toContain('</span>\n\n \n<span class="code-text">b</span>');
+    expect(html.match(/code-text/g)).toHaveLength(2);
+  });
+
+  it("keeps the pre's text and height as they were", () => {
+    const node = makeNode({ id: "a#f", lineCount: 5, codePreview });
+    const html = renderToStaticMarkup(<NodeBox node={node} isFocus={false} />);
+    const pre = /<pre[\s\S]*<\/pre>/.exec(html)?.[0] ?? "";
+    expect(preText(pre)).toBe(codePreview);
+    expect(pre).toContain(`height:${codeRegionHeight(node)}px`);
+  });
+
+  it("still renders no pre for chips", () => {
+    const html = render({
+      id: "external:x#y",
+      kind: "external",
+      lineCount: 0,
+      codePreview: "",
+    });
+    expect(html).not.toContain("<pre");
+    expect(html).not.toContain("code-text");
+  });
+});
+
 describe("NodeBox state markers", () => {
   const f = { id: "a#f" };
 

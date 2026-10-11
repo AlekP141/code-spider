@@ -3,6 +3,8 @@ import {
   Controls,
   MarkerType,
   ReactFlow,
+  ReactFlowProvider,
+  useStore,
   type NodeTypes,
   type OnNodeDrag,
   type OnNodesChange,
@@ -19,6 +21,7 @@ import type { WebviewToExtension } from "../protocol.js";
 import type { GraphState, Point } from "../view/types.js";
 import { edgeClickMessage, nodeClickMessage } from "./jump.js";
 import { applyLive, recordLive, type LivePositions } from "./live-positions.js";
+import { canvasClassName, isZoomedOut } from "./lod.js";
 import {
   NodeContext,
   type NodeActions,
@@ -72,7 +75,7 @@ function withClass<T extends { className?: string }>(item: T): T {
   return { ...item, className };
 }
 
-export function GraphView({
+function GraphCanvas({
   graph,
   columnGap,
   fit,
@@ -81,6 +84,7 @@ export function GraphView({
   onPost,
   onDragStop,
 }: GraphViewProps) {
+  const zoomedOut = useStore((state) => isZoomedOut(state.transform[2]));
   const flow = useMemo(() => toFlow(graph), [graph]);
   const { generation, project } = graph;
   const { busy, loading, failures, entering, reveal, refreshing } = ui;
@@ -174,7 +178,7 @@ export function GraphView({
   );
 
   return (
-    <div className="graph-canvas" style={canvasStyle}>
+    <div className={canvasClassName(zoomedOut)} style={canvasStyle}>
       <NodeContext.Provider value={context}>
         <ReactFlow
           nodes={nodes}
@@ -201,5 +205,14 @@ export function GraphView({
         </ReactFlow>
       </NodeContext.Provider>
     </div>
+  );
+}
+
+/** The provider puts the store above the canvas element, which reads the zoom. */
+export function GraphView(props: GraphViewProps) {
+  return (
+    <ReactFlowProvider>
+      <GraphCanvas {...props} />
+    </ReactFlowProvider>
   );
 }

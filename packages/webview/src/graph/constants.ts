@@ -5,3 +5,4 @@ export const CODE_PADDING_Y = 4;
 export const MIN_CODE_LINES = 3;
 /** Equal to CODE_PREVIEW_MAX_LINES in @code-spider/core; a test keeps them in step. */
 export const MAX_CODE_LINES = 25;
+export const LOD_ZOOM = 0.5;
