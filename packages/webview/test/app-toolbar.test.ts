@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   createAppState,
-  isWorking,
   reduceApp,
   type AppAction,
   type AppState,
 } from "../src/app-state.js";
+import { isWorking } from "../src/app-working.js";
 import { isViewState } from "../src/view/persist.js";
 import { canGoBack } from "../src/view/view-state.js";
 import { id, PROJECT, sliceOf } from "./support/graph-states.js";

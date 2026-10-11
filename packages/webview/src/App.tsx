@@ -1,7 +1,8 @@
 import type { NodeId } from "@code-spider/core/types";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { canRefresh, showsChangeDot } from "./app-refresh.js";
-import { createAppState, isWorking, reduceApp } from "./app-state.js";
+import { createAppState, reduceApp } from "./app-state.js";
+import { isWorking } from "./app-working.js";
 import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "./edge-style.js";
 import { GraphView } from "./graph/GraphView.js";
 import { expandMessage, refreshMessage } from "./graph/jump.js";

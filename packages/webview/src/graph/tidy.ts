@@ -1,6 +1,12 @@
 import type { NodeId } from "@code-spider/core/types";
 import type { Point } from "../view/types.js";
-import { isClear, nearestFreeY, type Rect, type Size } from "./placement.js";
+import {
+  compareIds,
+  isClear,
+  nearestFreeY,
+  type Rect,
+  type Size,
+} from "./placement.js";
 
 export type TidyInput = {
   /** ELK's layout of every node. */
@@ -11,8 +17,6 @@ export type TidyInput = {
   /** The space to keep between boxes, from the row gap. */
   margin: number;
 };
-
-const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * ELK's positions for everything unpinned, the current positions for the
@@ -49,7 +53,7 @@ export function tidyPositions(input: TidyInput): Record<NodeId, Point> {
   }
 
   displaced.sort(
-    ([idA, a], [idB, b]) => a.x - b.x || a.y - b.y || compare(idA, idB),
+    ([idA, a], [idB, b]) => a.x - b.x || a.y - b.y || compareIds(idA, idB),
   );
   for (const [id, rect] of displaced) {
     const y = nearestFreeY(rect.y, rect, obstacles, input.margin);

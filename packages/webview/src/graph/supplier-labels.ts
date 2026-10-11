@@ -1,4 +1,5 @@
 import type { EdgeType, GraphEdge, NodeId } from "@code-spider/core/types";
+import { compareIds } from "./placement.js";
 
 export type LabelKind = "returns" | "jsx" | "passes";
 export type LabelLine = { kind: LabelKind; text: string };
@@ -9,16 +10,11 @@ function labelKind(kind: EdgeType): LabelKind {
   return kind === "jsx" || kind === "passes" ? kind : "returns";
 }
 
-function compareIds(a: GraphEdge, b: GraphEdge): number {
-  if (a.id === b.id) return 0;
-  return a.id < b.id ? -1 : 1;
-}
-
 /** One line per supplier and kind: the distinct supplies in edge-id order. */
 export function supplierLabels(
   edges: readonly GraphEdge[],
 ): Map<NodeId, LabelLine[]> {
-  const byEdgeId = [...edges].sort(compareIds);
+  const byEdgeId = [...edges].sort((a, b) => compareIds(a.id, b.id));
   const grouped = new Map<NodeId, Map<LabelKind, string[]>>();
   for (const edge of byEdgeId) {
     if (edge.supplies === "") continue;

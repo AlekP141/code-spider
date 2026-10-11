@@ -56,6 +56,25 @@ describe("GraphSession.refresh unsaved edits", () => {
     await session.refresh(request());
     expect(notifier.status).not.toHaveBeenCalled();
   });
+
+  it("fails the refresh and leaves busy off when listing documents throws", async () => {
+    const { session, worker, changes, documents, posted, types } = known();
+    documents.unsavedFiles.mockImplementation(() => {
+      throw new Error("documents unavailable");
+    });
+    changes.mark("/repo/src/a.ts");
+    await session.refresh(request());
+    expect(types()).toEqual(["busy", "refreshFailed", "busy"]);
+    expect(posted[0]).toEqual({ type: "busy", busy: true });
+    expect(posted[1]).toEqual({
+      type: "refreshFailed",
+      generation: 4,
+      message: "documents unavailable",
+    });
+    expect(posted[2]).toEqual({ type: "busy", busy: false });
+    expect(worker.refresh).not.toHaveBeenCalled();
+    expect(changes.drain().files).toEqual(["/repo/src/a.ts"]);
+  });
 });
 
 describe("unsavedEditsMessage", () => {

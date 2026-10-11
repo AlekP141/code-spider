@@ -1,9 +1,7 @@
 import { join } from "node:path";
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 import * as vscode from "vscode";
-import { ChangeTracker } from "./changes.js";
 import { ColumnGapStore } from "./column-gap.js";
-import { TrailingDebounce } from "./debounce.js";
 import { createDispatcher } from "./dispatch.js";
 import { EdgeStyleStore } from "./edge-style-store.js";
 import {
@@ -15,6 +13,7 @@ import { JumpTable } from "./jump-table.js";
 import { JumpHandler } from "./navigation.js";
 import { GraphPanel } from "./panel/graph-panel.js";
 import { GraphSession, type CurrentGraph } from "./session.js";
+import { createSourceChanges } from "./source-changes.js";
 import { WarmOnce } from "./warm-once.js";
 import { workspaceDocuments } from "./vscode/documents.js";
 import { EditorRevealer } from "./vscode/editor.js";
@@ -54,11 +53,10 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     () => jumpTable.clear(),
   );
   const statusBar = new IndexingStatusBar();
-  const sourceChanged = new TrailingDebounce<number>(
+  const { changes, dispose: disposeSourceChanges } = createSourceChanges(
+    (message) => panel.post(message),
     SOURCE_CHANGED_DELAY_MS,
-    (version) => panel.post({ type: "sourceChanged", version }),
   );
-  const changes = new ChangeTracker((version) => sourceChanged.push(version));
   const session = new GraphSession({
     worker,
     panel,
@@ -96,7 +94,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     revealer,
     panel,
     statusBar,
-    sourceChanged,
+    { dispose: disposeSourceChanges },
     registerChangeWatchers((fsPath) => changes.mark(fsPath)),
     vscode.commands.registerCommand(COMMAND_SHOW_GRAPH, showGraph),
     vscode.commands.registerCommand(COMMAND_SHOW_IN_CODE_SPIDER, showGraph),

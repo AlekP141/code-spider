@@ -151,10 +151,10 @@ export class GraphSession {
       panel.post(refreshFailedMessage(generation, UNKNOWN_PROJECT));
       return;
     }
-    noticeUnsavedEdits(project, jumps, documents, notifier);
     const token = this.latest;
     await this.withBusy(async () => {
       try {
+        noticeUnsavedEdits(project, jumps, documents, notifier);
         const { files, version } = changes.drain();
         const result = await worker.refresh(project, focusId, expanded, files);
         if (token !== this.latest || !panel.isOpen()) return;

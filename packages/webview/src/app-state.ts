@@ -83,8 +83,6 @@ export type LocalAction =
 
 export type AppAction = ExtensionToWebview | LocalAction;
 
-export { isWorking };
-
 const LAYOUT_FAILED = "Could not lay out the graph: ";
 
 export function createAppState(saved: unknown): AppState {
