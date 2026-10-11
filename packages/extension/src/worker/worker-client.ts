@@ -2,6 +2,7 @@ import type { NodeId } from "@code-spider/core";
 import type {
   ExpandResult,
   FocusResult,
+  RefreshResult,
   WorkerRequest,
   WorkerRequestBody,
   WorkerResponse,
@@ -74,6 +75,25 @@ export class WorkerClient {
       changedFiles,
     });
     if (response.kind !== "sliced") {
+      throw new Error(`Unexpected worker response: ${response.kind}`);
+    }
+    return response.result;
+  }
+
+  async refresh(
+    tsconfig: string,
+    focusId: NodeId,
+    expanded: NodeId[],
+    changedFiles: string[],
+  ): Promise<RefreshResult> {
+    const response = await this.request({
+      kind: "refresh",
+      tsconfig,
+      focusId,
+      expanded,
+      changedFiles,
+    });
+    if (response.kind !== "refreshed") {
       throw new Error(`Unexpected worker response: ${response.kind}`);
     }
     return response.result;

@@ -1,8 +1,49 @@
-import { analyzeFocusAt, expandNode } from "@code-spider/core";
+import {
+  analyzeFocusAt,
+  expandNode,
+  NodeNotFoundError,
+  type GraphSlice,
+  type NodeId,
+  type Project,
+} from "@code-spider/core";
 import { ProjectCache } from "./project-cache.js";
-import type { WorkerRequest, WorkerResponse } from "./protocol.js";
+import type {
+  RefreshRequest,
+  RefreshResult,
+  WorkerRequest,
+  WorkerResponse,
+} from "./protocol.js";
 
 export type WorkerHandler = (request: WorkerRequest) => WorkerResponse;
+
+function expandOrMissing(
+  project: Project,
+  nodeId: NodeId,
+  repoRoot: string,
+): GraphSlice | undefined {
+  try {
+    return expandNode(project, nodeId, repoRoot);
+  } catch (error) {
+    if (error instanceof NodeNotFoundError) return undefined;
+    throw error;
+  }
+}
+
+function refreshSlices(
+  request: RefreshRequest,
+  cache: ProjectCache,
+): RefreshResult {
+  const { project, repoRoot, tsconfig } = cache.openTsconfig(request.tsconfig);
+  const centre = expandOrMissing(project, request.focusId, repoRoot);
+  const expansions: RefreshResult["expansions"] = [];
+  if (centre) {
+    for (const nodeId of request.expanded) {
+      const slice = expandOrMissing(project, nodeId, repoRoot);
+      if (slice) expansions.push({ nodeId, slice });
+    }
+  }
+  return { tsconfig, repoRoot, centre, expansions };
+}
 
 export function createWorkerHandler(
   cache: ProjectCache = new ProjectCache(),
@@ -49,6 +90,12 @@ export function createWorkerHandler(
             },
           };
         }
+        case "refresh":
+          return {
+            id: request.id,
+            kind: "refreshed",
+            result: refreshSlices(request, cache),
+          };
       }
     } catch (error) {
       return {

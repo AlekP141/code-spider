@@ -1,6 +1,10 @@
 import type { NodeId } from "@code-spider/core";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
-import type { ExpandResult, FocusResult } from "./worker/protocol.js";
+import type {
+  ExpandResult,
+  FocusResult,
+  RefreshResult,
+} from "./worker/protocol.js";
 
 export interface AnalysisPort {
   warm(file: string, changedFiles: string[]): Promise<void>;
@@ -15,6 +19,12 @@ export interface AnalysisPort {
     nodeId: NodeId,
     changedFiles: string[],
   ): Promise<ExpandResult>;
+  refresh(
+    tsconfig: string,
+    focusId: NodeId,
+    expanded: NodeId[],
+    changedFiles: string[],
+  ): Promise<RefreshResult>;
 }
 
 export interface PanelPort {

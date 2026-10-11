@@ -4,6 +4,7 @@ import { targetsQualifiedAs } from "./callable-names.js";
 import { collectCalleeEdges } from "./callees.js";
 import { collectCallerEdges } from "./callers.js";
 import { classifyDeclaration } from "./classify.js";
+import { NodeNotFoundError } from "./errors.js";
 import { resolveFocus, type FocusTarget } from "./focus.js";
 import {
   buildGraphNode,
@@ -75,10 +76,12 @@ export function expandNode(
 
   const { file, name, index } = parseNodeId(nodeId);
   const sourceFile = project.getSourceFile(join(repoRoot, file));
-  if (!sourceFile) throw new Error(`Node not found (missing file): ${nodeId}`);
+  if (!sourceFile) {
+    throw new NodeNotFoundError(`Node not found (missing file): ${nodeId}`);
+  }
 
   const target = targetsQualifiedAs(sourceFile, name)[index];
-  if (!target) throw new Error(`Node not found: ${nodeId}`);
+  if (!target) throw new NodeNotFoundError(`Node not found: ${nodeId}`);
 
   return sliceFor(target, { repoRoot });
 }

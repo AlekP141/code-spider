@@ -28,10 +28,26 @@ export type SliceForNodeRequest = {
   changedFiles: string[];
 };
 
+export type RefreshRequest = {
+  kind: "refresh";
+  tsconfig: string;
+  focusId: NodeId;
+  expanded: NodeId[];
+  changedFiles: string[];
+};
+
+export type RefreshResult = {
+  tsconfig: string;
+  repoRoot: string;
+  centre: GraphSlice | undefined;
+  expansions: { nodeId: NodeId; slice: GraphSlice }[];
+};
+
 export type WorkerRequestBody =
   | WarmRequest
   | FocusRequestBody
-  | SliceForNodeRequest;
+  | SliceForNodeRequest
+  | RefreshRequest;
 
 export type WorkerRequest = WorkerRequestBody & { id: number };
 
@@ -39,4 +55,5 @@ export type WorkerResponse =
   | { id: number; kind: "warmed" }
   | { id: number; kind: "focused"; result: FocusResult }
   | { id: number; kind: "sliced"; result: ExpandResult }
+  | { id: number; kind: "refreshed"; result: RefreshResult }
   | { id: number; kind: "failed"; message: string };

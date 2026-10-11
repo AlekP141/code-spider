@@ -76,6 +76,33 @@ describe("bundled analysis worker", () => {
     }
   });
 
+  it("refreshes a centre and its expansions in a real worker thread", async () => {
+    const client = new WorkerClient(() =>
+      spawnAnalysisWorker(workerPath, 2048),
+    );
+    try {
+      const tsconfig = fixturePath("basic", "tsconfig.json");
+      const answer = await client.refresh(
+        tsconfig,
+        "src/signup.ts#handleSignup",
+        ["src/signup.ts#validateUser", "src/signup.ts#renamedAway"],
+        [],
+      );
+      expect(answer.centre?.focusId).toBe("src/signup.ts#handleSignup");
+      expect(answer.expansions.map((item) => item.nodeId)).toEqual([
+        "src/signup.ts#validateUser",
+      ]);
+      expect(answer.repoRoot).toBe(fixturePath("basic"));
+      expect(answer.tsconfig).toBe(tsconfig);
+
+      const gone = await client.refresh(tsconfig, "src/gone.ts#f", [], []);
+      expect(gone.centre).toBeUndefined();
+      expect(gone.expansions).toEqual([]);
+    } finally {
+      client.dispose();
+    }
+  });
+
   it("survives a real out-of-memory worker and starts a fresh one", async () => {
     let spawned = 0;
     const client = new WorkerClient(() => {

@@ -110,6 +110,38 @@ describe("WorkerClient", () => {
     await expect(mismatched).rejects.toThrow("Unexpected worker response");
   });
 
+  it("posts refresh requests and resolves with the result; a mismatched reply rejects", async () => {
+    const { workers, client } = setup();
+    const refreshed = {
+      tsconfig: "/repo/tsconfig.json",
+      repoRoot: "/repo",
+      centre: result.slice,
+      expansions: [{ nodeId: "a.ts#g", slice: result.slice }],
+    };
+    const pending = client.refresh(
+      "/repo/tsconfig.json",
+      "a.ts#f",
+      ["a.ts#g"],
+      ["/b.ts"],
+    );
+    expect(workers[0]?.posted).toEqual([
+      {
+        id: 1,
+        kind: "refresh",
+        tsconfig: "/repo/tsconfig.json",
+        focusId: "a.ts#f",
+        expanded: ["a.ts#g"],
+        changedFiles: ["/b.ts"],
+      },
+    ]);
+    workers[0]?.reply({ id: 1, kind: "refreshed", result: refreshed });
+    await expect(pending).resolves.toEqual(refreshed);
+
+    const mismatched = client.refresh("/repo/tsconfig.json", "a.ts#f", [], []);
+    workers[0]?.reply({ id: 2, kind: "sliced", result });
+    await expect(mismatched).rejects.toThrow("Unexpected worker response");
+  });
+
   it("matches out-of-order replies by id", async () => {
     const { workers, client } = setup();
     const first = client.focus("/a.ts", 1, 0, []);

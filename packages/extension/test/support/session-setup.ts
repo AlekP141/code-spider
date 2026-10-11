@@ -71,6 +71,12 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     sliceForNode: vi.fn(async (_tsconfig: string, nodeId: string) =>
       resultFor(nodeId),
     ),
+    refresh: vi.fn(async (_tsconfig: string, focusId: string) => ({
+      tsconfig: PROJECT,
+      repoRoot: "/repo",
+      centre: resultFor(focusId).slice,
+      expansions: [],
+    })),
     ...overrides,
   };
   const notifier = { warn: vi.fn(), error: vi.fn() };

@@ -17,6 +17,7 @@ export {
   type AnalyzeAtRequest,
   type AnalyzeRequest,
 } from "./analyze.js";
+export { NodeNotFoundError } from "./errors.js";
 export { positionToOffset } from "./position.js";
 export {
   findTsconfig,
