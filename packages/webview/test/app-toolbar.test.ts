@@ -14,7 +14,7 @@ const centre = (focus: string, suppliers: string[] = []): AppAction => ({
   type: "slice",
   slice: sliceOf(focus, suppliers),
   project: PROJECT,
-  mode: { kind: "centre" },
+  mode: { kind: "centre", sourceVersion: 0 },
 });
 
 function laidOut(state: AppState, focus: string): AppState {

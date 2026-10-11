@@ -1,6 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
-import { canRefresh } from "./app-refresh.js";
+import { canRefresh, showsChangeDot } from "./app-refresh.js";
 import { createAppState, isWorking, reduceApp } from "./app-state.js";
 import { GraphView } from "./graph/GraphView.js";
 import { expandMessage, refreshMessage } from "./graph/jump.js";
@@ -76,6 +76,7 @@ export function App() {
         canBack={canGoBack(state.view) && !working}
         canTidy={graph !== undefined}
         canRefresh={refreshable}
+        changedSince={showsChangeDot(state)}
         columnGap={state.view.columnGap}
         onBack={onBack}
         onTidy={tidy}

@@ -4,12 +4,16 @@ export type ToolbarProps = {
   canBack: boolean;
   canTidy: boolean;
   canRefresh: boolean;
+  changedSince: boolean;
   columnGap: number;
   onBack(): void;
   onTidy(): void;
   onRefresh(): void;
   onColumnGap(value: number): void;
 };
+
+const REFRESH_TITLE = "Re-read the code for this graph";
+const CHANGED_LABEL = "Files changed since this graph was drawn";
 
 export function Toolbar(props: ToolbarProps) {
   return (
@@ -33,11 +37,14 @@ export function Toolbar(props: ToolbarProps) {
       <button
         type="button"
         className="toolbar-button"
-        title="Re-read the code for this graph"
+        title={props.changedSince ? CHANGED_LABEL : REFRESH_TITLE}
         disabled={!props.canRefresh}
         onClick={props.onRefresh}
       >
         Refresh
+        {props.changedSince ? (
+          <span className="toolbar-dot" role="img" aria-label={CHANGED_LABEL} />
+        ) : null}
       </button>
       <label className="toolbar-spacing">
         <span>Spacing</span>

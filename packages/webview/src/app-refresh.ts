@@ -16,6 +16,24 @@ export function canRefresh(state: AppState): boolean {
   );
 }
 
+export function showsChangeDot(
+  state: Pick<AppState, "view" | "latestSourceVersion">,
+): boolean {
+  const drawn = state.view.current?.sourceVersion;
+  return (
+    drawn !== undefined &&
+    state.latestSourceVersion !== undefined &&
+    drawn < state.latestSourceVersion
+  );
+}
+
+export function noteSourceChanged(state: AppState, version: number): AppState {
+  const latest = Math.max(state.latestSourceVersion ?? version, version);
+  return latest === state.latestSourceVersion
+    ? state
+    : { ...state, latestSourceVersion: latest };
+}
+
 export function startRefresh(state: AppState): AppState {
   return canRefresh(state) ? { ...state, refreshing: true } : state;
 }

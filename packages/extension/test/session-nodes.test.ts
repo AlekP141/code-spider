@@ -43,9 +43,28 @@ describe("GraphSession.focusNode", () => {
       type: "slice",
       slice: resultFor(NODE).slice,
       project: PROJECT,
-      mode: { kind: "centre" },
+      mode: { kind: "centre", sourceVersion: 1 },
     });
     expect(session.currentGraph()?.slice.focusId).toBe(NODE);
+  });
+
+  it("posts the version drained for that request, not a later one", async () => {
+    const slow = deferred<FocusResult>();
+    const { session, jumps, changes, posted } = setup({
+      sliceForNode: () => slow.promise,
+    });
+    jumps.add(PROJECT, resultFor("src/a.ts#f"));
+    changes.mark("/repo/src/b.ts");
+
+    const running = session.focusNode({ project: PROJECT, nodeId: NODE });
+    changes.mark("/repo/src/c.ts");
+    changes.mark("/repo/src/d.ts");
+    slow.resolve(resultFor(NODE));
+    await running;
+
+    expect(posted.find((message) => message.type === "slice")).toMatchObject({
+      mode: { kind: "centre", sourceVersion: 1 },
+    });
   });
 
   it("lets the newest centre request win across showGraph and focusNode", async () => {

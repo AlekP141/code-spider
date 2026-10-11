@@ -33,6 +33,16 @@
   opacity: 0.5;
 }
 
+.toolbar-dot {
+  background: var(--vscode-button-foreground);
+  border-radius: 50%;
+  display: inline-block;
+  height: 7px;
+  margin-left: 6px;
+  vertical-align: middle;
+  width: 7px;
+}
+
 .toolbar-spacing {
   align-items: center;
   color: var(--vscode-foreground);

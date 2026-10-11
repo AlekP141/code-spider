@@ -1,6 +1,11 @@
 import type { NodeId } from "@code-spider/core/types";
 import type { ExtensionToWebview } from "./protocol.js";
-import { applyRefreshed, failRefresh, startRefresh } from "./app-refresh.js";
+import {
+  applyRefreshed,
+  failRefresh,
+  noteSourceChanged,
+  startRefresh,
+} from "./app-refresh.js";
 import {
   acceptAnswer,
   collapseExpanded,
@@ -50,6 +55,8 @@ export type AppState = {
   reveal: { token: number; rect: Rect } | undefined;
   /** A refresh request is out; never persisted. */
   refreshing: boolean;
+  /** The newest `sourceChanged` seen; never persisted. */
+  latestSourceVersion: number | undefined;
   /** Only the first `settings` message after each load is applied. */
   settingsApplied: boolean;
 };
@@ -93,19 +100,27 @@ export function createAppState(saved: unknown): AppState {
     nextToken: 1,
     reveal: undefined,
     refreshing: false,
+    latestSourceVersion: undefined,
     settingsApplied: false,
   };
 }
 
 type SliceMessage = Extract<ExtensionToWebview, { type: "slice" }>;
 
-function startCentre(state: AppState, message: SliceMessage): AppState {
+function startCentre(
+  state: AppState,
+  message: SliceMessage,
+  sourceVersion: number,
+): AppState {
   return {
     ...state,
     error: undefined,
     pending: {
       id: state.nextPending,
-      graph: graphFromSlice(message.slice, message.project),
+      graph: {
+        ...graphFromSlice(message.slice, message.project),
+        sourceVersion,
+      },
       columnGap: state.view.columnGap,
     },
     nextPending: state.nextPending + 1,
@@ -149,7 +164,7 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "slice":
       return action.mode.kind === "centre"
-        ? startCentre(state, action)
+        ? startCentre(state, action, action.mode.sourceVersion)
         : acceptAnswer(state, action);
     case "analysisError":
       return { ...state, error: action.message };
@@ -168,6 +183,8 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return applyRefreshed(state, action);
     case "refreshFailed":
       return failRefresh(state, action);
+    case "sourceChanged":
+      return noteSourceChanged(state, action.version);
     case "settings":
       return state.settingsApplied
         ? state

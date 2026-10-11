@@ -81,7 +81,7 @@ describe("placing an expansion", () => {
       type: "slice",
       slice: sliceOf("a", ["b"]),
       project: PROJECT,
-      mode: { kind: "centre" },
+      mode: { kind: "centre", sourceVersion: 0 },
     });
     const shown = reduceApp(pending, {
       type: "centreLaidOut",

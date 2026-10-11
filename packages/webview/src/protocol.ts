@@ -1,7 +1,7 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
 
 export type SliceMode =
-  | { kind: "centre" }
+  | { kind: "centre"; sourceVersion: number }
   | { kind: "expansion"; nodeId: NodeId; generation: number };
 
 export type ExtensionToWebview =
@@ -24,7 +24,8 @@ export type ExtensionToWebview =
       centre: GraphSlice;
       expansions: { nodeId: NodeId; slice: GraphSlice }[];
     }
-  | { type: "refreshFailed"; generation: number; message: string };
+  | { type: "refreshFailed"; generation: number; message: string }
+  | { type: "sourceChanged"; version: number };
 
 export type WebviewToExtension =
   | { type: "ready" }

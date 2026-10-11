@@ -1,9 +1,13 @@
 import type { ExtensionToWebview, SliceMode } from "./protocol.js";
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 function isMode(value: unknown): value is SliceMode {
   if (typeof value !== "object" || value === null) return false;
   const mode = value as Record<string, unknown>;
-  if (mode.kind === "centre") return true;
+  if (mode.kind === "centre") return isFiniteNumber(mode.sourceVersion);
   return (
     mode.kind === "expansion" &&
     typeof mode.nodeId === "string" &&
@@ -47,15 +51,12 @@ export function isExtensionMessage(
     case "indexing":
       return typeof message.indexing === "boolean";
     case "settings":
-      return (
-        typeof message.columnGap === "number" &&
-        Number.isFinite(message.columnGap)
-      );
+      return isFiniteNumber(message.columnGap);
     case "refreshed":
       return (
         typeof message.project === "string" &&
         typeof message.generation === "number" &&
-        typeof message.sourceVersion === "number" &&
+        isFiniteNumber(message.sourceVersion) &&
         typeof message.centre === "object" &&
         message.centre !== null &&
         Array.isArray(message.expansions) &&
@@ -66,6 +67,8 @@ export function isExtensionMessage(
         typeof message.generation === "number" &&
         typeof message.message === "string"
       );
+    case "sourceChanged":
+      return isFiniteNumber(message.version);
     default:
       return false;
   }

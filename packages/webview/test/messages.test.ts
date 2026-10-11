@@ -6,7 +6,12 @@ const project = "/repo/tsconfig.json";
 
 describe("isExtensionMessage", () => {
   it("accepts each extension-to-webview message", () => {
-    const centre = { type: "slice", slice, project, mode: { kind: "centre" } };
+    const centre = {
+      type: "slice",
+      slice,
+      project,
+      mode: { kind: "centre", sourceVersion: 0 },
+    };
     const expansion = {
       type: "slice",
       slice,
@@ -15,6 +20,9 @@ describe("isExtensionMessage", () => {
     };
     expect(isExtensionMessage(centre)).toBe(true);
     expect(isExtensionMessage(expansion)).toBe(true);
+    expect(isExtensionMessage({ type: "sourceChanged", version: 4 })).toBe(
+      true,
+    );
     expect(
       isExtensionMessage({
         type: "expandFailed",
@@ -108,7 +116,7 @@ describe("isExtensionMessage", () => {
   });
 
   it("rejects a slice without a project or with a malformed mode", () => {
-    const mode = { kind: "centre" };
+    const mode = { kind: "centre", sourceVersion: 0 };
     expect(isExtensionMessage({ type: "slice", mode })).toBe(false);
     expect(
       isExtensionMessage({ type: "slice", slice: null, project, mode }),
@@ -131,5 +139,54 @@ describe("isExtensionMessage", () => {
         mode: { kind: "expansion", nodeId: "a#b" },
       }),
     ).toBe(false);
+  });
+
+  it("rejects a centre mode without a numeric sourceVersion", () => {
+    for (const mode of [
+      { kind: "centre" },
+      { kind: "centre", sourceVersion: "3" },
+      { kind: "centre", sourceVersion: null },
+    ]) {
+      expect(isExtensionMessage({ type: "slice", slice, project, mode })).toBe(
+        false,
+      );
+    }
+  });
+
+  it("needs a numeric version on sourceChanged", () => {
+    expect(isExtensionMessage({ type: "sourceChanged" })).toBe(false);
+    expect(isExtensionMessage({ type: "sourceChanged", version: "4" })).toBe(
+      false,
+    );
+    expect(isExtensionMessage({ type: "sourceChanged", version: null })).toBe(
+      false,
+    );
+  });
+
+  it("rejects a non-finite sourceVersion or version", () => {
+    const refreshed = {
+      type: "refreshed",
+      project,
+      generation: 1,
+      sourceVersion: 3,
+      centre: slice,
+      expansions: [],
+    };
+    expect(isExtensionMessage(refreshed)).toBe(true);
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      const mode = { kind: "centre", sourceVersion: bad };
+      expect(isExtensionMessage({ type: "slice", slice, project, mode })).toBe(
+        false,
+      );
+      expect(isExtensionMessage({ ...refreshed, sourceVersion: bad })).toBe(
+        false,
+      );
+      expect(isExtensionMessage({ type: "sourceChanged", version: bad })).toBe(
+        false,
+      );
+      expect(isExtensionMessage({ type: "settings", columnGap: bad })).toBe(
+        false,
+      );
+    }
   });
 });

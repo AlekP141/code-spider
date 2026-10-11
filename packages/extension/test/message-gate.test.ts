@@ -7,7 +7,7 @@ import { MessageGate } from "../src/panel/message-gate.js";
 
 const slice = (
   focusId: string,
-  mode: SliceMode = { kind: "centre" },
+  mode: SliceMode = { kind: "centre", sourceVersion: 0 },
 ): ExtensionToWebview => ({
   type: "slice",
   slice: { focusId, nodes: [], edges: [], truncated: false },
@@ -159,6 +159,36 @@ describe("MessageGate replayed state", () => {
       "indexing",
       "busy",
       "slice",
+    ]);
+  });
+
+  it("replays sourceChanged after busy and before content", () => {
+    const { sent, gate } = setup();
+    gate.post(slice("a#one"));
+    gate.post({ type: "sourceChanged", version: 2 });
+    gate.post({ type: "busy", busy: true });
+    gate.post({ type: "settings", columnGap: 160 });
+    gate.markReady();
+    expect(sent.map((message) => message.type)).toEqual([
+      "settings",
+      "busy",
+      "sourceChanged",
+      "slice",
+    ]);
+  });
+
+  it("replays the latest sourceChanged on every ready", () => {
+    const { sent, gate } = setup();
+    gate.post({ type: "sourceChanged", version: 2 });
+    gate.markReady();
+    gate.post({ type: "sourceChanged", version: 5 });
+    sent.length = 0;
+    gate.markReady();
+    gate.reset();
+    gate.markReady();
+    expect(sent).toEqual([
+      { type: "sourceChanged", version: 5 },
+      { type: "sourceChanged", version: 5 },
     ]);
   });
 

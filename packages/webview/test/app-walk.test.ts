@@ -18,7 +18,7 @@ function showing(): AppState {
     type: "slice",
     slice: sliceOf("a", ["b"]),
     project: PROJECT,
-    mode: { kind: "centre" },
+    mode: { kind: "centre", sourceVersion: 0 },
   });
   return reduceApp(pending, {
     type: "centreLaidOut",
@@ -230,7 +230,7 @@ describe("a committed centre", () => {
       type: "slice",
       slice: sliceOf("z"),
       project: PROJECT,
-      mode: { kind: "centre" },
+      mode: { kind: "centre", sourceVersion: 0 },
     });
     const next = reduceApp(pending, {
       type: "centreLaidOut",

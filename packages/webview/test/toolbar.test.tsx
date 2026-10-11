@@ -10,6 +10,7 @@ function render(overrides: Partial<ToolbarProps> = {}): string {
       canBack
       canTidy
       canRefresh
+      changedSince={false}
       columnGap={192}
       onBack={noop}
       onTidy={noop}
@@ -25,6 +26,12 @@ function buttonTag(html: string, label: string): string {
     html,
   );
   if (!match) throw new Error(`no ${label} button in ${html}`);
+  return match[0];
+}
+
+function refreshButton(html: string): string {
+  const match = /<button[^>]*>Refresh.*?<\/button>/.exec(html);
+  if (!match) throw new Error(`no Refresh button in ${html}`);
   return match[0];
 }
 
@@ -44,6 +51,23 @@ describe("Toolbar", () => {
     expect(tag).toContain('title="Re-read the code for this graph"');
     expect(html.indexOf("Tidy")).toBeLessThan(html.indexOf("Refresh"));
     expect(html.indexOf("Refresh")).toBeLessThan(html.indexOf("Spacing"));
+  });
+
+  it("shows the dot and swaps the title only when files changed", () => {
+    const label = "Files changed since this graph was drawn";
+    const quiet = render();
+    expect(quiet).not.toContain('role="img"');
+    expect(refreshButton(quiet)).not.toContain(label);
+    expect(refreshButton(quiet)).toContain('title="Re-read the code');
+
+    const tag = refreshButton(render({ changedSince: true }));
+    expect(tag).toContain(`title="${label}"`);
+    expect(tag).not.toContain("Re-read the code");
+    expect(tag).toMatch(
+      /^<button[^>]*>Refresh<span[^>]*><\/span><\/button>$/,
+    );
+    expect(tag).toContain(`role="img"`);
+    expect(tag).toContain(`aria-label="${label}"`);
   });
 
   it("disables Refresh from canRefresh", () => {

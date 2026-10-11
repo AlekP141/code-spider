@@ -39,7 +39,7 @@ describe("GraphSession.showGraph", () => {
       type: "slice",
       slice: resultFor("src/a.ts#f").slice,
       project: PROJECT,
-      mode: { kind: "centre" },
+      mode: { kind: "centre", sourceVersion: 0 },
     });
     expect(posted[2]).toEqual({ type: "busy", busy: false });
     expect(session.currentGraph()).toEqual(resultFor("src/a.ts#f"));
@@ -58,6 +58,22 @@ describe("GraphSession.showGraph", () => {
     expect(worker.focus).toHaveBeenNthCalledWith(2, "/repo/src/a.ts", 1, 2, [
       "/repo/src/a.ts",
     ]);
+  });
+
+  it("posts the version drained for that request, not a later one", async () => {
+    const slow = deferred<FocusResult>();
+    const { session, changes, posted } = setup({ focus: () => slow.promise });
+    changes.mark("/repo/src/b.ts");
+    changes.mark("/repo/src/c.ts");
+
+    const running = session.showGraph(request);
+    changes.mark("/repo/src/d.ts");
+    slow.resolve(resultFor("src/a.ts#f"));
+    await running;
+
+    expect(posted.find((message) => message.type === "slice")).toMatchObject({
+      mode: { kind: "centre", sourceVersion: 2 },
+    });
   });
 
   it("always sends the focused file as changed, once", async () => {

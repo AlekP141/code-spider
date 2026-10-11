@@ -24,7 +24,7 @@ function showing(): AppState {
     type: "slice",
     slice: sliceOf("a", ["b"]),
     project: PROJECT,
-    mode: { kind: "centre" },
+    mode: { kind: "centre", sourceVersion: 0 },
   });
   return reduceApp(pending, {
     type: "centreLaidOut",
@@ -74,7 +74,7 @@ describe("refreshStarted", () => {
       type: "slice",
       slice: sliceOf("c"),
       project: PROJECT,
-      mode: { kind: "centre" },
+      mode: { kind: "centre", sourceVersion: 0 },
     });
     expect(canRefresh(pending)).toBe(false);
     expect(start(pending)).toBe(pending);
@@ -223,7 +223,7 @@ describe("clearing refreshing", () => {
       type: "slice",
       slice: sliceOf("c"),
       project: PROJECT,
-      mode: { kind: "centre" },
+      mode: { kind: "centre", sourceVersion: 0 },
     });
     const next = reduceApp(pending, {
       type: "centreLaidOut",
@@ -239,7 +239,7 @@ describe("clearing refreshing", () => {
       type: "slice",
       slice: sliceOf("c"),
       project: PROJECT,
-      mode: { kind: "centre" },
+      mode: { kind: "centre", sourceVersion: 0 },
     });
     const second = reduceApp(pending, {
       type: "centreLaidOut",

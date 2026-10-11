@@ -18,7 +18,7 @@ function showing(): AppState {
     type: "slice",
     slice: sliceOf("a", ["b", "c"]),
     project: PROJECT,
-    mode: { kind: "centre" },
+    mode: { kind: "centre", sourceVersion: 0 },
   });
   return reduceApp(pending, {
     type: "centreLaidOut",

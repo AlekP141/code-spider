@@ -16,7 +16,7 @@ const centre = (
   type: "slice",
   slice: sliceOf(focus, suppliers, consumers),
   project: PROJECT,
-  mode: { kind: "centre" },
+  mode: { kind: "centre", sourceVersion: 0 },
 });
 
 function pendingId(state: AppState): number {

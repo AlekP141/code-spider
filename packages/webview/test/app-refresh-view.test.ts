@@ -11,7 +11,7 @@ function showing(focus: string): AppState {
     type: "slice",
     slice: sliceOf(focus, [], ["b"]),
     project: PROJECT,
-    mode: { kind: "centre" },
+    mode: { kind: "centre", sourceVersion: 0 },
   });
   return reduceApp(pending, {
     type: "centreLaidOut",
@@ -45,7 +45,7 @@ describe("an applied refreshed answer and the view", () => {
         type: "slice",
         slice: sliceOf("a", [], ["b"]),
         project: PROJECT,
-        mode: { kind: "centre" },
+        mode: { kind: "centre", sourceVersion: 0 },
       }),
       {
         type: "centreLaidOut",
@@ -55,6 +55,8 @@ describe("an applied refreshed answer and the view", () => {
     );
     expect(withHistory.view.history).toHaveLength(1);
     const next = refreshWithNewConsumer(withHistory);
+    expect(next.refreshing).toBe(false);
+    expect(next.view.current?.nodes[id("c")]).toBeDefined();
     expect(next.view.history).toBe(withHistory.view.history);
   });
 

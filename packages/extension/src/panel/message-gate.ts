@@ -1,6 +1,6 @@
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 
-type Replayed = "settings" | "indexing" | "busy";
+type Replayed = "settings" | "indexing" | "busy" | "sourceChanged";
 type Kind = Replayed | "content" | "ephemeral";
 
 function kindOf(message: ExtensionToWebview): Kind {
@@ -16,11 +16,20 @@ function kindOf(message: ExtensionToWebview): Kind {
     case "settings":
     case "indexing":
     case "busy":
+    case "sourceChanged":
       return message.type;
   }
 }
 
-const REPLAY_ORDER: Replayed[] = ["settings", "indexing", "busy"];
+const REPLAY_ORDER: Replayed[] = [
+  "settings",
+  "indexing",
+  "busy",
+  "sourceChanged",
+];
+
+const isReplayed = (kind: Kind): kind is Replayed =>
+  (REPLAY_ORDER as Kind[]).includes(kind);
 
 /**
  * The webview cannot receive messages until its script has run and posted
@@ -31,8 +40,8 @@ const REPLAY_ORDER: Replayed[] = ["settings", "indexing", "busy"];
  * - ephemeral messages (an expansion slice, a failed expansion, a refresh
  *   answer) are sent when ready and dropped otherwise, so a late answer
  *   never reaches a new panel;
- * - settings, indexing and busy are state: the latest of each replays on
- *   every `ready`.
+ * - settings, indexing, busy and sourceChanged are state: the latest of each
+ *   replays on every `ready`.
  */
 export class MessageGate {
   private ready = false;
@@ -43,9 +52,7 @@ export class MessageGate {
 
   post(message: ExtensionToWebview): void {
     const kind = kindOf(message);
-    if (kind === "settings" || kind === "indexing" || kind === "busy") {
-      this.replayed.set(kind, message);
-    }
+    if (isReplayed(kind)) this.replayed.set(kind, message);
     if (this.ready) {
       this.send(message);
     } else if (kind === "content") {

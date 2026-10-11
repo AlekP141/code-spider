@@ -78,16 +78,16 @@ export class GraphSession {
     }
 
     panel.show();
-    await this.replaceGraph(() => {
-      const changedFiles = [
-        ...new Set([...changes.drain().files, request.file]),
-      ];
-      return worker.focus(
+    await this.replaceGraph(async () => {
+      const { files, version } = changes.drain();
+      const changedFiles = [...new Set([...files, request.file])];
+      const result = await worker.focus(
         request.file,
         request.line,
         request.character,
         changedFiles,
       );
+      return { result, version };
     });
   }
 
@@ -97,13 +97,15 @@ export class GraphSession {
       panel.post({ type: "analysisError", message: UNKNOWN_PROJECT });
       return;
     }
-    await this.replaceGraph(() =>
-      worker.sliceForNode(
+    await this.replaceGraph(async () => {
+      const { files, version } = changes.drain();
+      const result = await worker.sliceForNode(
         request.project,
         request.nodeId,
-        changes.drain().files,
-      ),
-    );
+        files,
+      );
+      return { result, version };
+    });
   }
 
   /** Takes no token and no busy state: expansions may overlap each other. */
@@ -189,13 +191,13 @@ export class GraphSession {
 
   /** The newest centre request wins; older answers are dropped. */
   private async replaceGraph(
-    analyse: () => Promise<FocusResult>,
+    analyse: () => Promise<{ result: FocusResult; version: number }>,
   ): Promise<void> {
     const { panel, jumps } = this.deps;
     const token = ++this.latest;
     await this.withBusy(async () => {
       try {
-        const result = await analyse();
+        const { result, version } = await analyse();
         if (token !== this.latest || !panel.isOpen()) return;
         this.graph = result;
         jumps.add(result.tsconfig, result);
@@ -203,7 +205,7 @@ export class GraphSession {
           type: "slice",
           slice: result.slice,
           project: result.tsconfig,
-          mode: { kind: "centre" },
+          mode: { kind: "centre", sourceVersion: version },
         });
       } catch (error) {
         if (token !== this.latest || !panel.isOpen()) return;
