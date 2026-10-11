@@ -31,7 +31,7 @@ describe("GraphSession.focusNode", () => {
   it("re-centres: brackets busy, slices around the node and posts a centre slice", async () => {
     const { session, worker, jumps, changes, posted, types } = setup();
     jumps.add(PROJECT, resultFor("src/a.ts#f"));
-    changes.markSaved("typescript", "/repo/src/b.ts");
+    changes.mark("/repo/src/b.ts");
 
     await session.focusNode({ project: PROJECT, nodeId: NODE });
 

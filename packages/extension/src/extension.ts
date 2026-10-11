@@ -81,9 +81,9 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     statusBar,
     vscode.commands.registerCommand(COMMAND_SHOW_GRAPH, showGraph),
     vscode.commands.registerCommand(COMMAND_SHOW_IN_CODE_SPIDER, showGraph),
-    vscode.workspace.onDidSaveTextDocument((document) =>
-      changes.markSaved(document.languageId, document.uri.fsPath),
-    ),
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (document.uri.scheme === "file") changes.mark(document.uri.fsPath);
+    }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration(SETTING_MAX_HEAP_MB)) {
         worker.recycle();

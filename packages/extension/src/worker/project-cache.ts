@@ -5,6 +5,8 @@ import {
   warmProject,
   type Project,
 } from "@code-spider/core";
+import { isConfigFile } from "../watched-paths.js";
+import { applyChangedFiles } from "./apply-changes.js";
 
 /** Warm projects are large; keep only the few most recently used. */
 const MAX_PROJECTS = 3;
@@ -14,6 +16,8 @@ export type ProjectEntry = {
   repoRoot: string;
   project: Project;
   warmed: boolean;
+  /** Changed files that exist but the tsconfig does not include. */
+  notIncluded: Set<string>;
 };
 
 export class ProjectCache {
@@ -24,8 +28,9 @@ export class ProjectCache {
   /** Focused files outside a tsconfig's include; kept across eviction. */
   private readonly addedFiles = new Map<string, Set<string>>();
 
-  /** Saved files are applied to each project the next time it is used. */
+  /** Changed files are applied to each project the next time it is used. */
   noteChanged(files: readonly string[]): void {
+    if (files.some(isConfigFile)) this.dropProjects();
     for (const queue of this.pending.values()) {
       for (const file of files) queue.add(file);
     }
@@ -77,6 +82,7 @@ export class ProjectCache {
       repoRoot: dirname(tsconfig),
       project: loadProject(tsconfig),
       warmed: false,
+      notIncluded: new Set(),
     };
     for (const file of this.addedFiles.get(tsconfig) ?? []) {
       entry.project.addSourceFileAtPathIfExists(file);
@@ -85,6 +91,12 @@ export class ProjectCache {
     this.pending.set(tsconfig, new Set());
     this.evictOldest();
     return entry;
+  }
+
+  private dropProjects(): void {
+    this.entries.clear();
+    this.pending.clear();
+    this.tsconfigByFile.clear();
   }
 
   private evictOldest(): void {
@@ -112,9 +124,7 @@ export class ProjectCache {
   private refreshChanged(entry: ProjectEntry): void {
     const queue = this.pending.get(entry.tsconfig);
     if (!queue) return;
-    for (const file of queue) {
-      entry.project.getSourceFile(file)?.refreshFromFileSystemSync();
-    }
+    applyChangedFiles(entry, queue);
     queue.clear();
   }
 }

@@ -25,18 +25,32 @@ describe("isAnalysableLanguage", () => {
 });
 
 describe("ChangeTracker", () => {
-  it("drains the saved TS/JS paths once", () => {
-    const tracker = new ChangeTracker();
-    tracker.markSaved("typescript", "/repo/a.ts");
-    tracker.markSaved("typescriptreact", "/repo/b.tsx");
-    tracker.markSaved("typescript", "/repo/a.ts");
-    expect(tracker.drain().sort()).toEqual(["/repo/a.ts", "/repo/b.tsx"]);
-    expect(tracker.drain()).toEqual([]);
+  it("ignores untracked paths without a version change or callback", () => {
+    const seen: number[] = [];
+    const tracker = new ChangeTracker((version) => seen.push(version));
+    tracker.mark("/repo/package.json");
+    tracker.mark("/repo/node_modules/lib/index.ts");
+    expect(seen).toEqual([]);
+    expect(tracker.drain()).toEqual({ files: [], version: 0 });
   });
 
-  it("ignores other languages", () => {
+  it("raises the version per tracked mark, also for a path already waiting", () => {
+    const seen: number[] = [];
+    const tracker = new ChangeTracker((version) => seen.push(version));
+    tracker.mark("/repo/a.ts");
+    tracker.mark("/repo/a.ts");
+    tracker.mark("/repo/tsconfig.json");
+    expect(seen).toEqual([1, 2, 3]);
+  });
+
+  it("drains the files once, deduplicated, and keeps the version", () => {
     const tracker = new ChangeTracker();
-    tracker.markSaved("json", "/repo/package.json");
-    expect(tracker.drain()).toEqual([]);
+    tracker.mark("/repo/a.ts");
+    tracker.mark("/repo/b.tsx");
+    tracker.mark("/repo/a.ts");
+    const drained = tracker.drain();
+    expect([...drained.files].sort()).toEqual(["/repo/a.ts", "/repo/b.tsx"]);
+    expect(drained.version).toBe(3);
+    expect(tracker.drain()).toEqual({ files: [], version: 3 });
   });
 });

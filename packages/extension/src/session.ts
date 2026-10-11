@@ -63,7 +63,9 @@ export class GraphSession {
 
     panel.show();
     await this.replaceGraph(() => {
-      const changedFiles = [...new Set([...changes.drain(), request.file])];
+      const changedFiles = [
+        ...new Set([...changes.drain().files, request.file]),
+      ];
       return worker.focus(
         request.file,
         request.line,
@@ -80,7 +82,11 @@ export class GraphSession {
       return;
     }
     await this.replaceGraph(() =>
-      worker.sliceForNode(request.project, request.nodeId, changes.drain()),
+      worker.sliceForNode(
+        request.project,
+        request.nodeId,
+        changes.drain().files,
+      ),
     );
   }
 
@@ -101,7 +107,7 @@ export class GraphSession {
       const result = await worker.sliceForNode(
         project,
         nodeId,
-        changes.drain(),
+        changes.drain().files,
       );
       if (!jumps.has(project)) return;
       jumps.add(result.tsconfig, result);
@@ -125,7 +131,7 @@ export class GraphSession {
     this.warming += 1;
     this.setIndexing(true);
     try {
-      await worker.warm(file, changes.drain());
+      await worker.warm(file, changes.drain().files);
     } catch (error) {
       this.notifyCrash(error, this.describeFailure(error));
     } finally {

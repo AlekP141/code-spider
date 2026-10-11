@@ -48,7 +48,7 @@ describe("GraphSession.showGraph", () => {
 
   it("sends the files saved since the last request, once", async () => {
     const { session, worker, changes } = setup();
-    changes.markSaved("typescript", "/repo/src/b.ts");
+    changes.mark("/repo/src/b.ts");
     await session.showGraph(request);
     await session.showGraph(request);
     expect(worker.focus).toHaveBeenNthCalledWith(1, "/repo/src/a.ts", 1, 2, [
@@ -63,7 +63,7 @@ describe("GraphSession.showGraph", () => {
   it("always sends the focused file as changed, once", async () => {
     const { session, worker, changes } = setup();
     await session.showGraph(request);
-    changes.markSaved("typescript", request.file);
+    changes.mark(request.file);
     await session.showGraph(request);
     expect(worker.focus).toHaveBeenNthCalledWith(1, "/repo/src/a.ts", 1, 2, [
       "/repo/src/a.ts",
