@@ -1,5 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import type { ExtensionToWebview } from "./protocol.js";
+import { applyRefreshed, failRefresh, startRefresh } from "./app-refresh.js";
 import {
   acceptAnswer,
   collapseExpanded,
@@ -10,6 +11,7 @@ import {
   startExpansion,
   unpinBox,
 } from "./app-walk.js";
+import { isWorking } from "./app-working.js";
 import { normaliseColumnGap } from "./column-gap.js";
 import type { Rect } from "./graph/placement.js";
 import { graphFromSlice, pinNodes, setPositions } from "./view/graph-state.js";
@@ -46,6 +48,8 @@ export type AppState = {
   entering: { ids: NodeId[]; token: number };
   nextToken: number;
   reveal: { token: number; rect: Rect } | undefined;
+  /** A refresh request is out; never persisted. */
+  refreshing: boolean;
   /** Only the first `settings` message after each load is applied. */
   settingsApplied: boolean;
 };
@@ -65,14 +69,12 @@ export type LocalAction =
   | { type: "failureExpired"; nodeId: NodeId; token: number }
   | { type: "enteringExpired"; token: number }
   | { type: "back" }
+  | { type: "refreshStarted" }
   | { type: "columnGapChanged"; value: number };
 
 export type AppAction = ExtensionToWebview | LocalAction;
 
-/** Busy in the worker, or a centre slice still waiting for ELK. */
-export function isWorking(state: AppState): boolean {
-  return state.busy || state.pending !== undefined;
-}
+export { isWorking };
 
 const LAYOUT_FAILED = "Could not lay out the graph: ";
 
@@ -90,6 +92,7 @@ export function createAppState(saved: unknown): AppState {
     entering: { ids: [], token: 0 },
     nextToken: 1,
     reveal: undefined,
+    refreshing: false,
     settingsApplied: false,
   };
 }
@@ -154,6 +157,7 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         busy: action.busy,
+        refreshing: action.busy && state.refreshing,
         error: action.busy ? undefined : state.error,
       };
     case "indexing":
@@ -161,8 +165,9 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
     case "expandFailed":
       return failExpansion(state, action);
     case "refreshed":
+      return applyRefreshed(state, action);
     case "refreshFailed":
-      return state;
+      return failRefresh(state, action);
     case "settings":
       return state.settingsApplied
         ? state
@@ -220,6 +225,8 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return expireEntering(state, action.token);
     case "back":
       return goBackOnce(state);
+    case "refreshStarted":
+      return startRefresh(state);
     case "columnGapChanged":
       return withColumnGap(state, action.value);
   }

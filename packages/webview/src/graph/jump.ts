@@ -1,5 +1,6 @@
 import type { GraphNode } from "@code-spider/core/types";
 import type { WebviewToExtension } from "../protocol.js";
+import type { GraphState } from "../view/types.js";
 
 /** External and unknown nodes have no source file to open. */
 export function nodeClickMessage(
@@ -23,4 +24,14 @@ export function expandMessage(
   generation: number,
 ): WebviewToExtension {
   return { type: "expand", project, nodeId, generation };
+}
+
+export function refreshMessage(graph: GraphState): WebviewToExtension {
+  return {
+    type: "refresh",
+    project: graph.project,
+    generation: graph.generation,
+    focusId: graph.focusId,
+    expanded: Object.keys(graph.slices).filter((key) => key !== graph.focusId),
+  };
 }

@@ -2,14 +2,19 @@ import type { GraphNode, NodeId } from "@code-spider/core/types";
 import { isExpanded } from "../view/graph-state.js";
 import type { GraphState } from "../view/types.js";
 
-export type NodeUi = { busy: boolean; loading: readonly NodeId[] };
+export type NodeUi = {
+  busy: boolean;
+  loading: readonly NodeId[];
+  refreshing: boolean;
+};
 
 export type NodeControl =
   | "none"
   | "expand"
   | "expandDisabled"
   | "loading"
-  | "collapse";
+  | "collapse"
+  | "collapseDisabled";
 
 function isWalkable(node: GraphNode, graph: GraphState): boolean {
   return (
@@ -25,8 +30,10 @@ export function nodeControl(
 ): NodeControl {
   if (!isWalkable(node, graph)) return "none";
   if (ui.loading.includes(node.id)) return "loading";
-  if (isExpanded(graph, node.id)) return "collapse";
-  return ui.busy ? "expandDisabled" : "expand";
+  if (isExpanded(graph, node.id)) {
+    return ui.refreshing ? "collapseDisabled" : "collapse";
+  }
+  return ui.busy || ui.refreshing ? "expandDisabled" : "expand";
 }
 
 export function doubleClickAction(

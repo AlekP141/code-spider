@@ -22,6 +22,7 @@ export function resetTransient(state: AppState): AppState {
     failures: {},
     entering: { ids: [], token: state.entering.token },
     reveal: undefined,
+    refreshing: false,
   };
 }
 

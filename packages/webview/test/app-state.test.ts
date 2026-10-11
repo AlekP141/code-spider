@@ -57,6 +57,7 @@ describe("createAppState", () => {
       entering: { ids: [], token: 0 },
       nextToken: 1,
       reveal: undefined,
+      refreshing: false,
       settingsApplied: false,
     });
   });

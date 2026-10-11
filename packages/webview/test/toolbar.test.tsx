@@ -9,9 +9,11 @@ function render(overrides: Partial<ToolbarProps> = {}): string {
     <Toolbar
       canBack
       canTidy
+      canRefresh
       columnGap={192}
       onBack={noop}
       onTidy={noop}
+      onRefresh={noop}
       onColumnGap={noop}
       {...overrides}
     />,
@@ -34,6 +36,21 @@ describe("Toolbar", () => {
     const on = render();
     expect(buttonTag(on, "Back")).not.toContain("disabled");
     expect(buttonTag(on, "Tidy")).not.toContain("disabled");
+  });
+
+  it("puts Refresh between Tidy and Spacing with its title", () => {
+    const html = render();
+    const tag = buttonTag(html, "Refresh");
+    expect(tag).toContain('title="Re-read the code for this graph"');
+    expect(html.indexOf("Tidy")).toBeLessThan(html.indexOf("Refresh"));
+    expect(html.indexOf("Refresh")).toBeLessThan(html.indexOf("Spacing"));
+  });
+
+  it("disables Refresh from canRefresh", () => {
+    expect(buttonTag(render({ canRefresh: false }), "Refresh")).toContain(
+      "disabled",
+    );
+    expect(buttonTag(render(), "Refresh")).not.toContain("disabled");
   });
 
   it("carries the slider's range, step and current value", () => {

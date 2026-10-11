@@ -3,9 +3,11 @@ import { COLUMN_GAP } from "../column-gap.js";
 export type ToolbarProps = {
   canBack: boolean;
   canTidy: boolean;
+  canRefresh: boolean;
   columnGap: number;
   onBack(): void;
   onTidy(): void;
+  onRefresh(): void;
   onColumnGap(value: number): void;
 };
 
@@ -27,6 +29,15 @@ export function Toolbar(props: ToolbarProps) {
         onClick={props.onTidy}
       >
         Tidy
+      </button>
+      <button
+        type="button"
+        className="toolbar-button"
+        title="Re-read the code for this graph"
+        disabled={!props.canRefresh}
+        onClick={props.onRefresh}
+      >
+        Refresh
       </button>
       <label className="toolbar-spacing">
         <span>Spacing</span>

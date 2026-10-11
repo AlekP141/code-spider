@@ -56,7 +56,10 @@ export type GraphViewProps = {
   /** The view's gap, used for labels when the graph has none of its own. */
   columnGap: number;
   fit: FitRequest;
-  ui: Pick<AppState, "busy" | "loading" | "failures" | "entering" | "reveal">;
+  ui: Pick<
+    AppState,
+    "busy" | "loading" | "failures" | "entering" | "reveal" | "refreshing"
+  >;
   actions: NodeActions;
   onPost: (message: WebviewToExtension) => void;
   onDragStop: (positions: Record<NodeId, Point>) => void;
@@ -80,7 +83,7 @@ export function GraphView({
 }: GraphViewProps) {
   const flow = useMemo(() => toFlow(graph), [graph]);
   const { generation, project } = graph;
-  const { busy, loading, failures, entering, reveal } = ui;
+  const { busy, loading, failures, entering, reveal, refreshing } = ui;
   const [live, setLive] = useState<LivePositions | undefined>(undefined);
   const enteringIds = useMemo(() => new Set(entering.ids), [entering.ids]);
   const nodes = useMemo(() => {
@@ -98,7 +101,10 @@ export function GraphView({
         : edge,
     );
   }, [flow.edges, enteringIds]);
-  const nodeUi = useMemo(() => ({ busy, loading }), [busy, loading]);
+  const nodeUi = useMemo(
+    () => ({ busy, loading, refreshing }),
+    [busy, loading, refreshing],
+  );
   const { onExpand, onCollapse } = actions;
   const lastUnpin = useRef<LastUnpin>(undefined);
   const onUnpin = useCallback<NodeActions["onUnpin"]>(

@@ -1,8 +1,9 @@
 import type { NodeId } from "@code-spider/core/types";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { canRefresh } from "./app-refresh.js";
 import { createAppState, isWorking, reduceApp } from "./app-state.js";
 import { GraphView } from "./graph/GraphView.js";
-import { expandMessage } from "./graph/jump.js";
+import { expandMessage, refreshMessage } from "./graph/jump.js";
 import type { NodeActions } from "./graph/node-context.js";
 import { useGraphLayout } from "./graph/use-layout.js";
 import { isExtensionMessage } from "./messages.js";
@@ -47,6 +48,13 @@ export function App() {
 
   const onBack = useCallback(() => dispatch({ type: "back" }), []);
 
+  const refreshable = canRefresh(state);
+  const onRefresh = useCallback(() => {
+    if (!refreshable || !graph) return;
+    dispatch({ type: "refreshStarted" });
+    postToExtension(refreshMessage(graph));
+  }, [refreshable, graph]);
+
   const onDragStop = useCallback(
     (positions: Record<NodeId, Point>) =>
       dispatch({ type: "dragStopped", positions }),
@@ -67,9 +75,11 @@ export function App() {
       <Toolbar
         canBack={canGoBack(state.view) && !working}
         canTidy={graph !== undefined}
+        canRefresh={refreshable}
         columnGap={state.view.columnGap}
         onBack={onBack}
         onTidy={tidy}
+        onRefresh={onRefresh}
         onColumnGap={onColumnGap}
       />
       {state.indexing ? (

@@ -3,7 +3,10 @@ import {
   edgeClickMessage,
   expandMessage,
   nodeClickMessage,
+  refreshMessage,
 } from "../src/graph/jump.js";
+import { mergeExpansion } from "../src/view/graph-state.js";
+import { graphOf, id, PROJECT, sliceOf } from "./support/graph-states.js";
 import { makeNode } from "./support/slices.js";
 
 const project = "/repo/tsconfig.json";
@@ -66,6 +69,28 @@ describe("expandMessage", () => {
       project,
       nodeId: "src/a.ts#f",
       generation: 4,
+    });
+  });
+});
+
+describe("refreshMessage", () => {
+  it("lists the expanded keys but the centre, in recorded order", () => {
+    const base = graphOf("a", ["b", "c"]);
+    const withC = mergeExpansion(base, id("c"), sliceOf("c", ["d"])).graph;
+    const graph = mergeExpansion(withC, id("b"), sliceOf("b", ["e"])).graph;
+    expect(refreshMessage(graph)).toEqual({
+      type: "refresh",
+      project: PROJECT,
+      generation: graph.generation,
+      focusId: id("a"),
+      expanded: [id("c"), id("b")],
+    });
+  });
+
+  it("sends an empty list when nothing is expanded", () => {
+    expect(refreshMessage(graphOf("a", ["b"]))).toMatchObject({
+      focusId: id("a"),
+      expanded: [],
     });
   });
 });

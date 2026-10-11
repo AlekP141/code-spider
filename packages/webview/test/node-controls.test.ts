@@ -4,12 +4,14 @@ import {
   justUnpinned,
   nodeControl,
   UNPIN_GUARD_MS,
+  type NodeUi,
 } from "../src/graph/node-controls.js";
 import { graphFromSlice, mergeExpansion } from "../src/view/graph-state.js";
 import { graphOf, id, PROJECT, sliceOf } from "./support/graph-states.js";
 import { makeNode, makeSlice } from "./support/slices.js";
 
-const idle = { busy: false, loading: [] };
+const idle: NodeUi = { busy: false, loading: [], refreshing: false };
+const ui = (patch: Partial<NodeUi>): NodeUi => ({ ...idle, ...patch });
 
 function withKinds() {
   const nodes = [
@@ -35,9 +37,7 @@ describe("nodeControl", () => {
     const graph = graphOf("a", ["b"]);
     const fn = graph.nodes[id("b")]!;
     expect(nodeControl(fn, graph, idle)).toBe("expand");
-    expect(nodeControl(fn, graph, { busy: true, loading: [] })).toBe(
-      "expandDisabled",
-    );
+    expect(nodeControl(fn, graph, ui({ busy: true }))).toBe("expandDisabled");
     const withComponent = withKinds();
     expect(
       nodeControl(withComponent.nodes["src/a.ts#C"]!, withComponent, idle),
@@ -47,12 +47,9 @@ describe("nodeControl", () => {
   it("shows loading for a loading box, busy or not", () => {
     const graph = graphOf("a", ["b"]);
     const fn = graph.nodes[id("b")]!;
-    expect(nodeControl(fn, graph, { busy: false, loading: [id("b")] })).toBe(
-      "loading",
-    );
-    expect(nodeControl(fn, graph, { busy: true, loading: [id("b")] })).toBe(
-      "loading",
-    );
+    const loading = [id("b")];
+    expect(nodeControl(fn, graph, ui({ loading }))).toBe("loading");
+    expect(nodeControl(fn, graph, ui({ busy: true, loading }))).toBe("loading");
   });
 
   it("offers collapse on an expanded box, also while busy", () => {
@@ -63,9 +60,7 @@ describe("nodeControl", () => {
     ).graph;
     const fn = graph.nodes[id("b")]!;
     expect(nodeControl(fn, graph, idle)).toBe("collapse");
-    expect(nodeControl(fn, graph, { busy: true, loading: [] })).toBe(
-      "collapse",
-    );
+    expect(nodeControl(fn, graph, ui({ busy: true }))).toBe("collapse");
   });
 
   it("prefers loading over collapse when an expanded box is loading again", () => {
@@ -75,9 +70,7 @@ describe("nodeControl", () => {
       sliceOf("b", ["d"]),
     ).graph;
     const fn = graph.nodes[id("b")]!;
-    expect(nodeControl(fn, graph, { busy: false, loading: [id("b")] })).toBe(
-      "loading",
-    );
+    expect(nodeControl(fn, graph, ui({ loading: [id("b")] }))).toBe("loading");
   });
 
   it("never treats the centre as expanded although its slice is recorded", () => {
@@ -85,10 +78,7 @@ describe("nodeControl", () => {
     expect(graph.slices[id("a")]).toBeDefined();
     expect(nodeControl(graph.nodes[id("a")]!, graph, idle)).toBe("none");
     expect(
-      nodeControl(graph.nodes[id("a")]!, graph, {
-        busy: false,
-        loading: [id("a")],
-      }),
+      nodeControl(graph.nodes[id("a")]!, graph, ui({ loading: [id("a")] })),
     ).toBe("none");
   });
 });
@@ -111,28 +101,27 @@ describe("doubleClickAction", () => {
   it("does nothing on a collapsed box while busy", () => {
     const graph = graphOf("a", ["b"]);
     expect(
-      doubleClickAction(graph.nodes[id("b")]!, graph, {
-        busy: true,
-        loading: [],
-      }),
+      doubleClickAction(graph.nodes[id("b")]!, graph, ui({ busy: true })),
     ).toBe("none");
   });
 
   it("does nothing while the box is loading, expanded or not", () => {
     const graph = graphOf("a", ["b"]);
-    const ui = { busy: false, loading: [id("b")] };
-    expect(doubleClickAction(graph.nodes[id("b")]!, graph, ui)).toBe("none");
+    const loading = ui({ loading: [id("b")] });
+    expect(doubleClickAction(graph.nodes[id("b")]!, graph, loading)).toBe(
+      "none",
+    );
     const open = expanded();
-    expect(doubleClickAction(open.nodes[id("b")]!, open, ui)).toBe("none");
+    expect(doubleClickAction(open.nodes[id("b")]!, open, loading)).toBe(
+      "none",
+    );
   });
 
   it("collapses an expanded box, also while busy", () => {
     const graph = expanded();
     const fn = graph.nodes[id("b")]!;
     expect(doubleClickAction(fn, graph, idle)).toBe("collapse");
-    expect(doubleClickAction(fn, graph, { busy: true, loading: [] })).toBe(
-      "collapse",
-    );
+    expect(doubleClickAction(fn, graph, ui({ busy: true }))).toBe("collapse");
   });
 
   it("does nothing on the centre or on external, unknown and module boxes", () => {
@@ -141,6 +130,48 @@ describe("doubleClickAction", () => {
       if (node.id === "src/a.ts#C") continue;
       expect(doubleClickAction(node, graph, idle)).toBe("none");
     }
+  });
+});
+
+describe("while refreshing", () => {
+  const refreshing = ui({ refreshing: true });
+  const open = () =>
+    mergeExpansion(graphOf("a", ["b"]), id("b"), sliceOf("b", ["d"])).graph;
+
+  it("disables expand on a collapsed function or component", () => {
+    const graph = graphOf("a", ["b"]);
+    expect(nodeControl(graph.nodes[id("b")]!, graph, refreshing)).toBe(
+      "expandDisabled",
+    );
+    const kinds = withKinds();
+    expect(nodeControl(kinds.nodes["src/a.ts#C"]!, kinds, refreshing)).toBe(
+      "expandDisabled",
+    );
+  });
+
+  it("disables collapse on an expanded box", () => {
+    const graph = open();
+    expect(nodeControl(graph.nodes[id("b")]!, graph, refreshing)).toBe(
+      "collapseDisabled",
+    );
+  });
+
+  it("keeps none for the centre and loading for a loading box", () => {
+    const graph = open();
+    expect(nodeControl(graph.nodes[id("a")]!, graph, refreshing)).toBe("none");
+    const loading = ui({ refreshing: true, loading: [id("b")] });
+    expect(nodeControl(graph.nodes[id("b")]!, graph, loading)).toBe("loading");
+  });
+
+  it("makes a double-click do nothing on either kind of box", () => {
+    const collapsed = graphOf("a", ["b"]);
+    expect(
+      doubleClickAction(collapsed.nodes[id("b")]!, collapsed, refreshing),
+    ).toBe("none");
+    const graph = open();
+    expect(doubleClickAction(graph.nodes[id("b")]!, graph, refreshing)).toBe(
+      "none",
+    );
   });
 });
 
