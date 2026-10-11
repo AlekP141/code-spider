@@ -1,5 +1,5 @@
 import type { EdgeType, GraphEdge, NodeId } from "@code-spider/core/types";
-import { compareIds } from "./placement.js";
+import { compareIds } from "./compare-ids.js";
 
 export type LabelKind = "returns" | "jsx" | "passes";
 export type LabelLine = { kind: LabelKind; text: string };

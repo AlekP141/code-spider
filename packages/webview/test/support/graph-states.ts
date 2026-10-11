@@ -2,7 +2,7 @@ import type { GraphNode, GraphSlice } from "@code-spider/core/types";
 import { graphFromSlice } from "../../src/view/graph-state.js";
 import type { RefreshAnswer } from "../../src/view/refresh.js";
 import type { GraphState, Point } from "../../src/view/types.js";
-import { makeEdge, makeNode, makeSlice } from "./slices.js";
+import { makeEdge, makeNode, makeSlice, site } from "./slices.js";
 
 export const PROJECT = "/repo/tsconfig.json";
 
@@ -19,6 +19,24 @@ export function sliceOf(
     names.map((name) => makeNode({ id: id(name) })),
     [
       ...suppliers.map((name) => makeEdge(id(name), id(focus))),
+      ...consumers.map((name) => makeEdge(id(focus), id(name))),
+    ],
+  );
+}
+
+export function calledSlice(
+  focus: string,
+  called: string[],
+  consumers: string[] = [],
+): GraphSlice {
+  const names = [focus, ...called, ...consumers];
+  return makeSlice(
+    id(focus),
+    names.map((name) => makeNode({ id: id(name) })),
+    [
+      ...called.map((name, i) =>
+        makeEdge(id(name), id(focus), { callSite: site(i + 2) }),
+      ),
       ...consumers.map((name) => makeEdge(id(focus), id(name))),
     ],
   );

@@ -42,7 +42,7 @@ export function collectCalleeEdges(
   const invocations: Invocation[] = [
     ...target.declaration.getDescendantsOfKind(SyntaxKind.CallExpression),
     ...target.declaration.getDescendantsOfKind(SyntaxKind.NewExpression),
-  ];
+  ].sort((a, b) => a.getStart() - b.getStart());
   for (const call of invocations) {
     if (belongsTo(call, target)) addCallEdge(graph, call, focusId, ctx);
   }

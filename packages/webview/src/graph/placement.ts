@@ -1,6 +1,7 @@
 import type { GraphEdge, NodeId } from "@code-spider/core/types";
 import { rowGap } from "../column-gap.js";
 import type { Point } from "../view/types.js";
+import { compareIds } from "./compare-ids.js";
 import { NODE_WIDTH } from "./constants.js";
 
 export type Rect = { x: number; y: number; width: number; height: number };
@@ -79,9 +80,6 @@ export type Placement = {
   existing: readonly Rect[];
   columnGap: number;
 };
-
-export const compareIds = (a: string, b: string) =>
-  a < b ? -1 : a > b ? 1 : 0;
 
 const byId = (a: AddedNode, b: AddedNode) => compareIds(a.id, b.id);
 

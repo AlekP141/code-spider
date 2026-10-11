@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { GraphEdge, GraphNode, GraphSlice } from "@code-spider/core";
+import type {
+  GraphEdge,
+  GraphNode,
+  GraphSlice,
+  Range,
+} from "@code-spider/core";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -51,4 +56,13 @@ export function makeSlice(
   edges: GraphEdge[],
 ): GraphSlice {
   return { focusId, nodes, edges, truncated: false };
+}
+
+export function site(line: number, column = 3): Range {
+  return {
+    startLine: line,
+    startColumn: column,
+    endLine: line,
+    endColumn: column + 6,
+  };
 }

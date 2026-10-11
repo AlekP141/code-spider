@@ -46,7 +46,7 @@ function jsxElementsOf(target: FocusTarget): JsxElement[] {
       SyntaxKind.JsxSelfClosingElement,
     ),
     ...target.declaration.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
-  ];
+  ].sort((a, b) => a.getStart() - b.getStart());
 }
 
 function isIntrinsicTag(tag: Node): boolean {

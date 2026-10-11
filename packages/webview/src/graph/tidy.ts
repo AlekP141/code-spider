@@ -1,7 +1,7 @@
 import type { NodeId } from "@code-spider/core/types";
 import type { Point } from "../view/types.js";
+import { compareIds } from "./compare-ids.js";
 import {
-  compareIds,
   isClear,
   nearestFreeY,
   type Rect,
