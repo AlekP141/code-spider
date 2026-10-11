@@ -21,7 +21,10 @@ smoke. **No new dependencies.**
 **Spec:** docs/superpowers/specs/2026-10-11-code-spider-m3b-design.md ("section n" is a section of it, "§n" a section of
 the main spec). The previous milestone: docs/superpowers/specs/2026-10-10-code-spider-m3a-design.md.
 
-**Status:** not started. Baseline at commit `16afb67`, all passing: core 231, CLI 43, webview 290, extension 139, smoke 6.
+**Status:** built on 2026-10-11 in thirteen task commits (`f5684f5` to `bb03837`, on top of the plan commit `eed017e`)
+plus the integration-review fixes. Final automated counts: core 248, CLI 39, webview 405, extension 206, smoke 7 cases,
+`pnpm probe` 9 checks. The owner's ten manual checks (spec section 11) have NOT been run.
+Baseline at commit `16afb67`, all passing: core 231, CLI 43, webview 290, extension 139, smoke 6.
 
 ## Global Constraints
 

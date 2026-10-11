@@ -1,7 +1,8 @@
 # Code Spider M3b: refresh, watching and detail
 
 **Date:** 2026-10-11
-**Status:** Approved design, ready for implementation planning
+**Status:** Built 2026-10-11 (section 15 lists where the build differs). The owner's manual checks
+(section 11) have not been run yet.
 **Main spec:** [2026-08-22-code-spider-design.md](2026-08-22-code-spider-design.md).
 **Previous milestone:** [2026-10-10-code-spider-m3a-design.md](2026-10-10-code-spider-m3a-design.md);
 M3b builds on all of it. "§n" means a section of the main spec, "section n" a section of this one.
@@ -150,11 +151,12 @@ A pure function in its own file, `view/refresh.ts` (`graph-state.ts` is already 
 is the graph as it is when the answer arrives.
 
 1. Start from `graphFromSlice(answer.centre, current.project)`. Then apply expansions to a
-   fixpoint. A pass walks the answer's expansions in order; one is applied when its node is in
-   the rebuilt graph, is still expanded in `current` (`isExpanded`), has `slice.focusId` equal to
-   its node id, and is not yet applied. Passes repeat until one applies nothing. Expansions never
-   applied are dropped: that removes a vanished expanded box with everything reachable only
-   through it, and a box the user collapsed while the refresh ran.
+   fixpoint. A pass walks the answer's expansions in the order the user expanded them (section 15);
+   one is applied when its node is in the rebuilt graph, is still expanded in `current`
+   (`isExpanded`), has `slice.focusId` equal to its node id, and is not yet applied. Passes repeat
+   until one applies nothing. Expansions never applied are dropped: that removes a vanished
+   expanded box with everything reachable only through it, and a box the user collapsed while the
+   refresh ran.
 2. Applying adds the slice's nodes and its edges whose ends are present, and records
    `slices[nodeId]` as `mergeExpansion` does, but replaces a node or edge already present with
    the fresh data (the "replace" `mergeExpansion` deliberately does not do). One worker request
@@ -483,7 +485,12 @@ green (and `pnpm build` where a bundle changes).
 2. **Refresh cost.** One request runs the centre and every expansion on the one worker thread,
    so other requests wait; no cancellation. A tsconfig re-read walks the file system.
 3. **Dot accuracy.** False alarms: build output. Misses: `files.watcherExclude` directories, and
-   files outside the workspace changed without a save in VS Code.
+   files outside the workspace changed without a save in VS Code. Also missed: a base config that
+   a tsconfig `extends` under another name (for example `base.json`), because `CONFIG_WATCH_GLOB`
+   and `isConfigFile` match only `tsconfig*.json` and `jsconfig*.json`; changing it alters the
+   project without dropping the cache or lighting the dot. Unverified: whether VS Code delivers
+   one watcher event per file when a whole directory is deleted or renamed; if it does not, the
+   tracker misses those files.
 
 ## 14. Working agreement and constraints
 
@@ -498,3 +505,24 @@ Files aim for 300 lines (hard cap 500), split by responsibility. Comments are mi
 is unit-tested. The extension imports the webview's protocol type-only; the runtime exceptions are
 `@code-spider/webview/column-gap` and, new, `edge-style`. `packages/core` never imports `vscode`.
 Theme only through `--vscode-*` variables. Node sizes stay analytic. No `unsafe-eval`.
+
+## 15. As built: departures from this design
+
+The sections above are the approved design and stay as written. The build differs as follows.
+
+- **Order of the fixpoint (section 4.3).** Each pass applies its expansions in the order the user
+  expanded them (the keys of `current.slices`), not the answer's order, so new boxes land the same
+  way however the worker ordered its reply. The "application order" of section 4.4 is that order.
+- **The probe (section 9).** It removes its run directory after every run, also on a signal. It
+  exits 2 when any setup step fails (the VS Code download, bundling `html.ts`, building the run
+  directory), not only when Electron cannot start, so a setup fault is not reported as a failed
+  check. It has one more helper file, `probe/page-helpers.js`, used by the checks.
+- **`isWorking` (section 4.5)** lives in `packages/webview/src/app-working.ts`, so `app-state.ts`
+  and `app-refresh.ts` can both use it without importing each other.
+- **Task count (section 12).** The outline has nine tasks; the plan has thirteen.
+- **Watcher wiring (section 5.1).** The tracker, the 200 ms debounce and the `sourceChanged` post
+  are joined in `createSourceChanges` in `packages/extension/src/source-changes.ts`; activation
+  calls it once.
+- **Unsaved-edit check (section 4.6).** It runs inside the refresh's error handling. If collecting
+  the unsaved documents throws, the refresh ends with `refreshFailed` carrying the error's text,
+  not a rejected request (a newer centre request or a closed panel still drops the answer).
