@@ -45,13 +45,15 @@ export class WorkerClient {
 
   async focus(
     file: string,
-    offset: number,
+    line: number,
+    character: number,
     changedFiles: string[],
   ): Promise<FocusResult> {
     const response = await this.request({
       kind: "focus",
       file,
-      offset,
+      line,
+      character,
       changedFiles,
     });
     if (response.kind !== "focused") {

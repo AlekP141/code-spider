@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   analyzeTarget,
-  lineColToOffset,
   main,
   parseArgs,
   parseTarget,
@@ -19,34 +18,6 @@ const GOLDEN = fileURLToPath(
   ),
 );
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
-
-describe("lineColToOffset", () => {
-  const text = "line one\nline two\nline three";
-
-  it("returns 0 for 1:1", () => {
-    expect(lineColToOffset(text, 1, 1)).toBe(0);
-  });
-
-  it("handles a later column on the first line", () => {
-    expect(lineColToOffset(text, 1, 6)).toBe(5);
-  });
-
-  it("handles the start of the second line", () => {
-    expect(lineColToOffset(text, 2, 1)).toBe(9);
-  });
-
-  it("handles CRLF line endings", () => {
-    expect(lineColToOffset("a\r\nb", 2, 1)).toBe(3);
-  });
-
-  it("throws for a line past the end", () => {
-    expect(() => lineColToOffset(text, 99, 1)).toThrow(/out of range/);
-  });
-
-  it("throws for a column past the end of the line", () => {
-    expect(() => lineColToOffset(text, 1, 20)).toThrow(/out of range/);
-  });
-});
 
 describe("parseTarget", () => {
   it("splits file:line:col", () => {
@@ -159,6 +130,16 @@ describe("analyzeTarget", () => {
 
   it("throws for a missing file", () => {
     expect(() => analyzeTarget("no/such/file.ts:1")).toThrow(/File not found/);
+  });
+
+  it("clamps a column past the end of the line", () => {
+    expect(analyzeTarget(`${SIGNUP}:19:999`)).toEqual(
+      analyzeTarget(`${SIGNUP}:19:3`),
+    );
+  });
+
+  it("throws for a line past the end of the file", () => {
+    expect(() => analyzeTarget(`${SIGNUP}:9999`)).toThrow(/out of range/);
   });
 });
 

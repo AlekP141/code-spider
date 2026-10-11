@@ -12,11 +12,20 @@ export function fixturePath(name: string, rel = ""): string {
   return join(testCodeRoot, name, rel);
 }
 
-/** Zero-based offset of the first `needle` in `file`, plus `delta`. */
-export function offsetOf(file: string, needle: string, delta = 0): number {
-  const index = readFileSync(file, "utf8").indexOf(needle);
+/** Zero-based position of the first `needle` in `file`, plus `delta`. */
+export function positionOf(
+  file: string,
+  needle: string,
+  delta = 0,
+): { line: number; character: number } {
+  const text = readFileSync(file, "utf8");
+  const index = text.indexOf(needle);
   if (index < 0) throw new Error(`"${needle}" not found in ${file}`);
-  return index + delta;
+  const lines = text.slice(0, index + delta).split("\n");
+  return {
+    line: lines.length - 1,
+    character: lines[lines.length - 1]?.length ?? 0,
+  };
 }
 
 /** A real slice produced by the analyser, checked in under core's tests. */

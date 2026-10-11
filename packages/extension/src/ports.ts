@@ -6,7 +6,8 @@ export interface AnalysisPort {
   warm(file: string, changedFiles: string[]): Promise<void>;
   focus(
     file: string,
-    offset: number,
+    line: number,
+    character: number,
     changedFiles: string[],
   ): Promise<FocusResult>;
   sliceForNode(

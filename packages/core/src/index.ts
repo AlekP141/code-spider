@@ -12,9 +12,12 @@ export type {
 export { makeNodeId, parseNodeId, toPosixPath } from "./node-id.js";
 export {
   analyzeFocus,
+  analyzeFocusAt,
   expandNode,
+  type AnalyzeAtRequest,
   type AnalyzeRequest,
 } from "./analyze.js";
+export { positionToOffset } from "./position.js";
 export {
   findTsconfig,
   loadProject,

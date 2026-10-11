@@ -12,10 +12,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createWorkerHandler } from "../src/worker/handler.js";
 import { ProjectCache } from "../src/worker/project-cache.js";
 import type { WorkerResponse } from "../src/worker/protocol.js";
-import { fixturePath, offsetOf } from "./support/fixtures.js";
+import { fixturePath, positionOf } from "./support/fixtures.js";
 
 const signup = fixturePath("basic", "src/signup.ts");
-const insideHandleSignup = offsetOf(signup, "validateUser(input)", 3);
+const insideHandleSignup = positionOf(signup, "validateUser(input)", 3);
 const basicTsconfig = fixturePath("basic", "tsconfig.json");
 
 function idsOf(response: WorkerResponse): string[] {
@@ -30,7 +30,7 @@ describe("createWorkerHandler", () => {
       id: 7,
       kind: "focus",
       file: signup,
-      offset: insideHandleSignup,
+      ...insideHandleSignup,
       changedFiles: [],
     });
     expect(response.id).toBe(7);
@@ -53,12 +53,28 @@ describe("createWorkerHandler", () => {
       id: 2,
       kind: "focus",
       file: fixturePath("basic", "src/types.ts"),
-      offset: 0,
+      line: 0,
+      character: 0,
       changedFiles: [],
     });
     expect(response.kind).toBe("failed");
     if (response.kind === "failed") {
       expect(response.message).toContain("No callable found");
+    }
+  });
+
+  it("reports a line outside the file as a failure", () => {
+    const response = createWorkerHandler()({
+      id: 4,
+      kind: "focus",
+      file: signup,
+      line: 9999,
+      character: 0,
+      changedFiles: [],
+    });
+    expect(response.kind).toBe("failed");
+    if (response.kind === "failed") {
+      expect(response.message).toMatch(/out of range/);
     }
   });
 
@@ -71,7 +87,8 @@ describe("createWorkerHandler", () => {
         id: 3,
         kind: "focus",
         file,
-        offset: 0,
+        line: 0,
+        character: 0,
         changedFiles: [],
       });
       expect(response.kind).toBe("failed");
@@ -213,10 +230,10 @@ describe("changed-file refresh", () => {
 
   it("applies saved files on the next request and not before", () => {
     const file = join(dir, "src/signup.ts");
-    const offset = offsetOf(file, "validateUser(input)", 3);
+    const position = positionOf(file, "validateUser(input)", 3);
     const handle = createWorkerHandler();
     const focus = (changedFiles: string[]) =>
-      handle({ id: 1, kind: "focus", file, offset, changedFiles });
+      handle({ id: 1, kind: "focus", file, ...position, changedFiles });
 
     expect(idsOf(focus([]))).not.toContain("src/signup.ts#extra");
 
@@ -244,7 +261,7 @@ describe("changed-file refresh", () => {
       id: 2,
       kind: "focus",
       file: created,
-      offset: offsetOf(created, "return", 1),
+      ...positionOf(created, "return", 1),
       changedFiles: [created],
     });
     expect(idsOf(response)).toContain("src/created.ts#created");

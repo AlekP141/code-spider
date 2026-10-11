@@ -1,9 +1,9 @@
 #!/usr/bin/env tsx
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  analyzeFocus,
+  analyzeFocusAt,
   findTsconfig,
   loadProject,
   warmProject,
@@ -20,32 +20,6 @@ const TARGET_PATTERN = /^(.*?[^:]):([1-9]\d*)(?::([1-9]\d*))?$/;
 export type Target = { file: string; line: number; col: number };
 
 export type CliArgs = { target: string; root: string | undefined };
-
-export function lineColToOffset(
-  text: string,
-  line: number,
-  col: number,
-): number {
-  const lines = text.split("\n");
-  if (line < 1 || line > lines.length) {
-    throw new Error(
-      `Line ${line} is out of range (file has ${lines.length} lines)`,
-    );
-  }
-
-  const lineLength = (lines[line - 1] ?? "").length;
-  if (col < 1 || col > lineLength + 1) {
-    throw new Error(`Column ${col} is out of range for line ${line}`);
-  }
-
-  let offset = 0;
-  for (let i = 0; i < line - 1; i += 1) {
-    // +1 restores the '\n' that split() removed. A CRLF '\r' stays in the
-    // line text, so it is already counted.
-    offset += (lines[i] ?? "").length + 1;
-  }
-  return offset + (col - 1);
-}
 
 function invalidTarget(arg: string): Error {
   return new Error(`Expected <file>:<line>[:<col>], got: ${arg}`);
@@ -108,11 +82,15 @@ export function runTarget(
     throw new Error(`File not found: ${absolute}`);
   }
 
-  const offset = lineColToOffset(readFileSync(absolute, "utf8"), line, col);
   const tsconfig = findTsconfig(absolute);
   const repoRoot =
     rootFlag === undefined ? dirname(tsconfig) : resolve(rootFlag);
-  const input = { file: absolute, offset, repoRoot };
+  const input = {
+    file: absolute,
+    line: line - 1,
+    character: col - 1,
+    repoRoot,
+  };
 
   const loadStart = performance.now();
   const project = loadProject(tsconfig);
@@ -124,7 +102,7 @@ export function runTarget(
 
   const timedAnalyze = () => {
     const start = performance.now();
-    const slice = analyzeFocus(project, input);
+    const slice = analyzeFocusAt(project, input);
     return { slice, ms: performance.now() - start };
   };
   const first = timedAnalyze();

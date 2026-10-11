@@ -62,13 +62,14 @@ describe("WorkerClient", () => {
 
   it("posts focus requests and resolves with the result", async () => {
     const { workers, client } = setup();
-    const pending = client.focus("/a.ts", 12, ["/b.ts"]);
+    const pending = client.focus("/a.ts", 3, 4, ["/b.ts"]);
     expect(workers[0]?.posted).toEqual([
       {
         id: 1,
         kind: "focus",
         file: "/a.ts",
-        offset: 12,
+        line: 3,
+        character: 4,
         changedFiles: ["/b.ts"],
       },
     ]);
@@ -111,8 +112,8 @@ describe("WorkerClient", () => {
 
   it("matches out-of-order replies by id", async () => {
     const { workers, client } = setup();
-    const first = client.focus("/a.ts", 1, []);
-    const second = client.focus("/a.ts", 2, []);
+    const first = client.focus("/a.ts", 1, 0, []);
+    const second = client.focus("/a.ts", 2, 0, []);
     workers[0]?.reply({ id: 2, kind: "failed", message: "second failed" });
     workers[0]?.reply({ id: 1, kind: "focused", result });
     await expect(first).resolves.toEqual(result);
@@ -121,14 +122,14 @@ describe("WorkerClient", () => {
 
   it("rejects with the worker's message when the request fails", async () => {
     const { workers, client } = setup();
-    const pending = client.focus("/a.ts", 0, []);
+    const pending = client.focus("/a.ts", 0, 0, []);
     workers[0]?.reply({ id: 1, kind: "failed", message: "No callable found" });
     await expect(pending).rejects.toThrow("No callable found");
   });
 
   it("reports an out-of-memory worker and starts a fresh one next time", async () => {
     const { workers, client } = setup();
-    const pending = client.focus("/a.ts", 0, []);
+    const pending = client.focus("/a.ts", 0, 0, []);
     workers[0]?.emit("error", outOfMemory());
     workers[0]?.emit("exit", 1);
     const error = await pending.catch((caught: unknown) => caught);
@@ -136,7 +137,7 @@ describe("WorkerClient", () => {
     expect((error as WorkerCrashedError).outOfMemory).toBe(true);
     expect(workers[0]?.terminated).toBe(true);
 
-    const next = client.focus("/a.ts", 0, []);
+    const next = client.focus("/a.ts", 0, 0, []);
     expect(workers).toHaveLength(2);
     workers[1]?.reply({ id: 2, kind: "focused", result });
     await expect(next).resolves.toEqual(result);
@@ -144,7 +145,7 @@ describe("WorkerClient", () => {
 
   it("treats an unexpected exit as a crash, not an out-of-memory", async () => {
     const { workers, client } = setup();
-    const pending = client.focus("/a.ts", 0, []);
+    const pending = client.focus("/a.ts", 0, 0, []);
     workers[0]?.emit("exit", 3);
     const error = await pending.catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(WorkerCrashedError);
@@ -154,8 +155,8 @@ describe("WorkerClient", () => {
 
   it("rejects every in-flight request when the worker dies", async () => {
     const { workers, client } = setup();
-    const first = client.focus("/a.ts", 1, []);
-    const second = client.focus("/a.ts", 2, []);
+    const first = client.focus("/a.ts", 1, 0, []);
+    const second = client.focus("/a.ts", 2, 0, []);
     workers[0]?.emit("error", new Error("boom"));
     await expect(first).rejects.toBeInstanceOf(WorkerCrashedError);
     await expect(second).rejects.toBeInstanceOf(WorkerCrashedError);
@@ -163,11 +164,11 @@ describe("WorkerClient", () => {
 
   it("ignores late events from a worker that was already replaced", async () => {
     const { workers, client } = setup();
-    const first = client.focus("/a.ts", 0, []);
+    const first = client.focus("/a.ts", 0, 0, []);
     workers[0]?.emit("error", outOfMemory());
     await first.catch(() => undefined);
 
-    const next = client.focus("/a.ts", 0, []);
+    const next = client.focus("/a.ts", 0, 0, []);
     workers[0]?.emit("exit", 1);
     workers[1]?.reply({ id: 2, kind: "focused", result });
     await expect(next).resolves.toEqual(result);
@@ -175,17 +176,17 @@ describe("WorkerClient", () => {
 
   it("rejects requests after dispose without starting a worker", async () => {
     const { workers, client } = setup();
-    const pending = client.focus("/a.ts", 0, []);
+    const pending = client.focus("/a.ts", 0, 0, []);
     client.dispose();
     await expect(pending).rejects.toThrow("restarted");
-    await expect(client.focus("/a.ts", 0, [])).rejects.toThrow("disposed");
+    await expect(client.focus("/a.ts", 0, 0, [])).rejects.toThrow("disposed");
     await expect(client.warm("/a.ts", [])).rejects.toThrow("disposed");
     expect(workers).toHaveLength(1);
   });
 
   it("recycle terminates the worker, rejects pending work and restarts lazily", async () => {
     const { workers, client } = setup();
-    const pending = client.focus("/a.ts", 0, []);
+    const pending = client.focus("/a.ts", 0, 0, []);
     client.recycle();
     expect(workers[0]?.terminated).toBe(true);
     await expect(pending).rejects.toThrow("restarted");

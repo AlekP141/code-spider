@@ -34,7 +34,6 @@ export async function resolveFocusRequest(
         : new vscode.Position(0, 0);
   return {
     file: document.uri.fsPath,
-    text: document.getText(),
     line: at.line,
     character: at.character,
     isDirty: document.isDirty,

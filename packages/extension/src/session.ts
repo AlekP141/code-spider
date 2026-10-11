@@ -1,7 +1,6 @@
 import { basename } from "node:path";
 import type { NodeId } from "@code-spider/core";
 import type { ChangeTracker } from "./changes.js";
-import { positionToOffset } from "./positions.js";
 import type {
   AnalysisPort,
   IndexingIndicator,
@@ -15,8 +14,6 @@ import { WorkerCrashedError } from "./worker/worker-client.js";
 export type FocusRequest = {
   /** Absolute path of the document. */
   file: string;
-  /** The document text, as VS Code holds it. */
-  text: string;
   /** Zero-based cursor line. */
   line: number;
   /** Zero-based cursor character. */
@@ -66,13 +63,13 @@ export class GraphSession {
 
     panel.show();
     await this.replaceGraph(() => {
-      const offset = positionToOffset(
-        request.text,
+      const changedFiles = [...new Set([...changes.drain(), request.file])];
+      return worker.focus(
+        request.file,
         request.line,
         request.character,
+        changedFiles,
       );
-      const changedFiles = [...new Set([...changes.drain(), request.file])];
-      return worker.focus(request.file, offset, changedFiles);
     });
   }
 

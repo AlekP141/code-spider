@@ -11,12 +11,10 @@ import {
 
 const request: FocusRequest = {
   file: "/repo/src/a.ts",
-  text: "line0\nline1\nline2\n",
   line: 1,
   character: 2,
   isDirty: false,
 };
-const REQUEST_OFFSET = 8;
 
 describe("GraphSession.showGraph", () => {
   it("asks the user to save a dirty document and does nothing else", async () => {
@@ -32,11 +30,9 @@ describe("GraphSession.showGraph", () => {
     const { session, panel, worker, jumps, posted, types } = setup();
     await session.showGraph(request);
     expect(panel.shown).toBe(1);
-    expect(worker.focus).toHaveBeenCalledWith(
+    expect(worker.focus).toHaveBeenCalledWith("/repo/src/a.ts", 1, 2, [
       "/repo/src/a.ts",
-      REQUEST_OFFSET,
-      ["/repo/src/a.ts"],
-    );
+    ]);
     expect(types()).toEqual(["busy", "slice", "busy"]);
     expect(posted[0]).toEqual({ type: "busy", busy: true });
     expect(posted[1]).toEqual({
@@ -55,18 +51,13 @@ describe("GraphSession.showGraph", () => {
     changes.markSaved("typescript", "/repo/src/b.ts");
     await session.showGraph(request);
     await session.showGraph(request);
-    expect(worker.focus).toHaveBeenNthCalledWith(
-      1,
+    expect(worker.focus).toHaveBeenNthCalledWith(1, "/repo/src/a.ts", 1, 2, [
+      "/repo/src/b.ts",
       "/repo/src/a.ts",
-      REQUEST_OFFSET,
-      ["/repo/src/b.ts", "/repo/src/a.ts"],
-    );
-    expect(worker.focus).toHaveBeenNthCalledWith(
-      2,
+    ]);
+    expect(worker.focus).toHaveBeenNthCalledWith(2, "/repo/src/a.ts", 1, 2, [
       "/repo/src/a.ts",
-      REQUEST_OFFSET,
-      ["/repo/src/a.ts"],
-    );
+    ]);
   });
 
   it("always sends the focused file as changed, once", async () => {
@@ -74,18 +65,12 @@ describe("GraphSession.showGraph", () => {
     await session.showGraph(request);
     changes.markSaved("typescript", request.file);
     await session.showGraph(request);
-    expect(worker.focus).toHaveBeenNthCalledWith(
-      1,
+    expect(worker.focus).toHaveBeenNthCalledWith(1, "/repo/src/a.ts", 1, 2, [
       "/repo/src/a.ts",
-      REQUEST_OFFSET,
-      ["/repo/src/a.ts"],
-    );
-    expect(worker.focus).toHaveBeenNthCalledWith(
-      2,
+    ]);
+    expect(worker.focus).toHaveBeenNthCalledWith(2, "/repo/src/a.ts", 1, 2, [
       "/repo/src/a.ts",
-      REQUEST_OFFSET,
-      ["/repo/src/a.ts"],
-    );
+    ]);
   });
 
   it("shows an ordinary failure in the panel only", async () => {
@@ -137,15 +122,6 @@ describe("GraphSession.showGraph", () => {
     expect(text).toContain("exited with code 3");
     expect(text).toContain("fresh worker");
     expect(notifier.error).toHaveBeenCalledOnce();
-  });
-
-  it("reports a position outside the document as a failure", async () => {
-    const { session, worker, posted } = setup();
-    await session.showGraph({ ...request, line: 99 });
-    expect(worker.focus).not.toHaveBeenCalled();
-    expect(posted.some((message) => message.type === "analysisError")).toBe(
-      true,
-    );
   });
 
   it("lets only the newest request reach the panel and clears busy once", async () => {

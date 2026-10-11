@@ -11,6 +11,7 @@ import {
   type BuildContext,
 } from "./node-builder.js";
 import { parseNodeId } from "./node-id.js";
+import { positionToOffset } from "./position.js";
 import type { GraphSlice, NodeId } from "./types.js";
 
 export type AnalyzeRequest = {
@@ -28,6 +29,37 @@ export function analyzeFocus(
 ): GraphSlice {
   const target = resolveFocus(project, req.file, req.offset);
   return sliceFor(target, { repoRoot: req.repoRoot });
+}
+
+export type AnalyzeAtRequest = {
+  /** Absolute path to the focused file. */
+  file: string;
+  /** Zero-based cursor line. */
+  line: number;
+  /** Zero-based cursor character. */
+  character: number;
+  /** Absolute path that NodeIds are relative to. */
+  repoRoot: string;
+};
+
+/** Like analyzeFocus, for a line and character in the project's text. */
+export function analyzeFocusAt(
+  project: Project,
+  req: AnalyzeAtRequest,
+): GraphSlice {
+  const sourceFile = project.getSourceFile(req.file);
+  if (!sourceFile) throw new Error(`File is not in project: ${req.file}`);
+
+  const offset = positionToOffset(
+    sourceFile.getFullText(),
+    req.line,
+    req.character,
+  );
+  return analyzeFocus(project, {
+    file: req.file,
+    offset,
+    repoRoot: req.repoRoot,
+  });
 }
 
 export function expandNode(

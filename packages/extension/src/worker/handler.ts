@@ -1,4 +1,4 @@
-import { analyzeFocus, expandNode } from "@code-spider/core";
+import { analyzeFocusAt, expandNode } from "@code-spider/core";
 import { ProjectCache } from "./project-cache.js";
 import type { WorkerRequest, WorkerResponse } from "./protocol.js";
 
@@ -16,9 +16,10 @@ export function createWorkerHandler(
           return { id: request.id, kind: "warmed" };
         case "focus": {
           const entry = cache.open(request.file);
-          const slice = analyzeFocus(entry.project, {
+          const slice = analyzeFocusAt(entry.project, {
             file: request.file,
-            offset: request.offset,
+            line: request.line,
+            character: request.character,
             repoRoot: entry.repoRoot,
           });
           return {

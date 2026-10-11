@@ -13,7 +13,6 @@ const NODE = "src/a.ts#g";
 const OTHER = "src/a.ts#h";
 const request: FocusRequest = {
   file: "/repo/src/a.ts",
-  text: "line0\nline1\nline2\n",
   line: 1,
   character: 2,
   isDirty: false,

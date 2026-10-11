@@ -16,7 +16,8 @@ export type WarmRequest = {
 export type FocusRequestBody = {
   kind: "focus";
   file: string;
-  offset: number;
+  line: number;
+  character: number;
   changedFiles: string[];
 };
 

@@ -9,7 +9,7 @@ import {
   WorkerClient,
   WorkerCrashedError,
 } from "../src/worker/worker-client.js";
-import { fixturePath, offsetOf } from "./support/fixtures.js";
+import { fixturePath, positionOf } from "./support/fixtures.js";
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workerPath = join(packageDir, "dist/worker.cjs");
@@ -17,7 +17,7 @@ const scratch = mkdtempSync(join(tmpdir(), "code-spider-oom-"));
 const hungryWorker = join(scratch, "hungry.cjs");
 
 const signup = fixturePath("basic", "src/signup.ts");
-const offset = offsetOf(signup, "validateUser(input)", 3);
+const { line, character } = positionOf(signup, "validateUser(input)", 3);
 
 beforeAll(() => {
   execFileSync(process.execPath, ["build.mjs"], {
@@ -44,7 +44,12 @@ describe("bundled analysis worker", () => {
     );
     try {
       await client.warm(signup, []);
-      const { slice, repoRoot } = await client.focus(signup, offset, []);
+      const { slice, repoRoot } = await client.focus(
+        signup,
+        line,
+        character,
+        [],
+      );
       expect(slice.focusId).toBe("src/signup.ts#handleSignup");
       expect(repoRoot).toBe(fixturePath("basic"));
     } finally {
@@ -81,12 +86,12 @@ describe("bundled analysis worker", () => {
     });
     try {
       const error = await client
-        .focus(signup, offset, [])
+        .focus(signup, line, character, [])
         .catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(WorkerCrashedError);
       expect((error as WorkerCrashedError).outOfMemory).toBe(true);
 
-      const { slice } = await client.focus(signup, offset, []);
+      const { slice } = await client.focus(signup, line, character, []);
       expect(slice.focusId).toBe("src/signup.ts#handleSignup");
     } finally {
       client.dispose();
