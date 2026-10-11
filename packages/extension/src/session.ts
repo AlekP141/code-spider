@@ -3,6 +3,7 @@ import type { NodeId } from "@code-spider/core";
 import type { ChangeTracker } from "./changes.js";
 import type {
   AnalysisPort,
+  DocumentsPort,
   IndexingIndicator,
   JumpRegistry,
   Notifier,
@@ -10,6 +11,7 @@ import type {
 } from "./ports.js";
 import {
   CENTRE_GONE_MESSAGE,
+  noticeUnsavedEdits,
   recordRefresh,
   refreshedMessage,
   refreshFailedMessage,
@@ -48,6 +50,7 @@ export type SessionDeps = {
   changes: ChangeTracker;
   maxHeapMb: () => number;
   jumps: JumpRegistry;
+  documents: DocumentsPort;
 };
 
 const UNKNOWN_PROJECT = "Unknown project";
@@ -140,12 +143,13 @@ export class GraphSession {
 
   /** Rebuilds the graph on screen; never starts a newer centre request. */
   async refresh(request: RefreshGraphRequest): Promise<void> {
-    const { worker, panel, changes, jumps } = this.deps;
+    const { worker, panel, changes, jumps, documents, notifier } = this.deps;
     const { project, generation, focusId, expanded } = request;
     if (!jumps.has(project)) {
       panel.post(refreshFailedMessage(generation, UNKNOWN_PROJECT));
       return;
     }
+    noticeUnsavedEdits(project, jumps, documents, notifier);
     const token = this.latest;
     await this.withBusy(async () => {
       try {

@@ -120,6 +120,33 @@ describe("JumpTable", () => {
     expect(table.has("/nope/tsconfig.json")).toBe(false);
   });
 
+  it("lists the absolute, deduplicated files of nodes that have one", () => {
+    const table = new JumpTable();
+    const external: GraphNode = {
+      ...nodeOf("src/app.ts#main"),
+      id: "external:tiny-lib#persist",
+      kind: "external",
+      file: "",
+    };
+    table.add(project, sent({ ...golden, nodes: [...golden.nodes, external] }));
+    const files = table.files(project);
+    const expected = [
+      ...new Set(
+        golden.nodes.filter((node) => node.file).map((node) => node.file),
+      ),
+    ].map((file) => join(basic, file));
+    expect(expected.length).toBeGreaterThan(0);
+    expect(files).toEqual(expected);
+    expect(files).toContain(join(basic, "src/signup.ts"));
+    expect(new Set(files).size).toBe(files.length);
+  });
+
+  it("lists no files for an unknown project", () => {
+    const table = new JumpTable();
+    table.add(project, sent(golden));
+    expect(table.files("/nope/tsconfig.json")).toEqual([]);
+  });
+
   it("forgets everything on clear", () => {
     const table = new JumpTable();
     table.add(project, sent(golden));

@@ -37,11 +37,19 @@ export interface PanelPort {
 export interface JumpRegistry {
   add(project: string, result: FocusResult): void;
   has(project: string): boolean;
+  /** Absolute paths of the files of every node known for the project. */
+  files(project: string): string[];
+}
+
+export interface DocumentsPort {
+  /** Absolute paths of open `file` documents with unsaved edits. */
+  unsavedFiles(): string[];
 }
 
 export interface Notifier {
   warn(message: string): void;
   error(message: string): void;
+  status(message: string): void;
 }
 
 export interface IndexingIndicator {

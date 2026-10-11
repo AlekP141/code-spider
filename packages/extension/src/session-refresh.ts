@@ -1,6 +1,7 @@
+import { basename } from "node:path";
 import type { GraphSlice } from "@code-spider/core";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
-import type { JumpRegistry } from "./ports.js";
+import type { DocumentsPort, JumpRegistry, Notifier } from "./ports.js";
 import type { FocusResult, RefreshResult } from "./worker/protocol.js";
 
 export const CENTRE_GONE_MESSAGE =
@@ -42,4 +43,28 @@ export function recordRefresh(
     jumps.add(tsconfig, { slice, repoRoot, tsconfig });
   }
   return graph;
+}
+
+export function unsavedEditsMessage(
+  files: readonly string[],
+): string | undefined {
+  if (files.length === 0) return undefined;
+  const subject =
+    files.length === 1
+      ? `${basename(files[0] ?? "")} has`
+      : `${files.length} files have`;
+  return `Code Spider: ${subject} unsaved changes; the graph shows the saved version.`;
+}
+
+export function noticeUnsavedEdits(
+  project: string,
+  jumps: JumpRegistry,
+  documents: DocumentsPort,
+  notifier: Notifier,
+): void {
+  const unsaved = documents.unsavedFiles();
+  if (unsaved.length === 0) return;
+  const known = new Set(jumps.files(project));
+  const message = unsavedEditsMessage(unsaved.filter((f) => known.has(f)));
+  if (message) notifier.status(message);
 }

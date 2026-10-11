@@ -4,18 +4,13 @@ import { WorkerCrashedError } from "../src/worker/worker-client.js";
 import { CENTRE_GONE_MESSAGE } from "../src/session-refresh.js";
 import {
   deferred,
+  FOCUS,
+  known,
   PROJECT,
+  request,
   resultFor,
   setup,
 } from "./support/session-setup.js";
-
-const FOCUS = "src/a.ts#f";
-const request = (expanded: string[] = []) => ({
-  project: PROJECT,
-  generation: 4,
-  focusId: FOCUS,
-  expanded,
-});
 
 const answer = (
   centre: RefreshResult["centre"],
@@ -26,12 +21,6 @@ const answer = (
   centre,
   expansions,
 });
-
-function known(overrides: Parameters<typeof setup>[0] = {}) {
-  const env = setup(overrides);
-  env.jumps.add(PROJECT, resultFor(FOCUS));
-  return env;
-}
 
 describe("GraphSession.refresh", () => {
   it("fails an unknown project before any busy or worker work", async () => {

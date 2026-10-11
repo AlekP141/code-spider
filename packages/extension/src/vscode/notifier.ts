@@ -8,4 +8,7 @@ export const notifier: Notifier = {
   error: (message) => {
     void vscode.window.showErrorMessage(message);
   },
+  status: (message) => {
+    vscode.window.setStatusBarMessage(message, 5000);
+  },
 };

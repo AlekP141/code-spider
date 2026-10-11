@@ -8,6 +8,7 @@ import { GraphSession } from "../../src/session.js";
 import type { FocusResult } from "../../src/worker/protocol.js";
 
 export const PROJECT = "/repo/tsconfig.json";
+export const FOCUS = "src/a.ts#f";
 
 function fakeNode(id: string): GraphNode {
   const [file = "", name = ""] = id.split("#");
@@ -79,7 +80,8 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     })),
     ...overrides,
   };
-  const notifier = { warn: vi.fn(), error: vi.fn() };
+  const notifier = { warn: vi.fn(), error: vi.fn(), status: vi.fn() };
+  const documents = { unsavedFiles: vi.fn((): string[] => []) };
   const indexing = { set: vi.fn() };
   const changes = new ChangeTracker();
   const jumps = new JumpTable();
@@ -91,6 +93,7 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     changes,
     maxHeapMb: () => 4096,
     jumps,
+    documents,
   });
   const types = () => posted.map((message) => message.type);
   return {
@@ -98,10 +101,24 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     panel,
     worker,
     notifier,
+    documents,
     indexing,
     changes,
     jumps,
     posted,
     types,
   };
+}
+
+export const request = (expanded: string[] = []) => ({
+  project: PROJECT,
+  generation: 4,
+  focusId: FOCUS,
+  expanded,
+});
+
+export function known(overrides: Parameters<typeof setup>[0] = {}) {
+  const env = setup(overrides);
+  env.jumps.add(PROJECT, resultFor(FOCUS));
+  return env;
 }

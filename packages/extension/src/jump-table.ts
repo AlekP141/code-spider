@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core";
 import {
   callSiteJumpTarget,
@@ -35,6 +36,16 @@ export class JumpTable implements JumpRegistry, JumpLookup {
 
   has(project: string): boolean {
     return this.projects.has(project);
+  }
+
+  files(project: string): string[] {
+    const known = this.projects.get(project);
+    if (!known) return [];
+    const files = new Set<string>();
+    for (const { file } of known.nodes.values()) {
+      if (file) files.add(join(known.repoRoot, file));
+    }
+    return [...files];
   }
 
   nodeTarget(project: string, nodeId: NodeId): JumpTarget | undefined {

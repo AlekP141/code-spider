@@ -14,6 +14,7 @@ import { JumpHandler } from "./navigation.js";
 import { GraphPanel } from "./panel/graph-panel.js";
 import { GraphSession, type CurrentGraph } from "./session.js";
 import { WarmOnce } from "./warm-once.js";
+import { workspaceDocuments } from "./vscode/documents.js";
 import { EditorRevealer } from "./vscode/editor.js";
 import { resolveFocusRequest } from "./vscode/focus-request.js";
 import { notifier } from "./vscode/notifier.js";
@@ -57,6 +58,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     changes,
     maxHeapMb: getMaxHeapMb,
     jumps: jumpTable,
+    documents: workspaceDocuments,
   });
   const columnGap = new ColumnGapStore(context.globalState, (value) =>
     panel.post({ type: "settings", columnGap: value }),
