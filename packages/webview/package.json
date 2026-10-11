@@ -11,6 +11,7 @@
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
+    "probe": "node build.mjs && node probe/run.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
   },
