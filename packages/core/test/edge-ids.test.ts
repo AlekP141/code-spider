@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzeFocus } from "../src/analyze.js";
-import { edgeId } from "../src/node-id.js";
+import { edgeId } from "../src/nodes/node-id.js";
 import { memoryProject, MEMORY_ROOT } from "./helpers.js";
 
 const PAGE = `${MEMORY_ROOT}/src/page.tsx`;

@@ -1,18 +1,18 @@
 import { join } from "node:path";
 import type { Project } from "ts-morph";
-import { targetsQualifiedAs } from "./callable-names.js";
-import { collectCalleeEdges } from "./callees.js";
-import { collectCallerEdges } from "./callers.js";
-import { classifyDeclaration } from "./classify.js";
+import { targetsQualifiedAs } from "./focus/callable-names.js";
+import { collectCalleeEdges } from "./callees/callees.js";
+import { collectCallerEdges } from "./callers/callers.js";
+import { classifyDeclaration } from "./nodes/classify.js";
 import { NodeNotFoundError } from "./errors.js";
-import { resolveFocus, type FocusTarget } from "./focus.js";
+import { resolveFocus, type FocusTarget } from "./focus/focus.js";
 import {
   buildGraphNode,
   MODULE_NAME,
   type BuildContext,
-} from "./node-builder.js";
-import { parseNodeId } from "./node-id.js";
-import { positionToOffset } from "./position.js";
+} from "./nodes/node-builder.js";
+import { parseNodeId } from "./nodes/node-id.js";
+import { positionToOffset } from "./focus/position.js";
 import type { GraphSlice, NodeId } from "./types.js";
 
 export type AnalyzeRequest = {

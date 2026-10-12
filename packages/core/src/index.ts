@@ -9,7 +9,7 @@ export type {
   GraphEdge,
   GraphSlice,
 } from "./types.js";
-export { makeNodeId, parseNodeId, toPosixPath } from "./node-id.js";
+export { makeNodeId, parseNodeId, toPosixPath } from "./nodes/node-id.js";
 export {
   analyzeFocus,
   analyzeFocusAt,
@@ -18,12 +18,12 @@ export {
   type AnalyzeRequest,
 } from "./analyze.js";
 export { NodeNotFoundError } from "./errors.js";
-export { positionToOffset } from "./position.js";
+export { positionToOffset } from "./focus/position.js";
 export {
   findTsconfig,
   loadProject,
   warmProject,
   Project,
-} from "./project.js";
-export { CODE_PREVIEW_MAX_LINES } from "./node-builder.js";
-export { MAX_CALLERS } from "./callers.js";
+} from "./project/project.js";
+export { CODE_PREVIEW_MAX_LINES } from "./nodes/node-builder.js";
+export { MAX_CALLERS } from "./callers/callers.js";

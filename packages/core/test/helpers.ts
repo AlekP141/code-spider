@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { Project, ts } from "ts-morph";
-import { collectCalleeEdges } from "../src/callees.js";
-import { toFocusTarget } from "../src/focus.js";
-import { loadProject } from "../src/project.js";
+import { collectCalleeEdges } from "../src/callees/callees.js";
+import { toFocusTarget } from "../src/focus/focus.js";
+import { loadProject } from "../src/project/project.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

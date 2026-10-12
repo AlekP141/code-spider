@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { analyzeFocus, analyzeFocusAt } from "../src/analyze.js";
-import { loadProject } from "../src/project.js";
+import { loadProject } from "../src/project/project.js";
 import { loadTestCode, testCodePath } from "./helpers.js";
 
 describe("analyzeFocusAt", () => {
