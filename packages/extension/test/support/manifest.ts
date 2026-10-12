@@ -7,6 +7,8 @@ export type MenuEntry = { command: string; when?: string; group?: string };
 export type Manifest = {
   engines: { vscode: string };
   main: string;
+  files: string[];
+  repository: { type: string; url: string };
   activationEvents: string[];
   contributes: {
     commands: { command: string; title: string; category?: string }[];

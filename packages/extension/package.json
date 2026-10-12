@@ -2,14 +2,24 @@
   "name": "code-spider-vscode",
   "displayName": "Code Spider",
   "description": "Shows the callers and callees of the function under the cursor as a typed graph.",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlekP141/code-spider.git"
+  },
   "publisher": "code-spider",
   "license": "ISC",
   "type": "module",
   "engines": { "vscode": "^1.140.0" },
   "categories": ["Visualization"],
   "main": "./dist/extension.cjs",
+  "files": [
+    "dist/extension.cjs",
+    "dist/worker.cjs",
+    "dist/webview/index.js",
+    "dist/webview/index.css"
+  ],
   "activationEvents": [
     "onLanguage:typescript",
     "onLanguage:typescriptreact",
@@ -74,7 +84,8 @@
     "download:vscode": "node scripts/download-vscode.mjs",
     "check:keybinding": "node scripts/check-default-keybinding.mjs",
     "check:electron": "node scripts/check-electron-libs.mjs",
-    "test:smoke": "pnpm --workspace-root build && node build-smoke.mjs && node dist/smoke/run.cjs"
+    "test:smoke": "pnpm --workspace-root build && node build-smoke.mjs && node dist/smoke/run.cjs",
+    "package:vsix": "node scripts/copy-readme.mjs && vsce package --no-dependencies --skip-license --out ../../"
   },
   "devDependencies": {
     "@code-spider/core": "workspace:*",
@@ -83,6 +94,7 @@
     "@types/node": "^26.5.0",
     "@types/vscode": "^1.140.0",
     "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.2",
     "mocha": "^12.0.3",
     "typescript": "^5.6.0",

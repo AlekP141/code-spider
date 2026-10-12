@@ -3,6 +3,7 @@ packages:
 
 allowBuilds:
   esbuild: true
+  "@vscode/vsce-sign": false
 
 onlyBuiltDependencies:
   - esbuild
