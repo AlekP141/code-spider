@@ -53,6 +53,7 @@
       {
         "command": "codeSpider.showGraph",
         "key": "shift+alt+q",
+        "mac": "cmd+alt+q",
         "when": "editorTextFocus && (editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact)"
       }
     ],

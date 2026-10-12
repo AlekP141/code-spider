@@ -14,7 +14,12 @@ export type Manifest = {
   activationEvents: string[];
   contributes: {
     commands: { command: string; title: string; category?: string }[];
-    keybindings?: { command: string; key: string; when?: string }[];
+    keybindings?: {
+      command: string;
+      key: string;
+      mac?: string;
+      when?: string;
+    }[];
     menus?: Record<string, MenuEntry[]>;
     configuration?: {
       properties: Record<

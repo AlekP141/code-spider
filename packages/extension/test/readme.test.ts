@@ -25,14 +25,18 @@ describe("root README", () => {
   });
 
   it("gives the three ways to open a graph", () => {
-    const key = manifest.contributes.keybindings?.find(
+    const binding = manifest.contributes.keybindings?.find(
       (entry) => entry.command === COMMAND_SHOW_GRAPH,
-    )?.key;
+    );
+    const key = binding?.key;
+    const macKey = binding?.mac?.replace("alt", "option");
     const showGraph = commandOf(COMMAND_SHOW_GRAPH);
     const contextMenu = commandOf(COMMAND_SHOW_IN_CODE_SPIDER);
 
     expect(key).toBeDefined();
     expect(readme.toLowerCase()).toContain(key);
+    expect(macKey).toBeDefined();
+    expect(readme.toLowerCase()).toContain(`\`${macKey}\` on a mac`);
     expect(readme).toContain(`${showGraph.category}: ${showGraph.title}`);
     expect(readme).toContain(contextMenu.title);
   });
