@@ -1,6 +1,6 @@
 import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core/types";
 import type { Edge, Node } from "@xyflow/react";
-import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../edge-style.js";
+import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../settings/edge-style.js";
 import type { GraphState } from "../view/types.js";
 import { NODE_WIDTH } from "./constants.js";
 import { edgeAppearance } from "./edge-appearance.js";

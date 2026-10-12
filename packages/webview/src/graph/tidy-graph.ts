@@ -1,5 +1,5 @@
 import type { NodeId } from "@code-spider/core/types";
-import { rowGap } from "../column-gap.js";
+import { rowGap } from "../settings/column-gap.js";
 import type { GraphState, Point } from "../view/types.js";
 import { NODE_WIDTH } from "./constants.js";
 import { layoutGraph } from "./layout.js";

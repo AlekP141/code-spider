@@ -4,7 +4,7 @@ import {
   type Rect,
   type Size,
 } from "../src/graph/placement.js";
-import { rowGap } from "../src/column-gap.js";
+import { rowGap } from "../src/settings/column-gap.js";
 import { tidyPositions } from "../src/graph/tidy.js";
 import type { Point } from "../src/view/types.js";
 import { mulberry32, randomInt } from "./support/random.js";

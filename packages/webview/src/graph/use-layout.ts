@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type Dispatch } from "react";
-import type { AppAction, AppState } from "../app-state.js";
+import type { AppAction, AppState } from "../app/app-state.js";
 import { layoutGraph } from "./layout.js";
 import { tidyGraph } from "./tidy-graph.js";
 

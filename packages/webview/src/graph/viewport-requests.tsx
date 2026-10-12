@@ -1,6 +1,6 @@
 import { useReactFlow, useStoreApi } from "@xyflow/react";
 import { useEffect, useRef } from "react";
-import type { AppState, FitRequest } from "../app-state.js";
+import type { AppState, FitRequest } from "../app/app-state.js";
 import { panToReveal } from "./pan-to-reveal.js";
 
 export const FIT_OPTIONS = { padding: 0.2, maxZoom: 1 };

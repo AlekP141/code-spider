@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowGap } from "../src/column-gap.js";
+import { rowGap } from "../src/settings/column-gap.js";
 import { walkOrder } from "../src/graph/call-order.js";
 import { layoutGraph } from "../src/graph/layout.js";
 import { isClear } from "../src/graph/placement.js";

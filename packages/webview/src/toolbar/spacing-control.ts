@@ -1,6 +1,6 @@
-import type { LocalAction } from "../app-state.js";
-import { TrailingDebounce } from "../debounce.js";
-import type { WebviewToExtension } from "../protocol.js";
+import type { LocalAction } from "../app/app-state.js";
+import { TrailingDebounce } from "../app/debounce.js";
+import type { WebviewToExtension } from "../host/protocol.js";
 
 export const SPACING_DELAY_MS = 250;
 

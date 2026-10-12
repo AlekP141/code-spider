@@ -1,5 +1,5 @@
 import type { GraphNode } from "@code-spider/core/types";
-import type { WebviewToExtension } from "../protocol.js";
+import type { WebviewToExtension } from "../host/protocol.js";
 import type { GraphState } from "../view/types.js";
 
 /** External and unknown nodes have no source file to open. */

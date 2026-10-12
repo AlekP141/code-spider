@@ -1,5 +1,5 @@
-import { COLUMN_GAP } from "../column-gap.js";
-import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../edge-style.js";
+import { COLUMN_GAP } from "../settings/column-gap.js";
+import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../settings/edge-style.js";
 import type { GraphState, ViewState } from "./types.js";
 
 export const HISTORY_LIMIT = 20;

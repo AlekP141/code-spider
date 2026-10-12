@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./protocol": "./src/protocol.ts",
-    "./column-gap": "./src/column-gap.ts",
-    "./edge-style": "./src/edge-style.ts"
+    "./protocol": "./src/host/protocol.ts",
+    "./column-gap": "./src/settings/column-gap.ts",
+    "./edge-style": "./src/settings/edge-style.ts"
   },
   "scripts": {
     "build": "node build.mjs",

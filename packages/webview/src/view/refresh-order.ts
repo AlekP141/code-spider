@@ -1,5 +1,5 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
-import { rowGap } from "../column-gap.js";
+import { rowGap } from "../settings/column-gap.js";
 import { calledInOrder, type CallEdge } from "../graph/call-order.js";
 import { compareIds } from "../graph/compare-ids.js";
 import { NODE_WIDTH } from "../graph/constants.js";

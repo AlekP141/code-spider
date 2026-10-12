@@ -4,7 +4,7 @@ import { NODE_WIDTH } from "../graph/constants.js";
 import { makeRoom, type RoomBox } from "../graph/make-room.js";
 import { nodeHeight } from "../graph/node-size.js";
 import { placeExpansion } from "../graph/placement.js";
-import type { ExtensionToWebview } from "../protocol.js";
+import type { ExtensionToWebview } from "../host/protocol.js";
 import { rectsOf } from "./expansion.js";
 import { graphFromSlice, isExpanded, mergeExpansion } from "./graph-state.js";
 import { freshPerSlice, restackPass, type Applied } from "./refresh-order.js";

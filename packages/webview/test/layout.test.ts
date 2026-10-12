@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowGap } from "../src/column-gap.js";
+import { rowGap } from "../src/settings/column-gap.js";
 import { buildElkGraph, layoutPositions } from "../src/graph/layout.js";
 import { flowOf } from "./support/flow.js";
 import { makeEdge, makeNode, makeSlice, readGolden } from "./support/slices.js";

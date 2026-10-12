@@ -16,9 +16,9 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import type { AppState, FitRequest } from "../app-state.js";
-import type { EdgeStyle } from "../edge-style.js";
-import type { WebviewToExtension } from "../protocol.js";
+import type { AppState, FitRequest } from "../app/app-state.js";
+import type { EdgeStyle } from "../settings/edge-style.js";
+import type { WebviewToExtension } from "../host/protocol.js";
 import type { GraphState, Point } from "../view/types.js";
 import { edgeClickMessage, nodeClickMessage } from "./jump.js";
 import { applyLive, recordLive, type LivePositions } from "./live-positions.js";

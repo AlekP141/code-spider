@@ -1,6 +1,6 @@
 import type { Range } from "@code-spider/core/types";
 import { describe, expect, it } from "vitest";
-import { rowGap } from "../src/column-gap.js";
+import { rowGap } from "../src/settings/column-gap.js";
 import { calledInOrder } from "../src/graph/call-order.js";
 import { compareIds } from "../src/graph/compare-ids.js";
 import { NODE_WIDTH } from "../src/graph/constants.js";

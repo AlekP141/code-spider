@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { LocalAction } from "../app-state.js";
-import { postToExtension } from "../vscode-api.js";
+import type { LocalAction } from "../app/app-state.js";
+import { postToExtension } from "../host/vscode-api.js";
 import { createSpacingControl, type SpacingControl } from "./spacing-control.js";
 
 export function useSpacingControl(

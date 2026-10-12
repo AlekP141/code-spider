@@ -1,5 +1,5 @@
-import { COLUMN_GAP } from "../column-gap.js";
-import { EDGE_STYLES, type EdgeStyle } from "../edge-style.js";
+import { COLUMN_GAP } from "../settings/column-gap.js";
+import { EDGE_STYLES, type EdgeStyle } from "../settings/edge-style.js";
 
 export type ToolbarProps = {
   canBack: boolean;

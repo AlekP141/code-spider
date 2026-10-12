@@ -2,7 +2,7 @@ import type { GraphSlice, NodeId } from "@code-spider/core/types";
 import { NODE_WIDTH } from "../graph/constants.js";
 import { nodeHeight } from "../graph/node-size.js";
 import { placeExpansion, type Rect } from "../graph/placement.js";
-import type { SliceMode } from "../protocol.js";
+import type { SliceMode } from "../host/protocol.js";
 import { mergeExpansion, setPositions, type Merged } from "./graph-state.js";
 import type { GraphState, ViewState } from "./types.js";
 import { replaceCurrent } from "./view-state.js";

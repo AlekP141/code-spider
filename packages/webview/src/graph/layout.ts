@@ -1,6 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
-import { rowGap } from "../column-gap.js";
+import { rowGap } from "../settings/column-gap.js";
 import type { GraphState, Point } from "../view/types.js";
 import { walkOrder } from "./call-order.js";
 import { compareIds } from "./compare-ids.js";

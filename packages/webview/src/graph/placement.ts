@@ -1,5 +1,5 @@
 import type { NodeId } from "@code-spider/core/types";
-import { rowGap } from "../column-gap.js";
+import { rowGap } from "../settings/column-gap.js";
 import type { Point } from "../view/types.js";
 import { calledInOrder, type CallEdge } from "./call-order.js";
 import { compareIds } from "./compare-ids.js";

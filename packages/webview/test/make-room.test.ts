@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowGap } from "../src/column-gap.js";
+import { rowGap } from "../src/settings/column-gap.js";
 import { NODE_WIDTH } from "../src/graph/constants.js";
 import { makeRoom, type RoomBox } from "../src/graph/make-room.js";
 

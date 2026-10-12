@@ -1,6 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import { createContext } from "react";
-import type { AppState } from "../app-state.js";
+import type { AppState } from "../app/app-state.js";
 import type { GraphState } from "../view/types.js";
 import type { NodeUi } from "./node-controls.js";
 

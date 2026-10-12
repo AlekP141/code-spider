@@ -1,5 +1,5 @@
 import type { GraphEdge, GraphNode, GraphSlice } from "@code-spider/core/types";
-import { rowGap } from "../../src/column-gap.js";
+import { rowGap } from "../../src/settings/column-gap.js";
 import { layoutPositions, walkOrderedFlow } from "../../src/graph/layout.js";
 import { nodeHeight } from "../../src/graph/node-size.js";
 import { TOLERANCE } from "../../src/graph/placement.js";

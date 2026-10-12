@@ -1,5 +1,5 @@
 import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core/types";
-import type { EdgeStyle } from "../edge-style.js";
+import type { EdgeStyle } from "../settings/edge-style.js";
 
 export type Point = { x: number; y: number };
 
