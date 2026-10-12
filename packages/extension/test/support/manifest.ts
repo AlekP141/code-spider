@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 export type MenuEntry = { command: string; when?: string; group?: string };
 
 export type Manifest = {
+  name: string;
+  publisher: string;
   engines: { vscode: string };
   main: string;
   files: string[];
