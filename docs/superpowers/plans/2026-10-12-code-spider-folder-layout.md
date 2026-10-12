@@ -1071,6 +1071,85 @@ The coordinator fixes what it finds and has it rechecked by the same reviewer.
 
 ---
 
+## As built: departures from the plan
+
+The task text above is the approved plan and stays as written, including its forecast numbers. The build differs as follows.
+
+**Commits.** `41c95f3` is this plan, `07669f1` is Task 1 (core), `d1c60cc` is Task 2 (extension), `e6c1b49` is Task 3 (webview
+app, host, settings and exports) and `e8a14fc` is Task 4 (webview graph). All four tasks passed review with no findings and no
+fix round. Before the build the owner answered the question the plan left open: a strict mirror for tests, with no
+`core/test/analyze/` folder ("lets try that first and then see"). So the build follows the plan on that point, and the 16 tests
+at the top of `core/test` are a decision, not an oversight.
+
+### Measured at the end of the build
+
+HEAD `e8a14fc`, by the coordinator and again by the integration reviewer.
+- `pnpm -r typecheck` clean. Tests: core 250 in 35 files, CLI 39, webview 507 in 57 files, extension 216 in 29 files. The
+  sorted test-name lists are identical to the lists taken before each package was touched.
+- Smoke 7 passing, probe 10 checks, `pnpm check:vsix` 7 passing with the same eight entries.
+- The four bundle hashes without path comments are unchanged: `extension.cjs` `8f1a21977fbf`, `worker.cjs` `7390324b6d10`,
+  `webview/index.js` `a4a160a1c352`, `webview/index.css` `5e43d56628b7`. `index.js` and `index.css` are byte for byte the same as
+  a build of `41c95f3`. The sizes are the plan's: `extension.cjs` 34124, `worker.cjs` 12817053.
+- A fresh clone of HEAD installs, typechecks, tests, builds and packages. `git log --follow` reaches each moved file's older
+  history.
+- Whole delta against `41c95f3`: 171 renames and 32 files edited in place, `203 files changed, 635 insertions(+), 537
+  deletions(-)`. Per task: Task 1 `42 files changed, 118 insertions(+), 99 deletions(-)`; Task 2 `48 files changed, 98
+  insertions(+), 89 deletions(-)`; Task 3 `75 files changed, 196 insertions(+), 185 deletions(-)`; Task 4 `70 files changed, 251
+  insertions(+), 192 deletions(-)`. The lowest rename similarity is 69%.
+- Files directly in each folder, before and after (each checked with `find <folder> -maxdepth 1 -type f | wc -l`):
+
+| Folder | Before | After |
+|---|---|---|
+| `packages/core/src` | 22 | 4 |
+| `packages/core/test` | 36 | 17 |
+| `packages/extension/src` | 18 | 4 |
+| `packages/extension/test` | 29 | 3 |
+| `packages/webview/src` | 18 | 3 |
+| `packages/webview/src/graph` | 29 | 6 |
+| `packages/webview/test` | 58 | 2 |
+
+### Built differently from the plan text
+
+- **Task 3 came out at `196 insertions(+), 185 deletions(-)` with 3 re-wrapped imports, where the plan forecasts `200` and
+  `186` and 4.** The whole delta is therefore 635 insertions and 537 deletions where "Replay totals" and Integration review
+  step 2 say 639 and 538. Tasks 1, 2 and 4 match their forecasts exactly. The cause is in the plan author's trial run, not in
+  the build: its wrapping script re-wrapped every over-long import in each file it touched, and that included one the plan
+  does not change, `packages/webview/src/toolbar/use-spacing-control.ts` line 4, which is 81 columns wide before the plan and
+  still. It was left alone on purpose because the plan is move-only. The Task 3 reviewer reproduced `200` and `186` exactly by
+  wrapping only that statement in a scratch clone, and Prettier 3 agreed with every import the plan changed.
+- **Integration review, the `<base>` sentence.** It says the plan commit changes no code, so every number holds with either
+  base. That is wrong for the whole-delta numbers in step 2: they hold only with `41c95f3` as `<base>`. Against `18c3bb9` the
+  plan file itself is in the diff, so `git diff -M 18c3bb9 HEAD` shows one `A` as well, and `204 files changed, 1725
+  insertions(+), 537 deletions(-)`. The bundle hashes and sizes hold with either base.
+
+### Left for the owner
+
+None of this is a defect. The integration review found nothing to fix.
+- `core/test` still has 16 tests and `helpers.ts` at its top: `analyze.test.ts`, `analyze-at.test.ts`, `smoke.test.ts` and the
+  13 scenario tests named for behaviours (`aliases`, `barrel`, `constructors`, `default-exports`, `edge-ids`,
+  `expand-resolution`, `expand`, `module-callers`, `node-not-found`, `passes`, `qualified-ids`, `unknown-nodes`,
+  `wrapped-consts`). This is the consequence of the strict mirror. The largest new folders are `webview/test/graph/layout` with
+  15 files and `webview/test/view` with 13.
+- The integration reviewer would move `graph/layout/compare-ids.ts` up beside `graph/constants.ts`: 8 source files in three
+  folders (`layout`, `nodes`, `view`) and 3 tests import it, so it would be one rename and about 11 import edits. The reviewer
+  would keep `callees/passing.ts`, `viewport/live-positions.ts` and `viewport/lod.ts` where they are.
+- `webview/src/app/` sits beside `App.tsx`. The reviewer thinks `state/` is the clearer name; 29 import lines in 18 files name
+  the folder today.
+- `extension/src/vscode/settings.ts` and the new `extension/src/settings/` share a word, which can confuse a reader.
+- `core/test/edge-ids.test.ts` mixes a unit block for `nodes/node-id` (`edgeId`) with an `analyzeFocus` scenario, so it has no
+  single home; it stays at the top.
+- Import statements that are not what Prettier would print. Checked after the build with Prettier 3.5.3 (installed in a scratch
+  folder outside the repo): nine statements were off before the plan and three are off now. Six became right only because
+  the moves made their paths longer, so the multi-line form is now the one Prettier prints: the imports in `core/src/index.ts`,
+  `core/test/project.test.ts`, `webview/src/graph/layout.ts` and the webview tests `app-settings`, `graph-column-gap` and `tidy`.
+  The three still off are old and were left on purpose, because the plan is move-only: `packages/webview/src/toolbar/use-spacing-control.ts`
+  line 4 (81 columns on one line), the `./to-flow.js` import in `packages/webview/src/graph/GraphView.tsx` (wrapped, but it fits
+  in 80 columns) and the `../src/index.js` import in `packages/cli/test/cli.test.ts` (wrapped, but it fits in 80 columns; the CLI
+  package is not part of this plan).
+- Old plans and specs under `docs/` and everything under `local-agent-docs/` still name the old paths, on purpose.
+
+---
+
 ## Manual checks (for the owner; NOT RUN by anyone)
 
 Setup: the four commits are on `main`. A terminal at the repo root.
