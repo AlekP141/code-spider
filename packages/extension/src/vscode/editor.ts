@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { EditorPort, JumpTarget } from "../navigation.js";
+import type { EditorPort, JumpTarget } from "../session/navigation.js";
 
 /**
  * Opens files in the column of the last text editor the user used. Clicking

@@ -1,20 +1,20 @@
 import { join } from "node:path";
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 import * as vscode from "vscode";
-import { ColumnGapStore } from "./column-gap.js";
-import { createDispatcher } from "./dispatch.js";
-import { EdgeStyleStore } from "./edge-style-store.js";
+import { ColumnGapStore } from "./settings/column-gap.js";
+import { createDispatcher } from "./session/dispatch.js";
+import { EdgeStyleStore } from "./settings/edge-style-store.js";
 import {
   COMMAND_SHOW_GRAPH,
   COMMAND_SHOW_IN_CODE_SPIDER,
   SETTING_MAX_HEAP_MB,
 } from "./ids.js";
-import { JumpTable } from "./jump-table.js";
-import { JumpHandler } from "./navigation.js";
+import { JumpTable } from "./session/jump-table.js";
+import { JumpHandler } from "./session/navigation.js";
 import { GraphPanel } from "./panel/graph-panel.js";
-import { GraphSession, type CurrentGraph } from "./session.js";
-import { createSourceChanges } from "./source-changes.js";
-import { WarmOnce } from "./warm-once.js";
+import { GraphSession, type CurrentGraph } from "./session/session.js";
+import { createSourceChanges } from "./changes/source-changes.js";
+import { WarmOnce } from "./changes/warm-once.js";
 import { workspaceDocuments } from "./vscode/documents.js";
 import { EditorRevealer } from "./vscode/editor.js";
 import { resolveFocusRequest } from "./vscode/focus-request.js";

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { isAnalysableLanguage } from "../changes.js";
-import type { FocusRequest } from "../session.js";
+import { isAnalysableLanguage } from "../changes/changes.js";
+import type { FocusRequest } from "../session/session.js";
 
 const NOT_SUPPORTED =
   "Code Spider works on TypeScript and JavaScript files. Open one and place the cursor in a function.";

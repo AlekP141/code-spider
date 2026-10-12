@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ANALYSABLE_LANGUAGE_IDS } from "../src/changes.js";
+import { ANALYSABLE_LANGUAGE_IDS } from "../src/changes/changes.js";
 import {
   COMMAND_SHOW_GRAPH,
   COMMAND_SHOW_IN_CODE_SPIDER,
@@ -11,7 +11,7 @@ import {
 import {
   DEFAULT_MAX_HEAP_MB,
   MIN_MAX_HEAP_MB,
-} from "../src/settings-values.js";
+} from "../src/settings/settings-values.js";
 import { readManifest } from "./support/manifest.js";
 
 const here = dirname(fileURLToPath(import.meta.url));

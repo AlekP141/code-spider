@@ -1,10 +1,10 @@
 import type { GraphNode } from "@code-spider/core";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 import { vi } from "vitest";
-import { ChangeTracker } from "../../src/changes.js";
-import { JumpTable } from "../../src/jump-table.js";
+import { ChangeTracker } from "../../src/changes/changes.js";
+import { JumpTable } from "../../src/session/jump-table.js";
 import type { AnalysisPort, PanelPort } from "../../src/ports.js";
-import { GraphSession } from "../../src/session.js";
+import { GraphSession } from "../../src/session/session.js";
 import type { FocusResult } from "../../src/worker/protocol.js";
 
 export const PROJECT = "/repo/tsconfig.json";

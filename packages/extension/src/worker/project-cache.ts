@@ -5,7 +5,7 @@ import {
   warmProject,
   type Project,
 } from "@code-spider/core";
-import { isConfigFile } from "../watched-paths.js";
+import { isConfigFile } from "../changes/watched-paths.js";
 import { applyChangedFiles } from "./apply-changes.js";
 
 /** Warm projects are large; keep only the few most recently used. */
