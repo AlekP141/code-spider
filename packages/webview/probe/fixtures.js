@@ -101,13 +101,21 @@ function leaf(key) {
 
 const CENTRE_SLICE = {
   focusId: ID.main,
-  nodes: [mainNode(CODE.main, 3), leaf("helper"), leaf("format")],
+  nodes: [leaf("format"), leaf("helper"), mainNode(CODE.main, 3)],
   edges: [
-    edge(ID.helper, ID.main, { callSite: AT.centre.helper }),
     edge(ID.format, ID.main, { callSite: AT.centre.format }),
+    edge(ID.helper, ID.main, { callSite: AT.centre.helper }),
   ],
   truncated: false,
 };
+
+function helperEdges(helperAt) {
+  return [
+    edge(ID.helper, ID.main, { callSite: helperAt }),
+    edge(ID.parse, ID.helper, { callSite: AT.helperBody.parse }),
+    edge(ID.validate, ID.helper, { callSite: AT.helperBody.validate }),
+  ];
+}
 
 const HELPER_SLICE = {
   focusId: ID.helper,
@@ -117,26 +125,22 @@ const HELPER_SLICE = {
     leaf("parse"),
     leaf("validate"),
   ],
-  edges: [
-    edge(ID.parse, ID.helper, { callSite: AT.helperBody.parse }),
-    edge(ID.validate, ID.helper, { callSite: AT.helperBody.validate }),
-    edge(ID.helper, ID.main, { callSite: AT.centre.helper }),
-  ],
+  edges: helperEdges(AT.centre.helper),
   truncated: false,
 };
 
 const REFRESHED_CENTRE = {
   focusId: ID.main,
   nodes: [
-    mainNode(REFRESHED_MAIN_CODE, 7),
-    leaf("helper"),
-    leaf("format"),
     leaf("extra"),
+    leaf("format"),
+    leaf("helper"),
+    mainNode(REFRESHED_MAIN_CODE, 7),
   ],
   edges: [
-    edge(ID.helper, ID.main, { callSite: AT.refreshed.helper }),
-    edge(ID.format, ID.main, { callSite: AT.refreshed.format }),
     edge(ID.extra, ID.main, { callSite: AT.refreshed.extra }),
+    edge(ID.format, ID.main, { callSite: AT.refreshed.format }),
+    edge(ID.helper, ID.main, { callSite: AT.refreshed.helper }),
   ],
   truncated: false,
 };
@@ -149,26 +153,23 @@ const REFRESHED_HELPER_SLICE = {
     leaf("parse"),
     leaf("validate"),
   ],
-  edges: [
-    ...HELPER_SLICE.edges.slice(0, 2),
-    edge(ID.helper, ID.main, { callSite: AT.refreshed.helper }),
-  ],
+  edges: helperEdges(AT.refreshed.helper),
 };
 
 const REORDERED_CENTRE = {
   focusId: ID.main,
   nodes: [
-    mainNode(REORDERED_MAIN_CODE, 5),
-    leaf("helper"),
-    leaf("format"),
     leaf("extra"),
+    leaf("format"),
+    leaf("helper"),
     leaf("late"),
+    mainNode(REORDERED_MAIN_CODE, 5),
   ],
   edges: [
     edge(ID.extra, ID.main, { callSite: AT.reordered.extra }),
-    edge(ID.late, ID.main, { callSite: AT.reordered.late }),
-    edge(ID.helper, ID.main, { callSite: AT.reordered.helper }),
     edge(ID.format, ID.main, { callSite: AT.reordered.format }),
+    edge(ID.helper, ID.main, { callSite: AT.reordered.helper }),
+    edge(ID.late, ID.main, { callSite: AT.reordered.late }),
   ],
   truncated: false,
 };
@@ -181,10 +182,7 @@ const REORDERED_HELPER_SLICE = {
     leaf("parse"),
     leaf("validate"),
   ],
-  edges: [
-    ...HELPER_SLICE.edges.slice(0, 2),
-    edge(ID.helper, ID.main, { callSite: AT.reordered.helper }),
-  ],
+  edges: helperEdges(AT.reordered.helper),
 };
 
 const PROJECT = "/probe/tsconfig.json";

@@ -365,9 +365,13 @@ The functions a box calls are drawn one column to its left, top to bottom in the
 order the calls appear in the code. A function called twice sits at its first
 call, and callers have no order. The first layout and Tidy re-sort each column
 after ELK has placed it, because ELK's own options do not guarantee the order.
-An expansion stacks its new called boxes in that order, and Refresh puts a
-function's unpinned called boxes back in that order. A box the user dragged
-never moves.
+Tidy keeps the order of a column's unpinned boxes around any box the user
+dragged, which stays where it is. An expansion stacks its new called boxes in
+that order, and Refresh puts a function's unpinned called boxes back in that
+order. A box the user dragged never moves. A box that two functions call is
+ordered by whichever of them is reached first when following the calls out from
+the centre box, and the centre box itself is never moved for the sake of a
+caller's called boxes.
 
 Type labels are drawn once per supplier, beside its outgoing edge and ellipsised
 to the column gap, with the full text on hover. They are not per edge, and
@@ -516,7 +520,14 @@ code order. When the order changed or a call is new, those boxes are re-stacked
 from the top one, so a new call's box is inserted in its place, the boxes below
 slide down, and a box that stood far below can move up. A group that already
 reads in order is not re-stacked, though a box that grew can still push boxes
-below it down. Pinned boxes never move.
+below it down. Pinned boxes never move. Each called box belongs to one function,
+the first that reaches it when following the calls out from the centre box, so
+the centre box is never moved for a caller's sake. A group is the column most of
+its boxes stand in, found from the boxes themselves, so nudging a function's own
+box sideways does not stop its called boxes being reordered, but a function
+dragged to the left of its called boxes, or onto them, does not have them
+reordered, because the column is looked for to the left of the function; a called
+box in a different column from the rest of its group is left alone.
 
 If a refresh finds that an expanded node no longer exists, that node is dropped
 along with anything reachable only through it. A pinned box that the rebuilt

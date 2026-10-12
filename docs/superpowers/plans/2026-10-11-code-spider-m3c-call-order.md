@@ -19,10 +19,10 @@ extension do not change; core gets one fix so the first call site is kept.
 The Design section is the source ("D1" to "D10"). Background: docs/superpowers/specs/2026-10-11-code-spider-m3b-design.md
 ("section n") and docs/superpowers/specs/2026-08-22-code-spider-design.md ("§n").
 
-**Status:** built on 2026-10-11 and 12 in five task commits (`10fe177`, `87d6974`, `f557348`, `ef3addd` and the commit
-that carries this line). Baseline at commit `c13a574`, all passing:
-core 248, CLI 39, webview 405, extension 206, smoke 7, `pnpm probe` 9 checks. After Task 5: core 250, CLI 39, webview 486,
-extension 206, `pnpm probe` 10 checks. The owner's manual checks (D10) have NOT been run. "As built: departures from the
+**Status:** built on 2026-10-11 and 12 in five task commits (`10fe177`, `87d6974`, `f557348`, `ef3addd` and `82ceaf8`), and the
+integration-review fixes followed in a later commit. Baseline at commit `c13a574`, all passing:
+core 248, CLI 39, webview 405, extension 206, smoke 7, `pnpm probe` 9 checks. After the integration-review fixes: core 250,
+CLI 39, webview 507, extension 206, smoke 7, `pnpm probe` 10 checks. The owner's manual checks (D10) have NOT been run. "As built: departures from the
 Design" at the end of this plan lists where the build differs from the Design.
 
 ## Design (agreed 2026-10-11, no separate spec)
@@ -617,9 +617,9 @@ The Design section above is the approved plan and stays as written. The build di
   at the same top are restacked.
 - **D5, how a group moves.** A group that gains a call, or that is out of order, is re-stacked tightly from its top box. The
   owner's words were "the boxes below slide down"; a member that stood far below can move up as well as down.
-- **D5, the code.** `restackCalled` returns a `Restack` that also has a `stack` field (the group top to bottom, with the new
-  boxes if it was restacked). `rebuildGraph` is built from `freshPerSlice`, `restackPass` (both in `view/refresh-order.ts`) and
-  `placePass` (in `view/refresh.ts`).
+- **D5, the code.** `restackCalled` (private to `view/refresh-order.ts`) returns a `Restack` that also has a `stack` field (the
+  group top to bottom, with the new boxes if it was restacked). `rebuildGraph` is built from `freshPerSlice`, `restackPass`
+  (both exported from `view/refresh-order.ts`) and `placePass` (in `view/refresh.ts`).
 - **Property tests.** The layout order property runs 100 seeds at three gaps (32, 192 and 480), not 300 seeds, because 300 took
   14 seconds. The refresh order property runs 2000 seeds.
 - **D6, core.** The fix covers JSX elements as well as call and `new`, as Plan decision 4 said: `jsxElementsOf` sorts its
@@ -630,4 +630,84 @@ The Design section above is the approved plan and stays as written. The build di
   monotonic clock instead of the wall clock, which once printed a negative time when the clock stepped.
   Unlike the plan's Task 5 text ("parse and validate ... stay in id order, as in check 3"), helper's code calls `validate`
   before `parse`, each edge has its own call site, and check 3 asserts `validate` is above `parse`, so the probe fails if an
-  expansion stacks its left column by id.
+  expansion stacks its left column by id. Every fixture slice lists its nodes and edges in id order, as the analyser does, and
+  the centre lists `format` before `helper`, so replacing `layoutGraph` in `use-layout.ts` with the old ELK call makes check 1
+  fail; before this change the fixture was already in code order and nothing in the probe noticed.
+
+### After the integration review
+
+The whole-milestone review (`local-agent-docs/reviews/2026-10-12-m3c-integration-review.md`) found that the owner's rule,
+"nothing moves if the order is already right", was broken in flows that no task's tests had run end to end. These changes
+followed, in a later commit. Where they say a Design sentence is wrong, the Design section above is not rewritten.
+
+- **D5, ownership.** A function's group holds only the called boxes it owns: the boxes the walk from the centre first reached
+  through that function's own called list (`walkParents` in `graph/call-order.ts`, beside `walkOrder`). The centre box is owned
+  by nobody, so Refresh never moves it for a caller's sake (before, expanding `main` while `handleSignup` was the centre made
+  Refresh move the centre box). A box first reached as a caller, and a box the walk never reaches from the centre, also have no
+  owner. A box two functions call belongs to the first the walk reaches; the walk can go through a caller on the way, which is the
+  same walk the first layout and Tidy use, so all four paths agree. A new box goes to its owner's group when the owner's slice
+  lists it, and only otherwise to the first applied slice that lists it (as in M3b), so the next Refresh finds it in the same
+  group.
+- **D3 and D5, the column.** The Design said ELK's columns are always exactly one pitch apart and that a group is found one pitch
+  left of its function. Both were wrong in practice. At gaps below about 128 ELK widens the space between columns when a function
+  calls six or more others, and a user can drag a function's own box sideways (dragging pins the box, so it stays where it was
+  dropped). Refresh now finds the column from the called boxes themselves: among the function's kept, unpinned, owned called
+  boxes that stand left of it, the x most of them share (a tie goes to the x nearest where a column would stand, the function's x
+  minus the node width minus the column gap). The members are the boxes in that column, a called box in another column is left
+  alone, and the group's new boxes take that x. A function with no such box has no group, and its new called boxes are placed by
+  `placeExpansion` one pitch to its left as before.
+- **D9, replacing the gap paragraph's last sentences.** The column no longer depends on the gap the graph was laid out with, so
+  moving the slider after layout, a saved graph with no `columnGap`, or a function dragged sideways no longer switches the order
+  off for that function. What the gap still decides is the row gap used when a group is re-stacked and the tie-break above; a
+  graph with no stored `columnGap` uses the view's gap for those, so a first Refresh may space its restacked boxes by a different
+  row gap than ELK used.
+- **D3, Tidy next to pinned boxes.** The Design said a box too close to a pinned one moves to the nearest free place and may then
+  be out of order. Now the unpinned boxes of each column read top to bottom in the order the first layout gave them, whatever
+  pinned boxes stand in the way. Per column, top to bottom: the first unpinned box goes to the nearest free place to where ELK put
+  it; each later box goes to the lowest free place at or below where ELK put it and below the previous box's bottom plus the row
+  gap. "Free" means clear of the pinned boxes. A box that is clear of the pinned boxes and of the box above it keeps ELK's place
+  (Tidy with nothing pinned is unchanged), a box above that was pushed down pushes the ones below it down too, pinned boxes never
+  move and x never changes. The code is `tidyPositions` in `graph/tidy.ts`, which uses `columnsByX` from `graph/order-columns.ts`.
+- **Cross-path tests.** `test/order-paths.test.ts` runs the first layout, an expansion or Tidy (with and without a pinned box
+  beside the column) and then Refresh with unchanged code, and expects nothing to move and a second Refresh to move nothing. It
+  was needed because every task's tests exercised one path: the layout tests never called Refresh, and the Refresh tests placed
+  the boxes by hand. It also covers a centre dragged sideways, centres with many calls at small gaps, and a box two expanded
+  callers share. `test/tidy-pinned-order.test.ts` adds the Tidy cases, and `rebuild-graph-order-edges.test.ts` and
+  `rebuild-graph-order-property.test.ts` follow the new rules.
+- **Code and test files the task text does not list.** `walkOrderedFlow` in `graph/layout.ts`; the test helpers
+  `test/support/order-graphs.ts`, `main-shape.ts`, `pinned-column.ts`, `random-specs.ts` and `geometry.ts`. The exports
+  `restackCalled`, `Restack`, `RestackInput` and `RestackPass` of `view/refresh-order.ts` are private now.
+- **Existing tests that changed.** Three cases in `tidy.test.ts` (written in M3a) and three in
+  `rebuild-graph-order-edges.test.ts` (written in this milestone) pinned the rules that were replaced (the nearest free place for
+  a displaced box, a column exactly one pitch left of the function); they now state the new rules.
+
+### Known limits
+
+Ruled acceptable, written down and not fixed:
+
+- A box that the walk first reaches as a caller, or that stands in another function's column, belongs to no group there, so
+  Refresh leaves it where it is when the calls around it are reordered. Example: the centre calls A, B and D, and B, expanded,
+  also calls A. The walk reaches A first and then B as a caller of A, so B has no owner and reordering the centre's calls does
+  not move B. Tidy still puts the column in order.
+- The centre box is never part of a caller's group. So when an expanded caller gains a call after the centre in its code,
+  Refresh can put the new box above the centre. Tidy does not change this, because the walk starts at the centre and puts it
+  first in its column.
+- A function dragged to the left of its called boxes, or onto them, does not have them reordered, because the column is looked
+  for to the left of the function.
+
+### Manual checks to run in addition to D10 (NOT RUN by anyone)
+
+These need the real VS Code window and are for the owner. Setup as in D10. Each states the result expected after the fixes.
+
+7. In your scratch copy of `test-code/basic`, make `main` also call two other functions, one before and one after
+   `handleSignup`; show `handleSignup`, expand `main`; press Refresh without changing any code: nothing moves. Press Tidy, then
+   Refresh again: nothing moves on the Refresh.
+8. Drag the centre box a few pixels sideways. In `handleSignup` swap two of the calls, save, Refresh: the two called boxes swap.
+9. Among at least four calls, make one called function tall (about 30 lines) and one short. Drag the tall one away. Swap two other
+   calls, save, Refresh: the dragged box stays, the others read in code order, none overlaps.
+10. Drag a called box next to another so the two almost touch, then press Tidy: the other boxes in that column are in code order.
+    Press Refresh without editing: nothing moves.
+11. Set the gap slider to its smallest value on a function that calls six or more others, swap two calls, save, Refresh: the boxes
+    swap.
+12. Known limit, to see it for yourself: with `main` expanded as in check 7, add a call in `main` after `handleSignup`, save,
+    Refresh: the new box may appear above `handleSignup`.
