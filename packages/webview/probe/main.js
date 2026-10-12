@@ -58,7 +58,7 @@ async function main() {
   const shared = {};
   for (const [index, check] of checks.entries()) {
     const number = index + 1;
-    const started = Date.now();
+    const started = performance.now();
     emit({ event: "start", number, name: check.name });
     try {
       await runCheck(harness, shared, check);
@@ -68,7 +68,8 @@ async function main() {
       app.exit(1);
       return;
     }
-    emit({ event: "pass", number, name: check.name, ms: Date.now() - started });
+    const ms = Math.round(performance.now() - started);
+    emit({ event: "pass", number, name: check.name, ms });
   }
   emit({ event: "done", count: checks.length });
   app.exit(0);

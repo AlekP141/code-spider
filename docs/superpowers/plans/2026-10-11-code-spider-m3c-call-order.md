@@ -19,8 +19,11 @@ extension do not change; core gets one fix so the first call site is kept.
 The Design section is the source ("D1" to "D10"). Background: docs/superpowers/specs/2026-10-11-code-spider-m3b-design.md
 ("section n") and docs/superpowers/specs/2026-08-22-code-spider-design.md ("§n").
 
-**Status:** not started. Baseline at commit `c13a574`, all passing: core 248, CLI 39, webview 405, extension 206, smoke 7,
-`pnpm probe` 9 checks. The owner's manual checks (D10) have NOT been run.
+**Status:** built on 2026-10-11 and 12 in five task commits (`10fe177`, `87d6974`, `f557348`, `ef3addd` and the commit
+that carries this line). Baseline at commit `c13a574`, all passing:
+core 248, CLI 39, webview 405, extension 206, smoke 7, `pnpm probe` 9 checks. After Task 5: core 250, CLI 39, webview 486,
+extension 206, `pnpm probe` 10 checks. The owner's manual checks (D10) have NOT been run. "As built: departures from the
+Design" at the end of this plan lists where the build differs from the Design.
 
 ## Design (agreed 2026-10-11, no separate spec)
 
@@ -599,3 +602,32 @@ The probe shows the order on the real built page; the documents say what M3c cha
 - [ ] Inspect the task delta (`git diff --check`, `git diff`, the untracked-file loop) and propose the commit
 
 Proposed commit message: `check call order in the probe and update the design specs for M3c`
+
+---
+
+## As built: departures from the Design
+
+The Design section above is the approved plan and stays as written. The build differs as follows.
+
+- **D5, make-room and restacked groups.** The Design said make-room cannot reverse a restacked group. That was false: a
+  pinned box could push a taller earlier member down past a shorter later one. `makeRoom` now takes a fourth argument,
+  `chains`, one list per function's group in code order, and a chain member never starts above the nearest earlier member's
+  bottom plus the row gap.
+- **D5, when a group counts as already in order.** Only when its order matches code order and its tops strictly ascend. Boxes
+  at the same top are restacked.
+- **D5, how a group moves.** A group that gains a call, or that is out of order, is re-stacked tightly from its top box. The
+  owner's words were "the boxes below slide down"; a member that stood far below can move up as well as down.
+- **D5, the code.** `restackCalled` returns a `Restack` that also has a `stack` field (the group top to bottom, with the new
+  boxes if it was restacked). `rebuildGraph` is built from `freshPerSlice`, `restackPass` (both in `view/refresh-order.ts`) and
+  `placePass` (in `view/refresh.ts`).
+- **Property tests.** The layout order property runs 100 seeds at three gaps (32, 192 and 480), not 300 seeds, because 300 took
+  14 seconds. The refresh order property runs 2000 seeds.
+- **D6, core.** The fix covers JSX elements as well as call and `new`, as Plan decision 4 said: `jsxElementsOf` sorts its
+  elements by where they start.
+- **Task 5, the probe.** The fixtures moved the theme and the fake `acquireVsCodeApi` into `probe/fixtures-page.js`, which
+  `fixtures.js` still re-exports, to keep `fixtures.js` under 300 lines. `watchEntering` in `probe/harness.js` now runs in a
+  function scope and drops its old observer, so check 10 can call it a second time. The probe times each check with a
+  monotonic clock instead of the wall clock, which once printed a negative time when the clock stepped.
+  Unlike the plan's Task 5 text ("parse and validate ... stay in id order, as in check 3"), helper's code calls `validate`
+  before `parse`, each edge has its own call site, and check 3 asserts `validate` is above `parse`, so the probe fails if an
+  expansion stacks its left column by id.

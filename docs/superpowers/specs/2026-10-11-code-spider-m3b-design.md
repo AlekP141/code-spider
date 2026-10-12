@@ -526,3 +526,8 @@ The sections above are the approved design and stay as written. The build differ
 - **Unsaved-edit check (section 4.6).** It runs inside the refresh's error handling. If collecting
   the unsaved documents throws, the refresh ends with `refreshFailed` carrying the error's text,
   not a rejected request (a newer centre request or a closed panel still drops the answer).
+- **Call order (M3c).** Sections 4.1 and 4.4 say Refresh keeps positions and only makes room. M3c
+  changes that for called boxes: Refresh puts a function's unpinned called boxes in code order (see
+  the M3c plan, D5, and its "As built" section). The probe (section 9) has ten checks, not nine:
+  check 1 also asserts that the called boxes read in code order, and check 10 refreshes an answer
+  that swaps and inserts calls.

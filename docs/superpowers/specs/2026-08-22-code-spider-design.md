@@ -361,6 +361,14 @@ own column placement, and never overlap an existing node. ELK serves only a new
 centre and Tidy, because it treats existing positions as hints, and insertions
 animate in.
 
+The functions a box calls are drawn one column to its left, top to bottom in the
+order the calls appear in the code. A function called twice sits at its first
+call, and callers have no order. The first layout and Tidy re-sort each column
+after ELK has placed it, because ELK's own options do not guarantee the order.
+An expansion stacks its new called boxes in that order, and Refresh puts a
+function's unpinned called boxes back in that order. A box the user dragged
+never moves.
+
 Type labels are drawn once per supplier, beside its outgoing edge and ellipsised
 to the column gap, with the full text on hover. They are not per edge, and
 M2's 40-character cap is gone.
@@ -503,7 +511,12 @@ can show a dot; nothing re-analyses on its own.
 The refresh button exists so that after changing code you do not have to click
 back into the editor to update the panel. It re-reads the centre and every
 expanded box in one worker request. Positions, pins, expansions and the
-viewport stay.
+viewport stay, except that a function's unpinned called boxes are put back in
+code order. When the order changed or a call is new, those boxes are re-stacked
+from the top one, so a new call's box is inserted in its place, the boxes below
+slide down, and a box that stood far below can move up. A group that already
+reads in order is not re-stacked, though a box that grew can still push boxes
+below it down. Pinned boxes never move.
 
 If a refresh finds that an expanded node no longer exists, that node is dropped
 along with anything reachable only through it. A pinned box that the rebuilt
@@ -558,9 +571,10 @@ brittle, and the thin shell is deliberately not where the logic lives.
 - **The real webview bundle has an Electron probe.** `pnpm probe` opens the
   built webview in the VS Code build the smoke tests download, with a fake
   `acquireVsCodeApi`, the page's real content security policy and real mouse
-  input, and runs nine checks: drawing, click, double-click expand, drag,
-  reload, refresh, the dot, zoom level of detail and the Lines switch. It is
-  separate from `pnpm -r test`.
+  input, and runs ten checks: drawing and call order, click, double-click
+  expand, drag, reload, refresh, the dot, zoom level of detail, the Lines switch
+  and a refresh that swaps and inserts calls. It is separate from
+  `pnpm -r test`.
 
 ## 10. Milestones
 
@@ -606,6 +620,8 @@ button, and zoom-based level of detail in node code regions. Added after M2:
 - Done in M3b: the cursor position is converted in core, so a file with mixed
   line endings focuses the right function.
 - Done in M3b: a checked-in Electron script that tests the real webview bundle.
+- Done in M3c: called boxes are drawn in the order of the calls in the code, on
+  the first layout, Tidy, expansion and Refresh.
 
 **M4 — Polish and package.** Theming, truncation and unknown-node states, error
 handling, `.vsix`.

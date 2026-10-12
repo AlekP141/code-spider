@@ -87,6 +87,11 @@ async function centreDraws(h) {
     nodes[ID.main].x > nodes[ID.helper].x,
     "the supplier is not left of the consumer",
   );
+  assert(
+    nodes[ID.helper].y < nodes[ID.format].y &&
+      Math.abs(nodes[ID.helper].x - nodes[ID.format].x) < 1,
+    "the called boxes are not in code order (helper above format) in one column",
+  );
 }
 
 async function clickOpensEditor(h) {
@@ -137,6 +142,11 @@ async function doubleClickExpands(h, shared) {
     "the answer's boxes",
   );
   assertSamePositions(before, after, THREE, "the expansion");
+  assert(
+    after[ID.validate].y < after[ID.parse].y &&
+      Math.abs(after[ID.validate].x - after[ID.parse].x) < 1,
+    "the expanded boxes are not in code order (validate above parse) in one column",
+  );
   await h.frame();
   await h.frame();
   const later = await h.nodes();

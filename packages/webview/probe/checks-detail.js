@@ -3,6 +3,7 @@
 const { assert, assertSamePositions } = require("./harness.js");
 const { ID, PROJECT, REFRESHED_MARKER, messages } = require("./fixtures.js");
 
+const UNMOVED = [ID.main, ID.format, ID.parse, ID.validate];
 const KEPT = [ID.main, ID.helper, ID.format, ID.parse, ID.validate];
 const DOT_LABEL = "Files changed since this graph was drawn";
 const DOT = `document.querySelector('[role="img"][aria-label="${DOT_LABEL}"]') !== null`;
@@ -21,13 +22,14 @@ function overlaps(a, b) {
   );
 }
 
-async function sendRefresh(h, shared) {
+async function sendRefresh(h, shared, count) {
   await h.click(await h.call("centreOfButton", "Refresh"));
-  const [request] = await h.until(
+  const requests = await h.until(
     () => h.posted("refresh"),
-    (found) => found.length === 1,
-    "a refresh message",
+    (found) => found.length === count,
+    `refresh message number ${count}`,
   );
+  const request = requests.at(-1);
   const wanted = JSON.stringify({
     type: "refresh",
     project: PROJECT,
@@ -43,7 +45,7 @@ async function sendRefresh(h, shared) {
 
 async function refreshChangesCode(h, shared) {
   const before = await h.nodes();
-  await sendRefresh(h, shared);
+  await sendRefresh(h, shared, 1);
   await h.watchEntering();
   await h.send(messages.refreshed(shared.generation, 1));
   const after = await h.until(
@@ -167,6 +169,41 @@ async function linesSwitchChangesPaths(h) {
   await assertPressed(h, "Stepped");
 }
 
+async function refreshReordersCalls(h, shared) {
+  const before = await h.nodes();
+  await sendRefresh(h, shared, 2);
+  await h.watchEntering();
+  await h.send(messages.reordered(shared.generation, 3));
+  const after = await h.until(
+    () => h.nodes(),
+    (found) => found[ID.late],
+    "the box for the inserted call",
+  );
+  const column = [ID.extra, ID.late, ID.helper].map((id) => after[id]);
+  for (const [above, below] of [
+    [column[0], column[1]],
+    [column[1], column[2]],
+  ]) {
+    assert(above.y < below.y, "the called boxes are not in code order");
+  }
+  assert(
+    column.every((box) => Math.abs(box.x - column[0].x) < 1),
+    "the called boxes are not in one column",
+  );
+  for (const [index, box] of column.entries()) {
+    for (const other of column.slice(index + 1)) {
+      assert(!overlaps(box, other), "two called boxes overlap");
+    }
+  }
+  assertSamePositions(before, after, UNMOVED, "the reorder");
+  assert(after[ID.format].pinned, "the reorder lost a pin");
+  const entered = await h.entered();
+  assert(
+    entered.includes(ID.late),
+    `the inserted box did not fade in (saw ${JSON.stringify(entered)})`,
+  );
+}
+
 module.exports = [
   {
     name: "refresh posts refresh and rebuilds from the answer",
@@ -180,5 +217,9 @@ module.exports = [
   {
     name: "the Lines switch changes the edge paths",
     run: linesSwitchChangesPaths,
+  },
+  {
+    name: "a refresh that swaps and inserts calls lands the boxes in code order",
+    run: refreshReordersCalls,
   },
 ];

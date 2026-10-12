@@ -167,19 +167,23 @@ class Harness {
 
   watchEntering() {
     return this.evaluate(`
-      window.__entering = new Set();
-      const note = () => {
-        for (const element of document.querySelectorAll(".is-entering")) {
-          window.__entering.add(element.dataset.id);
-        }
-      };
-      new MutationObserver(note).observe(document.body, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeFilter: ["class"],
-      });
-      true;
+      (() => {
+        window.__enteringObserver?.disconnect();
+        window.__entering = new Set();
+        const note = () => {
+          for (const element of document.querySelectorAll(".is-entering")) {
+            window.__entering.add(element.dataset.id);
+          }
+        };
+        window.__enteringObserver = new MutationObserver(note);
+        window.__enteringObserver.observe(document.body, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ["class"],
+        });
+        return true;
+      })()
     `);
   }
 
