@@ -90,7 +90,7 @@ async function main() {
     writeEntries(entries, folder);
     if (!readmeMatches(folder)) {
       fail(
-        "extension/readme.md differs from the root README.md; vsce rewrites relative links and #<number> references, so the root README must not use them",
+        "extension/readme.md differs from the root README.md; either the .vsix is out of date (run pnpm package), or vsce rewrote a relative link or a #<number> reference, which the root README must not use",
       );
       return;
     }

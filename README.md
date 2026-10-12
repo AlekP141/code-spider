@@ -41,7 +41,7 @@ From the top folder of the repository:
 1. Run `pnpm install`.
 2. Run `pnpm package`.
 
-This makes one file in the top folder of the repository. Its name comes from the version in `packages/extension/package.json`, for example `code-spider-vscode-0.1.0.vsix`.
+This makes one file in the top folder of the repository. Its name comes from the version in `packages/extension/package.json`, for example `code-spider-vscode-0.1.0.vsix`. Files from earlier versions stay in that folder. Use the one with the highest version number.
 
 ## Install
 
