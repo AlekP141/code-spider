@@ -20,6 +20,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "package": "pnpm build && pnpm --filter code-spider-vscode package:vsix",
+    "check:vsix": "pnpm --filter code-spider-vscode check:vsix",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "probe": "pnpm --filter @code-spider/webview probe"

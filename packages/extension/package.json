@@ -85,7 +85,8 @@
     "check:keybinding": "node scripts/check-default-keybinding.mjs",
     "check:electron": "node scripts/check-electron-libs.mjs",
     "test:smoke": "pnpm --workspace-root build && node build-smoke.mjs && node dist/smoke/run.cjs",
-    "package:vsix": "node scripts/copy-readme.mjs && vsce package --no-dependencies --skip-license --out ../../"
+    "package:vsix": "node scripts/copy-readme.mjs && vsce package --no-dependencies --skip-license --out ../../",
+    "check:vsix": "pnpm --workspace-root package && node build-smoke.mjs && node scripts/check-vsix.mjs"
   },
   "devDependencies": {
     "@code-spider/core": "workspace:*",
@@ -96,6 +97,7 @@
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.2",
+    "fflate": "^0.8.3",
     "mocha": "^12.0.3",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

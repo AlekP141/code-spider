@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runTests } from "@vscode/test-electron";
 import pinned from "../vscode-version.json";
@@ -15,14 +16,32 @@ function scrubEditorEnvironment(): void {
   }
 }
 
+function parseExtensionPath(args: string[]): string | undefined {
+  if (args.length === 0) return undefined;
+  const [flag, value, ...rest] = args;
+  if (flag !== "--extension-path" || !value || rest.length > 0) {
+    throw new Error(
+      `Usage: run.cjs [--extension-path <dir>]; got: ${args.join(" ")}`,
+    );
+  }
+  const extensionPath = resolve(value);
+  if (!existsSync(join(extensionPath, "package.json"))) {
+    throw new Error(
+      `--extension-path ${extensionPath} is not a folder with a package.json`,
+    );
+  }
+  return extensionPath;
+}
+
 async function main(): Promise<void> {
+  const extensionPath = parseExtensionPath(process.argv.slice(2));
   scrubEditorEnvironment();
   const packageDir = resolve(__dirname, "../..");
   const workspace = resolve(packageDir, "../../test-code/basic");
   await runTests({
     version: pinned.version,
     cachePath: join(packageDir, ".vscode-test"),
-    extensionDevelopmentPath: packageDir,
+    extensionDevelopmentPath: extensionPath ?? packageDir,
     extensionTestsPath: join(packageDir, "dist/smoke/suite/index.cjs"),
     launchArgs: [
       workspace,
