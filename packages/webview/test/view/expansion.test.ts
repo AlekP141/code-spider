@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rowGap } from "../../src/settings/column-gap.js";
-import { isClear, type Rect } from "../../src/graph/placement.js";
-import { nodeHeight } from "../../src/graph/node-size.js";
+import { isClear, type Rect } from "../../src/graph/layout/placement.js";
+import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import { setPositions } from "../../src/view/graph-state.js";
 import { acceptExpansion, applyExpansion } from "../../src/view/expansion.js";
 import { commitCentre, createView } from "../../src/view/view-state.js";

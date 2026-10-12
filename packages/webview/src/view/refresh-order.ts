@@ -1,9 +1,9 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
 import { rowGap } from "../settings/column-gap.js";
-import { calledInOrder, type CallEdge } from "../graph/call-order.js";
-import { compareIds } from "../graph/compare-ids.js";
+import { calledInOrder, type CallEdge } from "../graph/layout/call-order.js";
+import { compareIds } from "../graph/layout/compare-ids.js";
 import { NODE_WIDTH } from "../graph/constants.js";
-import { TOLERANCE } from "../graph/placement.js";
+import { TOLERANCE } from "../graph/layout/placement.js";
 import type { Point } from "./types.js";
 
 type Restack = {

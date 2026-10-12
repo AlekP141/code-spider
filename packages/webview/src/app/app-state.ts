@@ -19,7 +19,7 @@ import {
 } from "./app-walk.js";
 import { isWorking } from "./app-working.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
-import type { Rect } from "../graph/placement.js";
+import type { Rect } from "../graph/layout/placement.js";
 import { graphFromSlice, pinNodes, setPositions } from "../view/graph-state.js";
 import { isViewState } from "../view/persist.js";
 import type { GraphState, Point, ViewState } from "../view/types.js";

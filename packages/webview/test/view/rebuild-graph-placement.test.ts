@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rowGap } from "../../src/settings/column-gap.js";
 import { NODE_WIDTH } from "../../src/graph/constants.js";
-import { nodeHeight } from "../../src/graph/node-size.js";
+import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import { mergeExpansion } from "../../src/view/graph-state.js";
 import { rebuildGraph } from "../../src/view/refresh.js";
 import { makeEdge, makeNode, makeSlice } from "../support/slices.js";

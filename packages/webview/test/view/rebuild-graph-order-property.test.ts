@@ -1,10 +1,13 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
 import { describe, expect, it } from "vitest";
 import { rowGap } from "../../src/settings/column-gap.js";
-import { calledInOrder, walkParents } from "../../src/graph/call-order.js";
-import { compareIds } from "../../src/graph/compare-ids.js";
+import {
+  calledInOrder,
+  walkParents,
+} from "../../src/graph/layout/call-order.js";
+import { compareIds } from "../../src/graph/layout/compare-ids.js";
 import { NODE_WIDTH } from "../../src/graph/constants.js";
-import { isClear, TOLERANCE } from "../../src/graph/placement.js";
+import { isClear, TOLERANCE } from "../../src/graph/layout/placement.js";
 import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
 import { rebuildGraph } from "../../src/view/refresh.js";
 import type { GraphState, Point } from "../../src/view/types.js";

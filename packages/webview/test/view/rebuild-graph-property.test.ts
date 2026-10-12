@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rowGap } from "../../src/settings/column-gap.js";
 import { NODE_WIDTH } from "../../src/graph/constants.js";
-import { isClear } from "../../src/graph/placement.js";
+import { isClear } from "../../src/graph/layout/placement.js";
 import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
 import { rebuildGraph } from "../../src/view/refresh.js";
 import type { Point } from "../../src/view/types.js";

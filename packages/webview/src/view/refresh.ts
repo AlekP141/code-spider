@@ -1,9 +1,9 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
-import { walkParents } from "../graph/call-order.js";
+import { walkParents } from "../graph/layout/call-order.js";
 import { NODE_WIDTH } from "../graph/constants.js";
-import { makeRoom, type RoomBox } from "../graph/make-room.js";
-import { nodeHeight } from "../graph/node-size.js";
-import { placeExpansion } from "../graph/placement.js";
+import { makeRoom, type RoomBox } from "../graph/layout/make-room.js";
+import { nodeHeight } from "../graph/nodes/node-size.js";
+import { placeExpansion } from "../graph/layout/placement.js";
 import type { ExtensionToWebview } from "../host/protocol.js";
 import { rectsOf } from "./expansion.js";
 import { graphFromSlice, isExpanded, mergeExpansion } from "./graph-state.js";

@@ -1,7 +1,7 @@
 import type { GraphSlice } from "@code-spider/core/types";
 import { rowGap } from "../../src/settings/column-gap.js";
 import { NODE_WIDTH } from "../../src/graph/constants.js";
-import { nodeHeight } from "../../src/graph/node-size.js";
+import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
 import { rebuildGraph } from "../../src/view/refresh.js";
 import type { GraphState, Point } from "../../src/view/types.js";

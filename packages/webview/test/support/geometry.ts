@@ -1,7 +1,7 @@
 import type { NodeId } from "@code-spider/core/types";
 import { NODE_WIDTH } from "../../src/graph/constants.js";
-import { nodeHeight } from "../../src/graph/node-size.js";
-import type { Rect } from "../../src/graph/placement.js";
+import { nodeHeight } from "../../src/graph/nodes/node-size.js";
+import type { Rect } from "../../src/graph/layout/placement.js";
 import type { GraphState } from "../../src/view/types.js";
 import { site } from "./slices.js";
 

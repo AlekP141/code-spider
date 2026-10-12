@@ -1,6 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import type { AppState } from "./app-state.js";
-import { revealRect } from "../graph/reveal.js";
+import { revealRect } from "../graph/viewport/reveal.js";
 import type { ExtensionToWebview } from "../host/protocol.js";
 import { acceptExpansion } from "../view/expansion.js";
 import { collapseNode, unpinNode } from "../view/graph-state.js";

@@ -21,19 +21,23 @@ import type { EdgeStyle } from "../settings/edge-style.js";
 import type { WebviewToExtension } from "../host/protocol.js";
 import type { GraphState, Point } from "../view/types.js";
 import { edgeClickMessage, nodeClickMessage } from "./jump.js";
-import { applyLive, recordLive, type LivePositions } from "./live-positions.js";
-import { canvasClassName, isZoomedOut } from "./lod.js";
+import {
+  applyLive,
+  recordLive,
+  type LivePositions,
+} from "./viewport/live-positions.js";
+import { canvasClassName, isZoomedOut } from "./viewport/lod.js";
 import {
   NodeContext,
   type NodeActions,
   type NodeContextValue,
-} from "./node-context.js";
+} from "./nodes/node-context.js";
 import {
   doubleClickAction,
   justUnpinned,
   type LastUnpin,
-} from "./node-controls.js";
-import { SpiderNode } from "./SpiderNode.js";
+} from "./nodes/node-controls.js";
+import { SpiderNode } from "./nodes/SpiderNode.js";
 import {
   toFlow,
   type SpiderFlowEdge,
@@ -43,7 +47,7 @@ import {
   FIT_OPTIONS,
   FitOnRequest,
   RevealOnRequest,
-} from "./viewport-requests.js";
+} from "./viewport/viewport-requests.js";
 
 /** Defined once: React Flow re-creates every node if this object changes. */
 const nodeTypes: NodeTypes = { spider: SpiderNode };

@@ -1,7 +1,7 @@
 import type { GraphSlice } from "@code-spider/core/types";
 import { describe, expect, it } from "vitest";
-import { layoutGraph } from "../../src/graph/layout.js";
-import { tidyGraph } from "../../src/graph/tidy-graph.js";
+import { layoutGraph } from "../../src/graph/layout/layout.js";
+import { tidyGraph } from "../../src/graph/layout/tidy-graph.js";
 import { applyExpansion } from "../../src/view/expansion.js";
 import { graphFromSlice } from "../../src/view/graph-state.js";
 import type { GraphState } from "../../src/view/types.js";

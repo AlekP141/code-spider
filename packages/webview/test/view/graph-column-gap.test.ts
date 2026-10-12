@@ -5,7 +5,7 @@ import {
   reduceApp,
   type AppState,
 } from "../../src/app/app-state.js";
-import { nodeHeight } from "../../src/graph/node-size.js";
+import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import {
   collapseNode,
   mergeExpansion,

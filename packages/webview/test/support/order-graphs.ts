@@ -1,8 +1,11 @@
 import type { GraphEdge, GraphNode, GraphSlice } from "@code-spider/core/types";
 import { rowGap } from "../../src/settings/column-gap.js";
-import { layoutPositions, walkOrderedFlow } from "../../src/graph/layout.js";
-import { nodeHeight } from "../../src/graph/node-size.js";
-import { TOLERANCE } from "../../src/graph/placement.js";
+import {
+  layoutPositions,
+  walkOrderedFlow,
+} from "../../src/graph/layout/layout.js";
+import { nodeHeight } from "../../src/graph/nodes/node-size.js";
+import { TOLERANCE } from "../../src/graph/layout/placement.js";
 import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
 import type { GraphState, Point } from "../../src/view/types.js";
 import { PROJECT } from "./graph-states.js";

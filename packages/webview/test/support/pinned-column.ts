@@ -1,5 +1,5 @@
-import { layoutGraph } from "../../src/graph/layout.js";
-import { tidyGraph } from "../../src/graph/tidy-graph.js";
+import { layoutGraph } from "../../src/graph/layout/layout.js";
+import { tidyGraph } from "../../src/graph/layout/tidy-graph.js";
 import { graphFromSlice, pinNodes } from "../../src/view/graph-state.js";
 import type { GraphState, Point } from "../../src/view/types.js";
 import { calledSlice, id, PROJECT } from "./graph-states.js";

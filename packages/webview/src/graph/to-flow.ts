@@ -4,8 +4,8 @@ import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../settings/edge-style.js";
 import type { GraphState } from "../view/types.js";
 import { NODE_WIDTH } from "./constants.js";
 import { edgeAppearance } from "./edge-appearance.js";
-import { nodeHeight } from "./node-size.js";
-import { supplierLabels, type LabelLine } from "./supplier-labels.js";
+import { nodeHeight } from "./nodes/node-size.js";
+import { supplierLabels, type LabelLine } from "./nodes/supplier-labels.js";
 
 export type SpiderNodeData = {
   node: GraphNode;
