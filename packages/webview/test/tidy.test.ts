@@ -51,7 +51,7 @@ describe("tidyPositions", () => {
     expect(result.d).toEqual(elk.d);
   });
 
-  it("places displaced nodes in (x, y, id) order, each clear of those placed before it", () => {
+  it("places the nodes of a column in (y, id) order, each below the one before it", () => {
     const result = tidyPositions({
       elk: { p: { x: 0, y: 10 }, q: { x: 0, y: 10 } },
       sizes: { p: size, q: size, pin: size },
@@ -59,7 +59,7 @@ describe("tidyPositions", () => {
       margin: MARGIN,
     });
     expect(result.p).toEqual({ x: 0, y: 132 });
-    expect(result.q).toEqual({ x: 0, y: -132 });
+    expect(result.q).toEqual({ x: 0, y: 264 });
   });
 
   it("orders displaced nodes by y, not by id", () => {
@@ -70,7 +70,19 @@ describe("tidyPositions", () => {
       margin: MARGIN,
     });
     expect(result.b).toEqual({ x: 0, y: 132 });
-    expect(result.a).toEqual({ x: 0, y: -132 });
+    expect(result.a).toEqual({ x: 0, y: 264 });
+  });
+
+  it("moves a box that is clear of the pinned ones when the box above it was pushed onto its place", () => {
+    const result = tidyPositions({
+      elk: { a: { x: 0, y: 10 }, b: { x: 0, y: 160 }, c: { x: 0, y: 400 } },
+      sizes: { a: size, b: size, c: size, pin: size },
+      pinned: { pin: { x: 0, y: 0 } },
+      margin: MARGIN,
+    });
+    expect(result.a).toEqual({ x: 0, y: 132 });
+    expect(result.b).toEqual({ x: 0, y: 264 });
+    expect(result.c).toEqual({ x: 0, y: 400 });
   });
 
   it("does not change its inputs", () => {
@@ -165,7 +177,15 @@ describe("tidyPositions on random layouts", () => {
             margin,
           ),
         );
-        if (wasClear) {
+        const pushedByAbove = ids.some(
+          (other) =>
+            !pinned[other] &&
+            laid[other]?.x === laid[id]?.x &&
+            (laid[other]?.y ?? 0) < (laid[id]?.y ?? 0) &&
+            (result[other]?.y ?? 0) + (sized[other]?.height ?? 0) + margin >
+              (laid[id]?.y ?? 0),
+        );
+        if (wasClear && !pushedByAbove) {
           expect(result[id], `seed ${seed} ${id} kept`).toEqual(laid[id]);
         }
       }

@@ -38,13 +38,10 @@ function pushTo(
   else map.set(key, [edge]);
 }
 
-/**
- * Depth first from the focus: a node, then its called functions in code order,
- * then its callers in id order. Nodes never reached follow in id order.
- */
-export function walkOrder(
-  graph: Pick<GraphState, "focusId" | "nodes" | "edges">,
-): NodeId[] {
+type Walkable = Pick<GraphState, "focusId" | "nodes" | "edges">;
+type Walk = { order: NodeId[]; parents: Map<NodeId, NodeId> };
+
+function walk(graph: Walkable): Walk {
   const hasNode = (nodeId: NodeId) => Object.hasOwn(graph.nodes, nodeId);
   const edgesInto = new Map<NodeId, CallEdge[]>();
   const callersOf = new Map<NodeId, Set<NodeId>>();
@@ -58,12 +55,14 @@ export function walkOrder(
 
   const visited = new Set<NodeId>();
   const order: NodeId[] = [];
-  const visit = (nodeId: NodeId): void => {
+  const parents = new Map<NodeId, NodeId>();
+  const visit = (nodeId: NodeId, parent?: NodeId): void => {
     if (visited.has(nodeId)) return;
     visited.add(nodeId);
     order.push(nodeId);
+    if (parent !== undefined) parents.set(nodeId, parent);
     for (const called of calledInOrder(nodeId, edgesInto.get(nodeId) ?? [])) {
-      visit(called);
+      visit(called, nodeId);
     }
     for (const caller of [...(callersOf.get(nodeId) ?? [])].sort(compareIds)) {
       visit(caller);
@@ -74,5 +73,22 @@ export function walkOrder(
   for (const nodeId of Object.keys(graph.nodes).sort(compareIds)) {
     visit(nodeId);
   }
-  return order;
+  return { order, parents };
+}
+
+/**
+ * Depth first from the focus: a node, then its called functions in code order,
+ * then its callers in id order. Nodes never reached follow in id order.
+ */
+export function walkOrder(graph: Walkable): NodeId[] {
+  return walk(graph).order;
+}
+
+/**
+ * The owner of each box that the walk first reached as a called function: the
+ * function whose called list it came from. The focus, a box first reached as a
+ * caller, and a box the walk never reached from the focus have no owner.
+ */
+export function walkParents(graph: Walkable): ReadonlyMap<NodeId, NodeId> {
+  return walk(graph).parents;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NODE_WIDTH } from "../src/graph/constants.js";
+import { rowGap } from "../src/column-gap.js";
 import type { Point } from "../src/view/types.js";
 import { calledSlice, id } from "./support/graph-states.js";
 import {
@@ -112,19 +112,17 @@ describe("rebuildGraph restacks around pinned, off column and shared boxes", () 
     expect([...added].sort()).toEqual([id("n1"), id("n2")]);
   });
 
-  it("places new called boxes by code order when the old ones are all pinned or off column", () => {
-    const aside: Point = { x: COLUMN + 90, y: 400 };
+  it("places new called boxes by code order when the old ones are all pinned", () => {
     const current = graphAt(
-      calledSlice("a", ["x", "y"]),
-      { a: A, x: inColumn(0), y: aside },
+      calledSlice("a", ["x"]),
+      { a: A, x: inColumn(0) },
       ["x"],
     );
     const { graph, added } = refresh(
       current,
-      calledSlice("a", ["y", "n2", "x", "n1"]),
+      calledSlice("a", ["n2", "x", "n1"]),
     );
     expect(at(graph, "x")).toEqual(inColumn(0));
-    expect(at(graph, "y")).toEqual(aside);
     expect(at(graph, "n2")?.x).toBe(COLUMN);
     expect(at(graph, "n2")?.y).toBeLessThan(at(graph, "n1")?.y ?? NaN);
     expect([...added].sort()).toEqual([id("n1"), id("n2")]);
@@ -167,24 +165,54 @@ describe("rebuildGraph restacks around pinned, off column and shared boxes", () 
     expect(at(graph, "x")).toEqual(inColumn(150 + HEIGHT + MARGIN));
   });
 
-  it("restacks nothing and places a new box as before when the column gap differs", () => {
+  it("takes the column most called boxes share, wherever the function stands", () => {
+    const nudged = (y: number): Point => ({ x: COLUMN + 30, y });
+    const current = graphAt(calledSlice("a", ["x", "y", "z"]), {
+      a: A,
+      x: nudged(0),
+      y: nudged(400),
+      z: inColumn(900),
+    });
+    const { graph } = refresh(current, calledSlice("a", ["y", "x", "z"]));
+    expect(at(graph, "y")).toEqual(nudged(0));
+    expect(at(graph, "x")).toEqual(nudged(ROW));
+    expect(at(graph, "z")).toEqual(inColumn(900));
+  });
+
+  it("does not reorder called boxes the function was dragged on top of", () => {
+    const over: Point = { x: COLUMN + 100, y: 0 };
+    const current = graphAt(calledSlice("a", ["x", "y"]), {
+      a: over,
+      x: inColumn(0),
+      y: inColumn(400),
+    });
+    const { graph, added } = refresh(
+      current,
+      calledSlice("a", ["y", "x", "n"]),
+    );
+    expect(at(graph, "x")).toEqual(inColumn(0));
+    expect(at(graph, "y")).toEqual(inColumn(400));
+    expect(at(graph, "n")?.x).toBe(over.x - PITCH);
+    expect(added).toEqual([id("n")]);
+  });
+
+  it("finds the column from the boxes when the column gap differs from the one they were laid out with", () => {
     const current = graphAt(calledSlice("a", ["x", "y"]), {
       a: A,
       x: inColumn(0),
       y: inColumn(400),
     });
     const wide = 320;
-    const swapped = refresh(current, calledSlice("a", ["y", "x"]), [], wide);
-    expect(swapped.graph.positions).toEqual(current.positions);
+    const row = HEIGHT + rowGap(wide);
     const { graph, added } = refresh(
       current,
       calledSlice("a", ["y", "x", "n"]),
       [],
       wide,
     );
-    expect(at(graph, "x")).toEqual(inColumn(0));
-    expect(at(graph, "y")).toEqual(inColumn(400));
-    expect(at(graph, "n")?.x).toBe(A.x - (NODE_WIDTH + wide));
+    expect(at(graph, "y")).toEqual(inColumn(0));
+    expect(at(graph, "x")).toEqual(inColumn(row));
+    expect(at(graph, "n")).toEqual(inColumn(2 * row));
     expect(added).toEqual([id("n")]);
   });
 
@@ -209,20 +237,32 @@ describe("rebuildGraph restacks around pinned, off column and shared boxes", () 
       expect(added).toEqual([id("n")]);
     });
 
-    it("is not a member of a later function's group in the same column", () => {
+    it("goes to the group of the function the walk reached it through, and a second refresh moves nothing", () => {
+      const at1000 = (y: number): Point => ({ x: A.x, y });
       const current = graphAt(
-        calledSlice("a", ["x"], ["b"]),
-        { ...beside, x: inColumn(0) },
+        calledSlice("a", [], ["b1", "b2"]),
+        {
+          a: A,
+          b1: { x: A.x + PITCH, y: 0 },
+          b2: { x: A.x + PITCH, y: 900 },
+          w1: at1000(300),
+          w2: at1000(600),
+        },
         [],
-        [calledSlice("b", ["x"])],
+        [calledSlice("b2", ["w2"]), calledSlice("b1", ["w1"])],
       );
-      const { graph } = refresh(
-        current,
-        calledSlice("a", ["x", "n", "n2"], ["b"]),
-        [calledSlice("b", ["n2", "n"])],
-      );
-      expect(at(graph, "n")).toEqual(inColumn(ROW));
-      expect(at(graph, "n2")).toEqual(inColumn(2 * ROW));
+      const centre = calledSlice("a", [], ["b1", "b2"]);
+      const expansions = [
+        calledSlice("b2", ["n", "w2"]),
+        calledSlice("b1", ["w1", "n"]),
+      ];
+      const first = refresh(current, centre, expansions);
+      expect(at(first.graph, "w1")).toEqual(at1000(300));
+      expect(at(first.graph, "w2")).toEqual(at1000(600));
+      expect(at(first.graph, "n")).toEqual(at1000(300 + ROW));
+      expect(first.added).toEqual([id("n")]);
+      const second = refresh(first.graph, centre, expansions);
+      expect(second.graph.positions).toEqual(first.graph.positions);
     });
   });
 });

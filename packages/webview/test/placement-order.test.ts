@@ -6,20 +6,8 @@ import {
   type AddedNode,
   type Rect,
 } from "../src/graph/placement.js";
+import { edge, rect } from "./support/geometry.js";
 import { site } from "./support/slices.js";
-
-const rect = (x: number, y: number, width: number, height: number): Rect => ({
-  x,
-  y,
-  width,
-  height,
-});
-
-const edge = (from: string, to: string, line: number) => ({
-  from,
-  to,
-  callSite: site(line),
-});
 
 const anchor = rect(1000, 500, NODE_WIDTH, 100);
 const pitch = (columnGap: number) => NODE_WIDTH + columnGap;

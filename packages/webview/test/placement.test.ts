@@ -9,22 +9,9 @@ import {
   type AddedNode,
   type Rect,
 } from "../src/graph/placement.js";
-import { site } from "./support/slices.js";
-
-const rect = (x: number, y: number, width: number, height: number): Rect => ({
-  x,
-  y,
-  width,
-  height,
-});
+import { edge, rect } from "./support/geometry.js";
 
 const MARGIN = rowGap(192);
-
-const edge = (from: string, to: string, line = 2) => ({
-  from,
-  to,
-  callSite: site(line),
-});
 
 describe("isClear", () => {
   it("is true when the horizontal or the vertical gap reaches the margin", () => {

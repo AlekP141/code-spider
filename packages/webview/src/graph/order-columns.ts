@@ -3,7 +3,7 @@ import type { Point } from "../view/types.js";
 import { compareIds } from "./compare-ids.js";
 import { TOLERANCE } from "./placement.js";
 
-function columnsByX(positions: Record<NodeId, Point>): NodeId[][] {
+export function columnsByX(positions: Record<NodeId, Point>): NodeId[][] {
   const x = (nodeId: NodeId) => positions[nodeId]?.x ?? 0;
   const columns: NodeId[][] = [];
   const ids = Object.keys(positions).sort((a, b) => x(a) - x(b));

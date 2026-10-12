@@ -1,4 +1,5 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
+import { walkParents } from "../graph/call-order.js";
 import { NODE_WIDTH } from "../graph/constants.js";
 import { makeRoom, type RoomBox } from "../graph/make-room.js";
 import { nodeHeight } from "../graph/node-size.js";
@@ -135,12 +136,14 @@ export function rebuildGraph(
   const heights = Object.fromEntries(
     Object.values(rebuilt.nodes).map((node) => [node.id, nodeHeight(node)]),
   );
-  const fresh = freshPerSlice(applied, new Set(Object.keys(kept)));
+  const owners = walkParents(rebuilt);
+  const fresh = freshPerSlice(applied, new Set(Object.keys(kept)), owners);
 
   const restacked = restackPass({
     applied,
     fresh,
     positions: kept,
+    owners,
     pinned: pinnedIds,
     heights,
     columnGap,

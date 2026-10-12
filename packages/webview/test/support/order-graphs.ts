@@ -6,19 +6,10 @@ import { TOLERANCE } from "../../src/graph/placement.js";
 import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
 import type { GraphState, Point } from "../../src/view/types.js";
 import { PROJECT } from "./graph-states.js";
-import { mulberry32, randomInt } from "./random.js";
+import { mulberry32, randomInt, shuffled } from "./random.js";
 import { makeEdge, makeNode, makeSlice, site } from "./slices.js";
 
 const nodeId = (index: number) => `a#n${String(index).padStart(2, "0")}`;
-
-function shuffled<T>(next: () => number, items: T[]): T[] {
-  const copy = [...items];
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const other = randomInt(next, 0, index);
-    [copy[index], copy[other]] = [copy[other] as T, copy[index] as T];
-  }
-  return copy;
-}
 
 function randomEdges(
   next: () => number,

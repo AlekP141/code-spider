@@ -1,65 +1,26 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
 import { describe, expect, it } from "vitest";
 import { rowGap } from "../src/column-gap.js";
-import { calledInOrder } from "../src/graph/call-order.js";
+import { calledInOrder, walkParents } from "../src/graph/call-order.js";
 import { compareIds } from "../src/graph/compare-ids.js";
 import { NODE_WIDTH } from "../src/graph/constants.js";
-import { nodeHeight } from "../src/graph/node-size.js";
-import { isClear, TOLERANCE, type Rect } from "../src/graph/placement.js";
+import { isClear, TOLERANCE } from "../src/graph/placement.js";
 import { graphFromSlice, mergeExpansion } from "../src/view/graph-state.js";
 import { rebuildGraph } from "../src/view/refresh.js";
 import type { GraphState, Point } from "../src/view/types.js";
+import { rectOf } from "./support/geometry.js";
 import { answerOf, id, PROJECT } from "./support/graph-states.js";
 import { mulberry32, randomInt } from "./support/random.js";
-import { makeEdge, makeNode, makeSlice, site } from "./support/slices.js";
+import {
+  edited,
+  freshSpec,
+  POOL,
+  sliceFromSpec,
+  type Lines,
+  type Spec,
+} from "./support/random-specs.js";
 
 const SEEDS = 2000;
-const POOL = Array.from({ length: 14 }, (_, index) => `n${index}`);
-
-type Spec = { key: string; called: string[]; consumers: string[] };
-type Lines = Record<string, number>;
-
-function sliceFromSpec(spec: Spec, lines: Lines, next: () => number) {
-  const names = [spec.key, ...spec.called, ...spec.consumers];
-  const nodes = names.map((name) =>
-    makeNode({ id: id(name), lineCount: lines[id(name)] ?? 3 }),
-  );
-  const calls = spec.called.map((name) =>
-    makeEdge(id(name), id(spec.key), {
-      callSite: site(randomInt(next, 2, 6), randomInt(next, 1, 40)),
-    }),
-  );
-  const uses = spec.consumers.map((name) => makeEdge(id(spec.key), id(name)));
-  return makeSlice(id(spec.key), nodes, [...calls, ...uses]);
-}
-
-function someNames(next: () => number, key: string, most: number): string[] {
-  const others = POOL.filter((name) => name !== key);
-  const chosen: string[] = [];
-  for (let count = randomInt(next, 0, most); count > 0; count -= 1) {
-    const name = others[randomInt(next, 0, others.length - 1)];
-    if (name !== undefined && !chosen.includes(name)) chosen.push(name);
-  }
-  return chosen;
-}
-
-function freshSpec(next: () => number, key: string): Spec {
-  const names = someNames(next, key, 6);
-  const cut = randomInt(next, 1, Math.max(1, names.length));
-  return { key, called: names.slice(0, cut), consumers: names.slice(cut) };
-}
-
-function edited(next: () => number, spec: Spec): Spec {
-  const kept = () => next() > 0.2;
-  const added = someNames(next, spec.key, 2);
-  const called = [
-    ...new Set([...spec.called.filter(kept), ...added.slice(0, 1)]),
-  ];
-  const consumers = [
-    ...new Set([...spec.consumers.filter(kept), ...added.slice(1)]),
-  ].filter((name) => !called.includes(name));
-  return { key: spec.key, called, consumers };
-}
 
 function laidOut(next: () => number, gap: number) {
   const lines: Lines = Object.fromEntries(
@@ -68,7 +29,7 @@ function laidOut(next: () => number, gap: number) {
       next() < 0.5 ? randomInt(next, 1, 3) : randomInt(next, 15, 30),
     ]),
   );
-  const specs: Spec[] = [freshSpec(next, "n0")];
+  const specs: Spec[] = [freshSpec(next, "n0", 6, 1)];
   let graph = graphFromSlice(
     sliceFromSpec(specs[0] as Spec, lines, next),
     PROJECT,
@@ -79,7 +40,7 @@ function laidOut(next: () => number, gap: number) {
     );
     const key = open[randomInt(next, 0, open.length - 1)]?.split("#")[1];
     if (key === undefined) break;
-    const spec = freshSpec(next, key);
+    const spec = freshSpec(next, key, 6, 1);
     specs.push(spec);
     const slice = sliceFromSpec(spec, lines, next);
     graph = mergeExpansion(graph, id(key), slice).graph;
@@ -94,7 +55,8 @@ function laidOut(next: () => number, gap: number) {
   }
   const pinned = new Set<NodeId>();
   for (const spec of specs) {
-    const column = (positions[id(spec.key)]?.x ?? 0) - pitch;
+    const nudge = next() < 0.25 ? randomInt(next, -20, 70) : 0;
+    const column = (positions[id(spec.key)]?.x ?? 0) - pitch + nudge;
     for (const name of spec.called) {
       const nodeId = id(name);
       positions[nodeId] = {
@@ -113,15 +75,23 @@ function laidOut(next: () => number, gap: number) {
   return { current, specs, lines };
 }
 
-function rectOf(graph: GraphState, nodeId: NodeId): Rect {
-  const at = graph.positions[nodeId] ?? { x: NaN, y: NaN };
-  const node = graph.nodes[nodeId];
-  return { ...at, width: NODE_WIDTH, height: node ? nodeHeight(node) : NaN };
-}
-
 type Group = { key: NodeId; members: NodeId[]; called: NodeId[] };
 
-/** D5: the unpinned, kept, in-column called boxes no earlier function took. */
+/** The x most boxes share; on a tie the one nearest `expected`. */
+function commonX(xs: number[], expected: number): number | undefined {
+  const score = (x: number) =>
+    xs.filter((other) => Math.abs(other - x) <= TOLERANCE).length;
+  return [...xs].sort(
+    (a, b) =>
+      score(b) - score(a) || Math.abs(a - expected) - Math.abs(b - expected),
+  )[0];
+}
+
+/**
+ * D5: the unpinned, kept called boxes the walk first reached through the
+ * function, standing left of it in the column most of them share, that no
+ * earlier function took.
+ */
 function groupsOf(
   slices: GraphSlice[],
   current: GraphState,
@@ -129,20 +99,24 @@ function groupsOf(
   gap: number,
 ): Group[] {
   const pinned = new Set(graph.pinned);
+  const owners = walkParents(graph);
   const taken = new Set<NodeId>();
+  const xOf = (nodeId: NodeId) => graph.positions[nodeId]?.x ?? Number.NaN;
   return slices.map((slice) => {
     const key = slice.focusId;
-    const column = (graph.positions[key]?.x ?? NaN) - (NODE_WIDTH + gap);
     const called = calledInOrder(key, slice.edges);
-    const members = called.filter((nodeId) => {
-      const x = graph.positions[nodeId]?.x ?? NaN;
-      return (
+    const candidates = called.filter(
+      (nodeId) =>
         Object.hasOwn(current.positions, nodeId) &&
         !pinned.has(nodeId) &&
         !taken.has(nodeId) &&
-        Math.abs(x - column) <= TOLERANCE
-      );
-    });
+        owners.get(nodeId) === key &&
+        xOf(nodeId) + NODE_WIDTH <= xOf(key) + TOLERANCE,
+    );
+    const column = commonX(candidates.map(xOf), xOf(key) - NODE_WIDTH - gap);
+    const members = candidates.filter(
+      (nodeId) => Math.abs(xOf(nodeId) - (column ?? Number.NaN)) <= TOLERANCE,
+    );
     for (const nodeId of members) taken.add(nodeId);
     return { key, members, called };
   });
@@ -221,7 +195,6 @@ describe("rebuildGraph keeps called boxes in code order on random graphs", () =>
         }
       }
 
-      const pitch = NODE_WIDTH + gap;
       for (const group of groupsOf(applied, current, graph, gap)) {
         const tops = group.members.map((nodeId) => graph.positions[nodeId]?.y);
         for (let at = 1; at < tops.length; at += 1) {
@@ -231,15 +204,13 @@ describe("rebuildGraph keeps called boxes in code order on random graphs", () =>
           ).toBeGreaterThan(tops[at - 1] as number);
         }
         if (wasRestacked(group, current, fresh)) restacked += 1;
-        const column = (graph.positions[group.key]?.x ?? NaN) - pitch;
-        if (group.members.length > 0) {
-          beside += group.called.filter(
-            (nodeId) =>
-              pinned.has(nodeId) &&
-              Math.abs((graph.positions[nodeId]?.x ?? NaN) - column) <=
-                TOLERANCE,
-          ).length;
-        }
+        const column = graph.positions[group.members[0] ?? ""]?.x ?? Number.NaN;
+        beside += group.called.filter(
+          (nodeId) =>
+            pinned.has(nodeId) &&
+            Math.abs((graph.positions[nodeId]?.x ?? Number.NaN) - column) <=
+              TOLERANCE,
+        ).length;
         placed += group.called.filter((nodeId) => fresh.has(nodeId)).length;
         for (const nodeId of group.members) {
           const from = current.positions[nodeId]?.y ?? NaN;

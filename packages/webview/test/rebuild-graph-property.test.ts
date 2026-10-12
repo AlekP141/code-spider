@@ -1,19 +1,21 @@
-import type { GraphSlice } from "@code-spider/core/types";
 import { describe, expect, it } from "vitest";
 import { rowGap } from "../src/column-gap.js";
 import { NODE_WIDTH } from "../src/graph/constants.js";
-import { nodeHeight } from "../src/graph/node-size.js";
-import { isClear, type Rect } from "../src/graph/placement.js";
+import { isClear } from "../src/graph/placement.js";
 import { graphFromSlice, mergeExpansion } from "../src/view/graph-state.js";
 import { rebuildGraph } from "../src/view/refresh.js";
-import type { GraphState, Point } from "../src/view/types.js";
-import { answerOf, id, PROJECT, sliceOf } from "./support/graph-states.js";
-import { mulberry32, randomInt } from "./support/random.js";
-
-const POOL = Array.from({ length: 14 }, (_, index) => `n${index}`);
-
-type Spec = { key: string; suppliers: string[]; consumers: string[] };
-type Lines = Record<string, number>;
+import type { Point } from "../src/view/types.js";
+import { rectOf } from "./support/geometry.js";
+import { answerOf, id, PROJECT } from "./support/graph-states.js";
+import { mulberry32, randomInt, shuffled } from "./support/random.js";
+import {
+  edited,
+  freshSpec,
+  POOL,
+  sliceFromSpec,
+  type Lines,
+  type Spec,
+} from "./support/random-specs.js";
 
 function linesFor(next: () => number): Lines {
   return Object.fromEntries(
@@ -21,49 +23,9 @@ function linesFor(next: () => number): Lines {
   );
 }
 
-function sliceFromSpec(spec: Spec, lines: Lines): GraphSlice {
-  const slice = sliceOf(spec.key, spec.suppliers, spec.consumers);
-  return {
-    ...slice,
-    nodes: slice.nodes.map((node) => ({
-      ...node,
-      lineCount: lines[node.id] ?? 3,
-    })),
-  };
-}
-
-function someNames(next: () => number, key: string, most: number): string[] {
-  const others = POOL.filter((name) => name !== key);
-  const chosen: string[] = [];
-  for (let count = randomInt(next, 0, most); count > 0; count -= 1) {
-    const name = others[randomInt(next, 0, others.length - 1)];
-    if (name !== undefined && !chosen.includes(name)) chosen.push(name);
-  }
-  return chosen;
-}
-
-function freshSpec(next: () => number, key: string): Spec {
-  const names = someNames(next, key, 5);
-  const cut = randomInt(next, 0, names.length);
-  return { key, suppliers: names.slice(0, cut), consumers: names.slice(cut) };
-}
-
-/** Drops some neighbours and brings in others, as editing the code might. */
-function edited(next: () => number, spec: Spec): Spec {
-  const kept = () => next() > 0.2;
-  const added = someNames(next, spec.key, 2);
-  const suppliers = [
-    ...new Set([...spec.suppliers.filter(kept), ...added.slice(0, 1)]),
-  ];
-  const consumers = [
-    ...new Set([...spec.consumers.filter(kept), ...added.slice(1)]),
-  ].filter((name) => !suppliers.includes(name));
-  return { key: spec.key, suppliers, consumers };
-}
-
 function build(next: () => number, gap: number) {
   const lines = linesFor(next);
-  const specs: Spec[] = [freshSpec(next, "n0")];
+  const specs: Spec[] = [freshSpec(next, "n0", 5)];
   let graph = graphFromSlice(sliceFromSpec(specs[0] as Spec, lines), PROJECT);
   for (let count = randomInt(next, 0, 3); count > 0; count -= 1) {
     const open = Object.keys(graph.nodes).filter(
@@ -71,7 +33,7 @@ function build(next: () => number, gap: number) {
     );
     const key = open[randomInt(next, 0, open.length - 1)]?.split("#")[1];
     if (key === undefined) break;
-    const spec = freshSpec(next, key);
+    const spec = freshSpec(next, key, 5);
     specs.push(spec);
     graph = mergeExpansion(graph, id(key), sliceFromSpec(spec, lines)).graph;
   }
@@ -86,21 +48,6 @@ function build(next: () => number, gap: number) {
   }
   const pinned = Object.keys(graph.nodes).filter(() => next() < 0.3);
   return { current: { ...graph, positions, pinned, columnGap: gap }, specs };
-}
-
-function shuffled<T>(next: () => number, items: T[]): T[] {
-  const copy = [...items];
-  for (let at = copy.length - 1; at > 0; at -= 1) {
-    const to = randomInt(next, 0, at);
-    [copy[at], copy[to]] = [copy[to] as T, copy[at] as T];
-  }
-  return copy;
-}
-
-function rectOf(graph: GraphState, nodeId: string): Rect {
-  const at = graph.positions[nodeId] ?? { x: NaN, y: NaN };
-  const node = graph.nodes[nodeId];
-  return { ...at, width: NODE_WIDTH, height: node ? nodeHeight(node) : NaN };
 }
 
 describe("rebuildGraph on random graphs", () => {

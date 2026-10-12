@@ -11,15 +11,9 @@ import {
   type AddedNode,
   type Rect,
 } from "../src/graph/placement.js";
+import { rect } from "./support/geometry.js";
 import { mulberry32, randomInt } from "./support/random.js";
 import { site } from "./support/slices.js";
-
-const rect = (x: number, y: number, width: number, height: number): Rect => ({
-  x,
-  y,
-  width,
-  height,
-});
 
 describe("placeExpansion on random layouts", () => {
   function nearerClearExists(

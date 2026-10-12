@@ -17,3 +17,12 @@ export function randomInt(
 ): number {
   return min + Math.floor(next() * (max - min + 1));
 }
+
+export function shuffled<T>(next: () => number, items: readonly T[]): T[] {
+  const copy = [...items];
+  for (let at = copy.length - 1; at > 0; at -= 1) {
+    const to = randomInt(next, 0, at);
+    [copy[at], copy[to]] = [copy[to] as T, copy[at] as T];
+  }
+  return copy;
+}

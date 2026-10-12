@@ -1,6 +1,10 @@
 import type { GraphEdge } from "@code-spider/core/types";
 import { describe, expect, it } from "vitest";
-import { calledInOrder, walkOrder } from "../src/graph/call-order.js";
+import {
+  calledInOrder,
+  walkOrder,
+  walkParents,
+} from "../src/graph/call-order.js";
 import { graphFromSlice } from "../src/view/graph-state.js";
 import { PROJECT, calledSlice, id } from "./support/graph-states.js";
 import { makeEdge, makeNode, readGolden, site } from "./support/slices.js";
@@ -19,10 +23,10 @@ describe("calledInOrder", () => {
     const narrow = { ...site(3, 9), endColumn: 12 };
     const edges = [
       into("a#late", site(5, 3)),
-      into("a#right", narrow),
-      into("a#left", wide),
+      into("a#narrow", narrow),
+      into("a#wide", wide),
     ];
-    expect(calledInOrder(X, edges)).toEqual(["a#left", "a#right", "a#late"]);
+    expect(calledInOrder(X, edges)).toEqual(["a#wide", "a#narrow", "a#late"]);
   });
 
   it("breaks a tie on end line, then end column, then node id", () => {
@@ -199,5 +203,65 @@ describe("walkOrder", () => {
       "a",
       "b",
     ]);
+  });
+});
+
+describe("walkParents", () => {
+  const owners = (graph: Parameters<typeof walkParents>[0]) =>
+    Object.fromEntries(
+      [...walkParents(graph)].map(([node, owner]) => [
+        node.split("#")[1],
+        owner.split("#")[1],
+      ]),
+    );
+
+  it("names the function each called box was reached through, and none for the focus or the callers", () => {
+    const graph = graphFromSlice(
+      readGolden("basic-handleSignup.json"),
+      PROJECT,
+    );
+    expect(owners(graph)).toEqual({
+      validateUser: "handleSignup",
+      createUser: "handleSignup",
+      sendWelcome: "handleSignup",
+    });
+  });
+
+  it("gives a box two functions call to the one the depth-first walk reaches first", () => {
+    const slice = calledSlice("f", [], ["q", "p"]);
+    const graph = graphFromSlice(
+      {
+        ...slice,
+        nodes: [...slice.nodes, makeNode({ id: id("s") })],
+        edges: [
+          ...slice.edges,
+          makeEdge(id("s"), id("p"), { callSite: site(3) }),
+          makeEdge(id("s"), id("q"), { callSite: site(3) }),
+        ],
+      },
+      PROJECT,
+    );
+    expect(owners(graph)).toEqual({ s: "p" });
+  });
+
+  it("gives no owner to a box first reached as a caller, although the focus calls it too", () => {
+    const slice = calledSlice("f", ["a", "c"]);
+    const graph = graphFromSlice(
+      {
+        ...slice,
+        edges: [
+          ...slice.edges,
+          makeEdge(id("a"), id("c"), { callSite: site(2) }),
+        ],
+      },
+      PROJECT,
+    );
+    expect(owners(graph)).toEqual({ a: "f" });
+  });
+
+  it("gives no owner to nodes the walk does not reach from the focus", () => {
+    const base = graphFromSlice(calledSlice("f", ["a"]), PROJECT);
+    const nodes = { ...base.nodes, [id("z")]: makeNode({ id: id("z") }) };
+    expect(owners({ ...base, nodes })).toEqual({ a: "f" });
   });
 });
