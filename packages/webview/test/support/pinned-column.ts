@@ -2,7 +2,7 @@ import { layoutGraph } from "../../src/graph/layout/layout.js";
 import { tidyGraph } from "../../src/graph/layout/tidy-graph.js";
 import { graphFromSlice, pinNodes } from "../../src/view/graph-state.js";
 import type { GraphState, Point } from "../../src/view/types.js";
-import { calledSlice, id, PROJECT } from "./graph-states.js";
+import { calledSlice, id, openAll, PROJECT } from "./graph-states.js";
 
 export const CALLED = ["c0", "c1", "c2", "c3", "c4"];
 export const OFFSETS = [-70, -20, 0, 20, 70, 150];
@@ -12,7 +12,7 @@ export async function laidOutCalls(
   names: string[],
   columnGap: number,
 ): Promise<GraphState> {
-  const graph = graphFromSlice(calledSlice("f", names), PROJECT);
+  const graph = openAll(graphFromSlice(calledSlice("f", names), PROJECT));
   const positions = await layoutGraph(graph, columnGap);
   return { ...graph, positions, columnGap };
 }

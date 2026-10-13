@@ -24,6 +24,6 @@ export function codeRegionHeight(node: Sized): number {
 }
 
 /** Pure arithmetic, available before ELK runs; never measured from the DOM. */
-export function nodeHeight(node: Sized): number {
-  return HEADER_HEIGHT + codeRegionHeight(node);
+export function nodeHeight(node: Sized, open: boolean): number {
+  return open ? HEADER_HEIGHT + codeRegionHeight(node) : HEADER_HEIGHT;
 }

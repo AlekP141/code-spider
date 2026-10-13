@@ -113,7 +113,8 @@
 
 .node-box.kind-external .node-header,
 .node-box.kind-unknown .node-header,
-.node-box.kind-module .node-header {
+.node-box.kind-module .node-header,
+.node-box.is-closed .node-header {
   border-bottom: none;
 }
 

@@ -1,17 +1,24 @@
 import type { GraphSlice } from "@code-spider/core/types";
 import { rowGap } from "../../src/settings/column-gap.js";
 import { NODE_WIDTH } from "../../src/graph/constants.js";
-import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
 import { rebuildGraph } from "../../src/view/refresh.js";
 import type { GraphState, Point } from "../../src/view/types.js";
-import { answerOf, id, PROJECT, withPositions } from "./graph-states.js";
+import { CLOSED_HEIGHT, OPEN_HEIGHT } from "./geometry.js";
+import {
+  answerOf,
+  id,
+  openAll,
+  PROJECT,
+  withPositions,
+} from "./graph-states.js";
 
 export const GAP = 192;
 export const MARGIN = rowGap(GAP);
 export const PITCH = NODE_WIDTH + GAP;
-export const HEIGHT = nodeHeight({ lineCount: 3, codePreview: "x" });
+export const HEIGHT = OPEN_HEIGHT;
 export const ROW = HEIGHT + MARGIN;
+export const CLOSED_ROW = CLOSED_HEIGHT + MARGIN;
 export const A: Point = { x: 1000, y: 0 };
 export const COLUMN = A.x - PITCH;
 
@@ -30,7 +37,10 @@ export function graphAt(
   const positions = Object.fromEntries(
     Object.entries(spots).map(([name, at]) => [id(name), at]),
   );
-  return { ...withPositions(graph, positions), pinned: pinned.map(id) };
+  return openAll({
+    ...withPositions(graph, positions),
+    pinned: pinned.map(id),
+  });
 }
 
 export function refresh(

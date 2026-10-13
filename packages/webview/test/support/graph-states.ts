@@ -1,4 +1,5 @@
 import type { GraphNode, GraphSlice } from "@code-spider/core/types";
+import { hasCodeRegion } from "../../src/graph/nodes/node-size.js";
 import { graphFromSlice } from "../../src/view/graph-state.js";
 import type { RefreshAnswer } from "../../src/view/refresh.js";
 import type { GraphState, Point } from "../../src/view/types.js";
@@ -48,6 +49,13 @@ export function graphOf(
   consumers: string[] = [],
 ): GraphState {
   return graphFromSlice(sliceOf(focus, suppliers, consumers), PROJECT);
+}
+
+export function openAll(graph: GraphState): GraphState {
+  const open = Object.values(graph.nodes)
+    .filter(hasCodeRegion)
+    .map((node) => node.id);
+  return { ...graph, open };
 }
 
 export function nodeIds(graph: GraphState): string[] {

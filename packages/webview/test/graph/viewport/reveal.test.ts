@@ -13,7 +13,7 @@ const graph = graphFromSlice(sliceOf("a", ["b", "c"]), PROJECT, {
 
 describe("revealRect", () => {
   it("spans the added nodes by position and analytic height", () => {
-    const height = nodeHeight(graph.nodes[id("c")]!);
+    const height = nodeHeight(graph.nodes[id("c")]!, false);
     expect(revealRect(graph, [id("b"), id("c")])).toEqual({
       x: -200,
       y: 50,
@@ -28,9 +28,21 @@ describe("revealRect", () => {
       x: 5,
       y: 6,
       width: NODE_WIDTH,
-      height: nodeHeight(graph.nodes[id("b")]!),
+      height: nodeHeight(graph.nodes[id("b")]!, false),
     });
     expect(revealRect(graph, [])).toBeUndefined();
     expect(revealRect(graph, ["src/a.ts#gone"])).toBeUndefined();
+  });
+
+  it("counts an open box at its full height in the revealed rectangle", () => {
+    const open = { ...graph, open: [id("c")] };
+    const full = nodeHeight(open.nodes[id("c")]!, true);
+    expect(full).toBeGreaterThan(nodeHeight(open.nodes[id("c")]!, false));
+    expect(revealRect(open, [id("b"), id("c")])).toEqual({
+      x: -200,
+      y: 50,
+      width: 100 + NODE_WIDTH - -200,
+      height: 300 + full - 50,
+    });
   });
 });

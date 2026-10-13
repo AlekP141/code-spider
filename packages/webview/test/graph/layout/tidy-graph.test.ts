@@ -1,14 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { layoutGraph } from "../../../src/graph/layout/layout.js";
 import { tidyGraph } from "../../../src/graph/layout/tidy-graph.js";
-import { nodeHeight } from "../../../src/graph/nodes/node-size.js";
 import { rowGap } from "../../../src/settings/column-gap.js";
 import { pinNodes, setPositions } from "../../../src/view/graph-state.js";
 import type { GraphState } from "../../../src/view/types.js";
 import { commitCentre, createView } from "../../../src/view/view-state.js";
+import { CLOSED_HEIGHT } from "../../support/geometry.js";
 import { graphOf, id } from "../../support/graph-states.js";
-
-const BOX = nodeHeight({ lineCount: 3, codePreview: "x" });
 
 const column: typeof layoutGraph = async (graph) =>
   Object.fromEntries(
@@ -53,7 +51,7 @@ describe("tidyGraph", () => {
     expect(outcome?.positions[id("a")]).toEqual({ x: 0, y: 200 });
     expect(outcome?.positions[id("b")]).toEqual({
       x: 0,
-      y: 200 - rowGap(192) - BOX,
+      y: 200 - rowGap(192) - CLOSED_HEIGHT,
     });
     expect(outcome?.positions[id("c")]).toEqual({ x: 0, y: 400 });
   });
@@ -67,7 +65,7 @@ describe("tidyGraph", () => {
     );
     expect(outcome?.positions[id("b")]).toEqual({
       x: 0,
-      y: 200 - rowGap(480) - BOX,
+      y: 200 - rowGap(480) - CLOSED_HEIGHT,
     });
   });
 

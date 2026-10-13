@@ -1,6 +1,7 @@
 import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core/types";
 import type { Edge, Node } from "@xyflow/react";
 import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../settings/edge-style.js";
+import { isOpen } from "../view/graph-state.js";
 import type { GraphState } from "../view/types.js";
 import { NODE_WIDTH } from "./constants.js";
 import { edgeAppearance } from "./edge-appearance.js";
@@ -11,6 +12,7 @@ export type SpiderNodeData = {
   node: GraphNode;
   isFocus: boolean;
   pinned: boolean;
+  open: boolean;
   labels: readonly LabelLine[];
 };
 export type SpiderFlowNode = Node<SpiderNodeData, "spider">;
@@ -21,17 +23,20 @@ function toFlowNode(
   graph: GraphState,
   labels: ReadonlyMap<NodeId, LabelLine[]>,
 ): SpiderFlowNode {
+  const open = isOpen(graph, node.id);
+  const height = nodeHeight(node, open);
   return {
     id: node.id,
     type: "spider",
     position: graph.positions[node.id] ?? { x: 0, y: 0 },
     width: NODE_WIDTH,
-    height: nodeHeight(node),
-    measured: { width: NODE_WIDTH, height: nodeHeight(node) },
+    height,
+    measured: { width: NODE_WIDTH, height },
     data: {
       node,
       isFocus: node.id === graph.focusId,
       pinned: graph.pinned.includes(node.id),
+      open,
       labels: labels.get(node.id) ?? [],
     },
   };

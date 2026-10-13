@@ -6,7 +6,12 @@ import { hasCodeRegion, nodeHeight } from "../graph/nodes/node-size.js";
 import { placeExpansion } from "../graph/layout/placement.js";
 import type { ExtensionToWebview } from "../host/protocol.js";
 import { rectsOf } from "./expansion.js";
-import { graphFromSlice, isExpanded, mergeExpansion } from "./graph-state.js";
+import {
+  graphFromSlice,
+  isExpanded,
+  isOpen,
+  mergeExpansion,
+} from "./graph-state.js";
 import { freshPerSlice, restackPass, type Applied } from "./refresh-order.js";
 import type { GraphState, Point } from "./types.js";
 
@@ -74,7 +79,8 @@ function keptBoxes(
   return Object.entries(positions).flatMap(([nodeId, at]) => {
     const node = graph.nodes[nodeId];
     if (!node) return [];
-    const rect = { ...at, width: NODE_WIDTH, height: nodeHeight(node) };
+    const height = nodeHeight(node, isOpen(graph, nodeId));
+    const rect = { ...at, width: NODE_WIDTH, height };
     return [{ id: nodeId, rect }];
   });
 }
@@ -141,7 +147,10 @@ export function rebuildGraph(
     Object.entries(current.positions).filter(([nodeId]) => has(nodeId)),
   );
   const heights = Object.fromEntries(
-    Object.values(rebuilt.nodes).map((node) => [node.id, nodeHeight(node)]),
+    Object.values(rebuilt.nodes).map((node) => [
+      node.id,
+      nodeHeight(node, isOpen(rebuilt, node.id)),
+    ]),
   );
   const owners = walkParents(rebuilt);
   const fresh = freshPerSlice(applied, new Set(Object.keys(kept)), owners);

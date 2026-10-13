@@ -13,6 +13,7 @@ import {
   PROJECT,
   calledSlice,
   id,
+  openAll,
   tweakNode,
 } from "../../support/graph-states.js";
 import {
@@ -90,7 +91,7 @@ describe("layoutGraph", () => {
       lineCount: 30,
     });
     const slice = tweakNode(tallest, "c", { lineCount: 1 });
-    const graph = graphFromSlice(slice, PROJECT);
+    const graph = openAll(graphFromSlice(slice, PROJECT));
     for (const gap of [32, 192, 480]) {
       const positions = await layoutGraph(graph, gap);
       expect(named(columnsOf(positions))[0]).toEqual(["a", "b", "c", "d"]);

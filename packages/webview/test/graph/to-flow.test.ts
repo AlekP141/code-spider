@@ -5,9 +5,16 @@ import {
   LINE_HEIGHT,
   NODE_WIDTH,
 } from "../../src/graph/constants.js";
-import { nodeHeight } from "../../src/graph/nodes/node-size.js";
+import {
+  codeRegionHeight,
+  nodeHeight,
+} from "../../src/graph/nodes/node-size.js";
 import { toFlow } from "../../src/graph/to-flow.js";
-import { graphFromSlice, pinNodes } from "../../src/view/graph-state.js";
+import {
+  graphFromSlice,
+  isOpen,
+  pinNodes,
+} from "../../src/view/graph-state.js";
 import { flowOf } from "../support/flow.js";
 import { PROJECT } from "../support/graph-states.js";
 import {
@@ -26,7 +33,8 @@ describe("toFlow with a real call-chain slice", () => {
     for (const flowNode of nodes) {
       expect(flowNode.type).toBe("spider");
       expect(flowNode.width).toBe(NODE_WIDTH);
-      expect(flowNode.height).toBe(nodeHeight(flowNode.data.node));
+      const open = flowNode.id === slice.focusId;
+      expect(flowNode.height).toBe(nodeHeight(flowNode.data.node, open));
       expect(flowNode.position).toEqual({ x: 0, y: 0 });
     }
     const handleSignup = nodes.find(
@@ -41,7 +49,7 @@ describe("toFlow with a real call-chain slice", () => {
     for (const flowNode of nodes) {
       expect(flowNode.measured).toEqual({
         width: NODE_WIDTH,
-        height: nodeHeight(flowNode.data.node),
+        height: nodeHeight(flowNode.data.node, flowNode.id === slice.focusId),
       });
     }
   });
@@ -246,5 +254,46 @@ describe("toFlow with every node and edge kind", () => {
       false,
     );
     expect(edges).toHaveLength(3);
+  });
+});
+
+describe("toFlow open and closed boxes", () => {
+  const slice = readGolden("basic-handleSignup.json");
+  const main = "src/app.ts#main";
+  const validate = "src/signup.ts#validateUser";
+
+  it("makes the centre full height and every other box the header height in a fresh graph", () => {
+    const { nodes } = flowOf(slice);
+    const centre = nodes.find((flowNode) => flowNode.id === slice.focusId);
+    expect(centre?.height).toBe(
+      HEADER_HEIGHT + codeRegionHeight(centre!.data.node),
+    );
+    for (const flowNode of nodes.filter((each) => each !== centre)) {
+      expect(flowNode.height).toBe(HEADER_HEIGHT);
+      expect(flowNode.measured?.height).toBe(HEADER_HEIGHT);
+    }
+  });
+
+  it("gives a box listed in open its full height in height and measured, with data.open true", () => {
+    const graph = {
+      ...graphFromSlice(slice, PROJECT),
+      open: [slice.focusId, main],
+    };
+    const flowNode = toFlow(graph).nodes.find((each) => each.id === main);
+    const full = HEADER_HEIGHT + codeRegionHeight(flowNode!.data.node);
+    expect(full).toBeGreaterThan(HEADER_HEIGHT);
+    expect(flowNode?.height).toBe(full);
+    expect(flowNode?.measured).toEqual({ width: NODE_WIDTH, height: full });
+    expect(flowNode?.data.open).toBe(true);
+  });
+
+  it("sets data.open from isOpen for every node", () => {
+    const graph = { ...graphFromSlice(slice, PROJECT), open: [main, validate] };
+    const { nodes } = toFlow(graph);
+    expect(nodes.some((flowNode) => flowNode.data.open)).toBe(true);
+    expect(nodes.some((flowNode) => !flowNode.data.open)).toBe(true);
+    for (const flowNode of nodes) {
+      expect(flowNode.data.open).toBe(isOpen(graph, flowNode.id));
+    }
   });
 });

@@ -14,7 +14,7 @@ function render(
   extra: Partial<NodeBoxProps> = {},
 ): string {
   return renderToStaticMarkup(
-    <NodeBox node={makeNode(overrides)} isFocus={isFocus} {...extra} />,
+    <NodeBox node={makeNode(overrides)} isFocus={isFocus} open {...extra} />,
   );
 }
 
@@ -41,7 +41,9 @@ describe("NodeBox", () => {
 
   it("sizes the header and the code region from the shared constants", () => {
     const node = makeNode({ id: "a#f", lineCount: 10 });
-    const html = renderToStaticMarkup(<NodeBox node={node} isFocus={false} />);
+    const html = renderToStaticMarkup(
+      <NodeBox node={node} isFocus={false} open />,
+    );
     expect(html).toContain(
       `class="node-header" style="height:${HEADER_HEIGHT}px"`,
     );
@@ -119,7 +121,9 @@ describe("NodeBox code lines", () => {
 
   it("keeps the pre's text and height as they were", () => {
     const node = makeNode({ id: "a#f", lineCount: 5, codePreview });
-    const html = renderToStaticMarkup(<NodeBox node={node} isFocus={false} />);
+    const html = renderToStaticMarkup(
+      <NodeBox node={node} isFocus={false} open />,
+    );
     const pre = /<pre[\s\S]*<\/pre>/.exec(html)?.[0] ?? "";
     expect(preText(pre)).toBe(codePreview);
     expect(pre).toContain(`height:${codeRegionHeight(node)}px`);

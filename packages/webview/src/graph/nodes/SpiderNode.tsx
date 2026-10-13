@@ -18,7 +18,12 @@ export function SpiderNode({ data }: NodeProps<SpiderFlowNode>) {
   return (
     <>
       <Handle type="target" position={Position.Left} isConnectable={false} />
-      <NodeBox node={data.node} isFocus={data.isFocus} {...controls} />
+      <NodeBox
+        node={data.node}
+        isFocus={data.isFocus}
+        open={data.open}
+        {...controls}
+      />
       <NodeLabels lines={data.labels} />
       <Handle type="source" position={Position.Right} isConnectable={false} />
     </>

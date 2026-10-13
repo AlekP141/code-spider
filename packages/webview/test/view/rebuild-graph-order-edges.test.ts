@@ -5,6 +5,7 @@ import { calledSlice, id } from "../support/graph-states.js";
 import {
   A,
   at,
+  CLOSED_ROW,
   COLUMN,
   graphAt,
   HEIGHT,
@@ -40,7 +41,7 @@ describe("rebuildGraph restacks around pinned, off column and shared boxes", () 
     const inserted = refresh(current, calledSlice("a", ["y", "n", "x"]));
     expect(at(inserted.graph, "y")).toEqual(aside);
     expect(at(inserted.graph, "n")).toEqual(inColumn(0));
-    expect(at(inserted.graph, "x")).toEqual(inColumn(ROW));
+    expect(at(inserted.graph, "x")).toEqual(inColumn(CLOSED_ROW));
   });
 
   it("restacks an expanded function's called boxes while the centre's group stays", () => {

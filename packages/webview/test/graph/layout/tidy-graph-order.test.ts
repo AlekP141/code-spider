@@ -5,7 +5,11 @@ import { NODE_WIDTH } from "../../../src/graph/constants.js";
 import { nodeHeight } from "../../../src/graph/nodes/node-size.js";
 import { isClear, type Rect } from "../../../src/graph/layout/placement.js";
 import { tidyGraph } from "../../../src/graph/layout/tidy-graph.js";
-import { graphFromSlice, pinNodes } from "../../../src/view/graph-state.js";
+import {
+  graphFromSlice,
+  isOpen,
+  pinNodes,
+} from "../../../src/view/graph-state.js";
 import { PROJECT } from "../../support/graph-states.js";
 import {
   columnsOf,
@@ -53,7 +57,7 @@ describe("tidyGraph in code order", () => {
     const rects: Rect[] = Object.values(graph.nodes).map((node) => ({
       ...(positions[node.id] ?? { x: 0, y: 0 }),
       width: NODE_WIDTH,
-      height: nodeHeight(node),
+      height: nodeHeight(node, isOpen(graph, node.id)),
     }));
     rects.forEach((rect, index) => {
       for (const other of rects.slice(index + 1)) {

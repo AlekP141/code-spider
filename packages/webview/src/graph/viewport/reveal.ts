@@ -1,4 +1,5 @@
 import type { NodeId } from "@code-spider/core/types";
+import { isOpen } from "../../view/graph-state.js";
 import type { GraphState } from "../../view/types.js";
 import { NODE_WIDTH } from "../constants.js";
 import { nodeHeight } from "../nodes/node-size.js";
@@ -13,7 +14,8 @@ export function revealRect(
     const node = graph.nodes[nodeId];
     const at = graph.positions[nodeId];
     if (!node || !at) return [];
-    return [{ ...at, width: NODE_WIDTH, height: nodeHeight(node) }];
+    const height = nodeHeight(node, isOpen(graph, nodeId));
+    return [{ ...at, width: NODE_WIDTH, height }];
   });
   return boundingRect(rects);
 }

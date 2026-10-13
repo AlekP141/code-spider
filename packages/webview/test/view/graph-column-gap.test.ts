@@ -5,7 +5,6 @@ import {
   reduceApp,
   type AppState,
 } from "../../src/app/app-state.js";
-import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import {
   collapseNode,
   mergeExpansion,
@@ -20,6 +19,7 @@ import {
   goBack,
   replaceCurrent,
 } from "../../src/view/view-state.js";
+import { CLOSED_HEIGHT } from "../support/geometry.js";
 import { graphOf, id, PROJECT, sliceOf } from "../support/graph-states.js";
 
 const laidOutAt = (columnGap: number): GraphState => ({
@@ -129,8 +129,7 @@ describe("placing an expansion", () => {
       const graph = next.view.current;
       const d = graph?.positions[id("d")]?.y ?? 0;
       const e = graph?.positions[id("e")]?.y ?? 0;
-      const node = graph?.nodes[id("d")];
-      return e - d - (node ? nodeHeight(node) : 0);
+      return e - d - CLOSED_HEIGHT;
     };
     expect(spaceBetween(480, 192)).toBe(80);
     expect(spaceBetween(192, 480)).toBe(32);

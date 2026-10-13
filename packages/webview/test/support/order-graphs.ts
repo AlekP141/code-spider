@@ -6,9 +6,13 @@ import {
 } from "../../src/graph/layout/layout.js";
 import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import { TOLERANCE } from "../../src/graph/layout/placement.js";
-import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
+import {
+  graphFromSlice,
+  isOpen,
+  mergeExpansion,
+} from "../../src/view/graph-state.js";
 import type { GraphState, Point } from "../../src/view/types.js";
-import { PROJECT } from "./graph-states.js";
+import { openAll, PROJECT } from "./graph-states.js";
 import { mulberry32, randomInt, shuffled } from "./random.js";
 import { makeEdge, makeNode, makeSlice, site } from "./slices.js";
 
@@ -99,7 +103,7 @@ export function randomGraph(seed: number): GraphState {
     graph = mergeExpansion(graph, nodeId(key), expansion).graph;
     known += fresh;
   }
-  return graph;
+  return openAll(graph);
 }
 
 /** Ids of each column (same x within the tolerance), each top to bottom. */
@@ -133,7 +137,8 @@ export function crowded(
     column.slice(1).forEach((lower, index) => {
       const upper = column[index] ?? "";
       const node = graph.nodes[upper];
-      const bottom = (positions[upper]?.y ?? 0) + (node ? nodeHeight(node) : 0);
+      const height = node ? nodeHeight(node, isOpen(graph, upper)) : 0;
+      const bottom = (positions[upper]?.y ?? 0) + height;
       const top = positions[lower]?.y ?? 0;
       if (top < bottom + rowGap(columnGap) - TOLERANCE) {
         found.push(`${upper} above ${lower}`);

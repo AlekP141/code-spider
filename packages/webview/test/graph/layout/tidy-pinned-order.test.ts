@@ -8,6 +8,7 @@ import type { GraphState, Point } from "../../../src/view/types.js";
 import {
   calledSlice,
   id,
+  openAll,
   PROJECT,
   tweakNode,
 } from "../../support/graph-states.js";
@@ -55,7 +56,7 @@ describe("Tidy on random columns with pinned boxes", () => {
       for (const name of names) {
         slice = tweakNode(slice, name, { lineCount: randomInt(next, 1, 30) });
       }
-      const base = graphFromSlice(slice, PROJECT);
+      const base = openAll(graphFromSlice(slice, PROJECT));
       for (const gap of [32, 192, 480]) {
         const laid = await layoutGraph(base, gap);
         const column = laid[id(names[0] ?? "")] ?? { x: 0, y: 0 };

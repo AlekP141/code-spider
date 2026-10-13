@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { rowGap } from "../../src/settings/column-gap.js";
-import { isClear, type Rect } from "../../src/graph/layout/placement.js";
-import { nodeHeight } from "../../src/graph/nodes/node-size.js";
+import { isClear } from "../../src/graph/layout/placement.js";
 import { setPositions } from "../../src/view/graph-state.js";
 import { acceptExpansion, applyExpansion } from "../../src/view/expansion.js";
 import { commitCentre, createView } from "../../src/view/view-state.js";
 import type { GraphState } from "../../src/view/types.js";
+import { CLOSED_HEIGHT, rectOf } from "../support/geometry.js";
 import {
   calledSlice,
   graphOf,
@@ -59,19 +59,13 @@ describe("applyExpansion", () => {
 
   it("keeps the new nodes clear of nodes already there, wherever they were dragged", () => {
     const { graph } = applyExpansion(placedGraph(), id("b"), expandB(), 192);
-    const height = nodeHeight(
-      graph.nodes[id("a")] ?? { lineCount: 3, codePreview: "x" },
-    );
-    const rectOf = (nodeId: string): Rect => ({
-      ...(graph.positions[nodeId] ?? { x: 0, y: 0 }),
-      width: 320,
-      height,
-    });
     expect(graph.positions[id("e")]).toEqual({
       x: 1000,
-      y: 500 - rowGap(192) - height,
+      y: 500 - rowGap(192) - CLOSED_HEIGHT,
     });
-    expect(isClear(rectOf(id("e")), rectOf(id("a")), rowGap(192))).toBe(true);
+    expect(
+      isClear(rectOf(graph, id("e")), rectOf(graph, id("a")), rowGap(192)),
+    ).toBe(true);
   });
 
   it("never writes a position that already exists", () => {

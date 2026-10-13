@@ -12,7 +12,7 @@ import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
 import { rebuildGraph } from "../../src/view/refresh.js";
 import type { GraphState, Point } from "../../src/view/types.js";
 import { rectOf } from "../support/geometry.js";
-import { answerOf, id, PROJECT } from "../support/graph-states.js";
+import { answerOf, id, openAll, PROJECT } from "../support/graph-states.js";
 import { mulberry32, randomInt } from "../support/random.js";
 import {
   edited,
@@ -69,12 +69,12 @@ function laidOut(next: () => number, gap: number) {
       if (next() < 0.4) pinned.add(nodeId);
     }
   }
-  const current: GraphState = {
+  const current: GraphState = openAll({
     ...graph,
     positions,
     pinned: [...pinned],
     columnGap: gap,
-  };
+  });
   return { current, specs, lines };
 }
 

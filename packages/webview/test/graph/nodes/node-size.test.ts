@@ -37,28 +37,45 @@ describe("codeLines", () => {
 
 describe("nodeHeight", () => {
   it("is header + clamped lines x line height + vertical padding", () => {
-    expect(nodeHeight(withCode(10))).toBe(
+    expect(nodeHeight(withCode(10), true)).toBe(
       HEADER_HEIGHT + 10 * LINE_HEIGHT + 2 * CODE_PADDING_Y,
     );
   });
 
   it("gives a one-line function the three-line minimum", () => {
-    expect(nodeHeight(withCode(1))).toBe(
+    expect(nodeHeight(withCode(1), true)).toBe(
       HEADER_HEIGHT + 3 * LINE_HEIGHT + 2 * CODE_PADDING_Y,
     );
   });
 
   it("stops growing at 25 lines", () => {
-    expect(nodeHeight(withCode(500))).toBe(nodeHeight(withCode(25)));
+    expect(nodeHeight(withCode(500), true)).toBe(
+      nodeHeight(withCode(25), true),
+    );
   });
 
   it("makes a node with no preview a header-only chip", () => {
     expect(hasCodeRegion(chip)).toBe(false);
     expect(codeRegionHeight(chip)).toBe(0);
-    expect(nodeHeight(chip)).toBe(HEADER_HEIGHT);
+    expect(nodeHeight(chip, true)).toBe(HEADER_HEIGHT);
+  });
+
+  it("is the header height for a closed box whatever its line count", () => {
+    for (const lineCount of [0, 1, 3, 10, 25, 500]) {
+      expect(nodeHeight(withCode(lineCount), false)).toBe(HEADER_HEIGHT);
+    }
+  });
+
+  it("is still the header height for an open box with no code region", () => {
+    expect(nodeHeight(chip, true)).toBe(HEADER_HEIGHT);
+    expect(nodeHeight({ lineCount: 40, codePreview: "" }, true)).toBe(
+      HEADER_HEIGHT,
+    );
   });
 
   it("is a pure function of the node: a taller function is a taller box", () => {
-    expect(nodeHeight(withCode(20))).toBeGreaterThan(nodeHeight(withCode(5)));
+    expect(nodeHeight(withCode(20), true)).toBeGreaterThan(
+      nodeHeight(withCode(5), true),
+    );
   });
 });

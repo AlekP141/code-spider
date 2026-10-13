@@ -6,7 +6,7 @@ import { graphFromSlice, mergeExpansion } from "../../src/view/graph-state.js";
 import { rebuildGraph } from "../../src/view/refresh.js";
 import type { Point } from "../../src/view/types.js";
 import { rectOf } from "../support/geometry.js";
-import { answerOf, id, PROJECT } from "../support/graph-states.js";
+import { answerOf, id, openAll, PROJECT } from "../support/graph-states.js";
 import { mulberry32, randomInt, shuffled } from "../support/random.js";
 import {
   edited,
@@ -47,7 +47,8 @@ function build(next: () => number, gap: number) {
     };
   }
   const pinned = Object.keys(graph.nodes).filter(() => next() < 0.3);
-  return { current: { ...graph, positions, pinned, columnGap: gap }, specs };
+  const current = openAll({ ...graph, positions, pinned, columnGap: gap });
+  return { current, specs };
 }
 
 describe("rebuildGraph on random graphs", () => {

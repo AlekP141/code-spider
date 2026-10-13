@@ -14,6 +14,7 @@ export type NodeBoxProps = {
   node: GraphNode;
   isFocus: boolean;
   pinned?: boolean;
+  open?: boolean;
   loading?: boolean;
   failure?: string;
   onUnpin?: NodeActions["onUnpin"];
@@ -75,12 +76,15 @@ export function NodeBox({
   node,
   isFocus,
   pinned,
+  open = false,
   loading,
   failure,
   onUnpin,
 }: NodeBoxProps) {
+  const showsCode = open && hasCodeRegion(node);
   const classes = ["node-box", `kind-${node.kind}`];
   if (isFocus) classes.push("is-focus");
+  classes.push(showsCode ? "is-open" : "is-closed");
   const clipped = node.lineCount > MAX_CODE_LINES;
 
   return (
@@ -100,7 +104,7 @@ export function NodeBox({
           onUnpin={onUnpin}
         />
       </div>
-      {hasCodeRegion(node) ? (
+      {showsCode ? (
         <pre
           className={clipped ? "node-code is-clipped" : "node-code"}
           style={{

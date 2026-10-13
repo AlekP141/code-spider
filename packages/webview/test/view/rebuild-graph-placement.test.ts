@@ -4,11 +4,13 @@ import { NODE_WIDTH } from "../../src/graph/constants.js";
 import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import { mergeExpansion } from "../../src/view/graph-state.js";
 import { rebuildGraph } from "../../src/view/refresh.js";
+import { OPEN_HEIGHT, CLOSED_HEIGHT } from "../support/geometry.js";
 import { makeEdge, makeNode, makeSlice } from "../support/slices.js";
 import {
   answerOf,
   graphOf,
   id,
+  openAll,
   sliceOf,
   tweakNode,
   withPositions,
@@ -17,7 +19,7 @@ import {
 const GAP = 192;
 const MARGIN = rowGap(GAP);
 const PITCH = NODE_WIDTH + GAP;
-const HEIGHT = nodeHeight({ lineCount: 3, codePreview: "x" });
+const HEIGHT = OPEN_HEIGHT;
 
 describe("rebuildGraph places and makes room", () => {
   it("places a node the centre and an expansion both list for the centre", () => {
@@ -53,15 +55,17 @@ describe("rebuildGraph places and makes room", () => {
   });
 
   it("slides the box below a grown box down by the overlap plus the margin", () => {
-    const current = withPositions(graphOf("a", [], ["b", "c"]), {
-      [id("a")]: { x: 0, y: 0 },
-      [id("b")]: { x: PITCH, y: 0 },
-      [id("c")]: { x: PITCH, y: HEIGHT + MARGIN },
-    });
+    const current = openAll(
+      withPositions(graphOf("a", [], ["b", "c"]), {
+        [id("a")]: { x: 0, y: 0 },
+        [id("b")]: { x: PITCH, y: 0 },
+        [id("c")]: { x: PITCH, y: HEIGHT + MARGIN },
+      }),
+    );
     const grown = tweakNode(sliceOf("a", [], ["b", "c"]), "b", {
       lineCount: 10,
     });
-    const grownHeight = nodeHeight({ lineCount: 10, codePreview: "x" });
+    const grownHeight = nodeHeight({ lineCount: 10, codePreview: "x" }, true);
     const overlap = grownHeight - (HEIGHT + MARGIN);
     expect(overlap).toBeGreaterThan(0);
     const { graph } = rebuildGraph(current, answerOf(current, grown), GAP);
@@ -73,10 +77,12 @@ describe("rebuildGraph places and makes room", () => {
   });
 
   it("places a new node clear of a box that grew into its column", () => {
-    const current = withPositions(graphOf("a", [], ["b"]), {
-      [id("a")]: { x: 0, y: 0 },
-      [id("b")]: { x: PITCH, y: 0 },
-    });
+    const current = openAll(
+      withPositions(graphOf("a", [], ["b"]), {
+        [id("a")]: { x: 0, y: 0 },
+        [id("b")]: { x: PITCH, y: 0 },
+      }),
+    );
     const grown = tweakNode(sliceOf("a", [], ["b", "c"]), "b", {
       lineCount: 10,
     });
@@ -85,9 +91,9 @@ describe("rebuildGraph places and makes room", () => {
     const c = graph.positions[id("c")];
     expect(b).toEqual({ x: PITCH, y: 0 });
     expect(c?.x).toBe(PITCH);
-    const bBottom = nodeHeight({ lineCount: 10, codePreview: "x" });
+    const bBottom = nodeHeight({ lineCount: 10, codePreview: "x" }, true);
     const cTop = c?.y ?? 0;
-    const cBottom = cTop + nodeHeight({ lineCount: 3, codePreview: "x" });
+    const cBottom = cTop + CLOSED_HEIGHT;
     expect(cTop >= bBottom + MARGIN || cBottom + MARGIN <= 0).toBe(true);
   });
 

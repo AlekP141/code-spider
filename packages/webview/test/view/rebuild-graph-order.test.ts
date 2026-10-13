@@ -4,6 +4,7 @@ import { calledSlice, id, tweakNode } from "../support/graph-states.js";
 import {
   A,
   at,
+  CLOSED_ROW,
   COLUMN,
   graphAt,
   HEIGHT,
@@ -59,7 +60,7 @@ describe("rebuildGraph puts called boxes in code order", () => {
     );
     expect(at(graph, "x")).toEqual(inColumn(0));
     expect(at(graph, "n")).toEqual(inColumn(ROW));
-    expect(at(graph, "y")).toEqual(inColumn(2 * ROW));
+    expect(at(graph, "y")).toEqual(inColumn(ROW + CLOSED_ROW));
     expect(added).toEqual([id("n")]);
   });
 
@@ -71,7 +72,7 @@ describe("rebuildGraph puts called boxes in code order", () => {
     });
     const { graph } = refresh(current, calledSlice("a", ["x", "n", "y"]));
     expect(at(graph, "n")).toEqual(inColumn(ROW));
-    expect(at(graph, "y")).toEqual(inColumn(2 * ROW));
+    expect(at(graph, "y")).toEqual(inColumn(ROW + CLOSED_ROW));
   });
 
   it("puts a new call after the last one below it and moves no existing box", () => {
@@ -98,8 +99,8 @@ describe("rebuildGraph puts called boxes in code order", () => {
     });
     const { graph } = refresh(current, calledSlice("a", ["n", "x", "y"]));
     expect(at(graph, "n")).toEqual(inColumn(0));
-    expect(at(graph, "x")).toEqual(inColumn(ROW));
-    expect(at(graph, "y")).toEqual(inColumn(2 * ROW));
+    expect(at(graph, "x")).toEqual(inColumn(CLOSED_ROW));
+    expect(at(graph, "y")).toEqual(inColumn(CLOSED_ROW + ROW));
   });
 
   it("restacks a graph laid out in id order on the first refresh and nothing on the second", () => {
@@ -121,7 +122,7 @@ describe("rebuildGraph puts called boxes in code order", () => {
   });
 
   describe("make-room keeps a group in order", () => {
-    const TALL = nodeHeight({ lineCount: 20, codePreview: "x" });
+    const TALL = nodeHeight({ lineCount: 20, codePreview: "x" }, true);
     const BELOW = 520 + HEIGHT + MARGIN;
     const grown = tweakNode(calledSlice("a", ["m1", "m2", "p", "q"]), "m1", {
       lineCount: 20,
@@ -166,7 +167,9 @@ describe("rebuildGraph puts called boxes in code order", () => {
       const { graph, added } = refresh(current, withNew);
       expect(at(graph, "m1")).toEqual(inColumn(BELOW));
       expect(at(graph, "n")).toEqual(inColumn(BELOW + TALL + MARGIN));
-      expect(at(graph, "m2")).toEqual(inColumn(BELOW + TALL + ROW + MARGIN));
+      expect(at(graph, "m2")).toEqual(
+        inColumn(BELOW + TALL + MARGIN + CLOSED_ROW),
+      );
       expect(added).toEqual([id("n")]);
     });
 

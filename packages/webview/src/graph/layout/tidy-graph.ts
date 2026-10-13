@@ -1,5 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import { rowGap } from "../../settings/column-gap.js";
+import { isOpen } from "../../view/graph-state.js";
 import type { GraphState, Point } from "../../view/types.js";
 import { NODE_WIDTH } from "../constants.js";
 import { layoutGraph } from "./layout.js";
@@ -15,10 +16,10 @@ export type TidyOutcome = {
 
 function sizesOf(graph: GraphState): Record<NodeId, Size> {
   return Object.fromEntries(
-    Object.values(graph.nodes).map((node) => [
-      node.id,
-      { width: NODE_WIDTH, height: nodeHeight(node) },
-    ]),
+    Object.values(graph.nodes).map((node) => {
+      const height = nodeHeight(node, isOpen(graph, node.id));
+      return [node.id, { width: NODE_WIDTH, height }];
+    }),
   );
 }
 
