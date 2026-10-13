@@ -125,12 +125,12 @@ export function NodeBox({
 
   return (
     <>
+      {node.isAsync ? <span className="node-async">async</span> : null}
       <div className={classes.join(" ")}>
         <div className="node-header" style={{ height: HEADER_HEIGHT }}>
           <span className="node-name" title={nameTitle(node)}>
             {node.name}
           </span>
-          {node.isAsync ? <span className="node-async">async</span> : null}
           <span className="node-input" title={node.inputType || undefined}>
             {node.inputType}
           </span>

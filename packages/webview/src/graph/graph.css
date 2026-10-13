@@ -138,11 +138,15 @@
 
 .node-async {
   background: var(--vscode-badge-background);
-  border-radius: 3px;
+  border-radius: 3px 3px 0 0;
+  bottom: 100%;
   color: var(--vscode-badge-foreground);
-  flex: none;
   font-size: 10px;
+  left: 0;
+  line-height: 14px;
   padding: 0 4px;
+  position: absolute;
+  user-select: none;
 }
 
 .node-input {

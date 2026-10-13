@@ -39,6 +39,13 @@ describe("NodeBox", () => {
     expect(render({ id: "a#f", isAsync: false })).not.toContain("node-async");
   });
 
+  it("hangs the async tag above the box, outside the header", () => {
+    const html = render({ id: "a#f", isAsync: true });
+    expect(html.startsWith('<span class="node-async">async</span><div')).toBe(
+      true,
+    );
+  });
+
   it("sizes the header and the code region from the shared constants", () => {
     const node = makeNode({ id: "a#f", lineCount: 10 });
     const html = renderToStaticMarkup(
