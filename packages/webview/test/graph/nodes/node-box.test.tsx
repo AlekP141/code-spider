@@ -160,11 +160,21 @@ describe("NodeBox state markers", () => {
     const html = render(f, false, { loading: true });
     expect(html).toContain('role="status"');
     expect(html).toContain("node-spinner");
-    expect(html).not.toContain("<button");
+    expect(html).not.toContain('title="Unpin"');
   });
 
   it("renders no marker markup when idle or without props", () => {
-    for (const html of [render(f, false, { loading: false }), render(f)]) {
+    const chip = {
+      id: "external:x#y",
+      kind: "external",
+      file: "",
+      lineCount: 0,
+      codePreview: "",
+    } as const;
+    for (const html of [
+      render(chip, false, { loading: false }),
+      render(chip),
+    ]) {
       expect(html).not.toContain("<button");
       expect(html).not.toContain("node-controls");
       expect(html).not.toContain("node-spinner");

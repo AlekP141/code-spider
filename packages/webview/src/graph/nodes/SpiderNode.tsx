@@ -14,6 +14,8 @@ export function SpiderNode({ data }: NodeProps<SpiderFlowNode>) {
     loading: nodeControl(data.node, context.graph, context.ui) === "loading",
     failure: context.failures[data.node.id]?.message,
     onUnpin: context.onUnpin,
+    onOpen: context.onOpen,
+    onClose: context.onClose,
   };
   return (
     <>

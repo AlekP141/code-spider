@@ -233,8 +233,8 @@
 
 .node-failure {
   background: var(--vscode-inputValidation-errorBackground);
-  border-top: 1px solid var(--vscode-inputValidation-errorBorder);
-  bottom: 0;
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  border-radius: 0 0 4px 4px;
   box-sizing: border-box;
   color: var(--vscode-editor-foreground);
   font-size: 11px;
@@ -244,6 +244,7 @@
   position: absolute;
   right: 0;
   text-overflow: ellipsis;
+  top: 100%;
   white-space: nowrap;
 }
 

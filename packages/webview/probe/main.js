@@ -8,6 +8,7 @@ const CHECK_TIMEOUT_MS = 45000;
 const checks = [
   ...require("./checks-basic.js"),
   ...require("./checks-detail.js"),
+  ...require("./checks-open.js"),
 ];
 
 const emit = (event) => console.log(JSON.stringify(event));

@@ -17,6 +17,8 @@ export type NodeContextValue = {
   ui: NodeUi;
   failures: AppState["failures"];
   onUnpin: NodeActions["onUnpin"];
+  onOpen: NodeActions["onOpen"];
+  onClose: NodeActions["onClose"];
 };
 
 /** Keeps React Flow's node data stable: boxes read what changes from here. */

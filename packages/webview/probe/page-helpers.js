@@ -28,6 +28,10 @@ function pageHelpers() {
           width: rect.width,
           height: rect.height,
           pinned: element.querySelector('[aria-label="Unpin"]') !== null,
+          open: element.querySelector(".node-code") !== null,
+          failureTop: element
+            .querySelector(".node-failure")
+            ?.getBoundingClientRect().top,
           entering: element.classList.contains("is-entering"),
           code: element.querySelector(".node-code")?.textContent ?? "",
         };

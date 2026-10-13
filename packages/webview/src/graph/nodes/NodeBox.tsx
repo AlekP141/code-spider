@@ -18,6 +18,8 @@ export type NodeBoxProps = {
   loading?: boolean;
   failure?: string;
   onUnpin?: NodeActions["onUnpin"];
+  onOpen?: NodeActions["onOpen"];
+  onClose?: NodeActions["onClose"];
 };
 
 function nameTitle(node: GraphNode): string {
@@ -39,15 +41,36 @@ function PinIcon() {
   );
 }
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M5.5 2.5 11 8l-5.5 5.5-1.4-1.4L8.2 8 4.1 3.9z"
+        transform={open ? "rotate(90 8 8)" : undefined}
+      />
+    </svg>
+  );
+}
+
 function Markers({
   node,
   pinned,
+  open,
   loading,
   onUnpin,
-}: Pick<NodeBoxProps, "pinned" | "loading" | "onUnpin"> & {
+  onOpen,
+  onClose,
+}: Pick<
+  NodeBoxProps,
+  "pinned" | "loading" | "onUnpin" | "onOpen" | "onClose"
+> & {
   node: GraphNode;
+  open: boolean;
 }) {
-  if (!pinned && !loading) return null;
+  const hasCode = hasCodeRegion(node);
+  if (!pinned && !loading && !hasCode) return null;
+  const label = open ? "Hide code" : "Show code";
   return (
     <span className="node-controls nodrag" onClick={stop} onDoubleClick={stop}>
       {pinned ? (
@@ -63,6 +86,17 @@ function Markers({
       ) : null}
       {loading ? (
         <span className="node-spinner" role="status" aria-label="Loading" />
+      ) : null}
+      {hasCode ? (
+        <button
+          type="button"
+          className="node-control"
+          title={label}
+          aria-label={label}
+          onClick={() => (open ? onClose : onOpen)?.(node.id)}
+        >
+          <ChevronIcon open={open} />
+        </button>
       ) : null}
     </span>
   );
@@ -80,6 +114,8 @@ export function NodeBox({
   loading,
   failure,
   onUnpin,
+  onOpen,
+  onClose,
 }: NodeBoxProps) {
   const showsCode = open && hasCodeRegion(node);
   const classes = ["node-box", `kind-${node.kind}`];
@@ -88,47 +124,52 @@ export function NodeBox({
   const clipped = node.lineCount > MAX_CODE_LINES;
 
   return (
-    <div className={classes.join(" ")}>
-      <div className="node-header" style={{ height: HEADER_HEIGHT }}>
-        <span className="node-name" title={nameTitle(node)}>
-          {node.name}
-        </span>
-        {node.isAsync ? <span className="node-async">async</span> : null}
-        <span className="node-input" title={node.inputType || undefined}>
-          {node.inputType}
-        </span>
-        <Markers
-          node={node}
-          pinned={pinned}
-          loading={loading}
-          onUnpin={onUnpin}
-        />
+    <>
+      <div className={classes.join(" ")}>
+        <div className="node-header" style={{ height: HEADER_HEIGHT }}>
+          <span className="node-name" title={nameTitle(node)}>
+            {node.name}
+          </span>
+          {node.isAsync ? <span className="node-async">async</span> : null}
+          <span className="node-input" title={node.inputType || undefined}>
+            {node.inputType}
+          </span>
+          <Markers
+            node={node}
+            pinned={pinned}
+            open={showsCode}
+            loading={loading}
+            onUnpin={onUnpin}
+            onOpen={onOpen}
+            onClose={onClose}
+          />
+        </div>
+        {showsCode ? (
+          <pre
+            className={clipped ? "node-code is-clipped" : "node-code"}
+            style={{
+              height: codeRegionHeight(node),
+              lineHeight: `${LINE_HEIGHT}px`,
+              padding: `${CODE_PADDING_Y}px 8px`,
+            }}
+          >
+            {splitCodeLines(node.codePreview).map((line, index) => (
+              <Fragment key={index}>
+                {index > 0 ? "\n" : null}
+                {line.indent}
+                {line.text === "" ? null : (
+                  <span className="code-text">{line.text}</span>
+                )}
+              </Fragment>
+            ))}
+          </pre>
+        ) : null}
       </div>
-      {showsCode ? (
-        <pre
-          className={clipped ? "node-code is-clipped" : "node-code"}
-          style={{
-            height: codeRegionHeight(node),
-            lineHeight: `${LINE_HEIGHT}px`,
-            padding: `${CODE_PADDING_Y}px 8px`,
-          }}
-        >
-          {splitCodeLines(node.codePreview).map((line, index) => (
-            <Fragment key={index}>
-              {index > 0 ? "\n" : null}
-              {line.indent}
-              {line.text === "" ? null : (
-                <span className="code-text">{line.text}</span>
-              )}
-            </Fragment>
-          ))}
-        </pre>
-      ) : null}
       {failure ? (
         <div className="node-failure" role="alert" title={failure}>
           {failure}
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

@@ -13,6 +13,9 @@ const DRAG_OFFSETS = [
   [160, 160],
   [-160, -160],
 ];
+const HEADER_HEIGHT = 36;
+const NAME_FONT_SIZE = "16px";
+const CODE_REGION_HEIGHT = 56;
 const MARGIN = 12;
 const TOOLBAR_HEIGHT = 60;
 const DRAG_STEPS = 12;
@@ -92,6 +95,21 @@ async function centreDraws(h) {
       Math.abs(nodes[ID.helper].x - nodes[ID.format].x) < 1,
     "the called boxes are not in code order (helper above format) in one column",
   );
+  const open = THREE.filter((id) => nodes[id].open);
+  assert(
+    open.length === 1 && open[0] === ID.main,
+    `the open boxes are ${open}, not only the centre`,
+  );
+  const zoom = await h.zoom();
+  const closedHeight = nodes[ID.format].height;
+  assert(
+    Math.abs(closedHeight - HEADER_HEIGHT * zoom) <= 1,
+    `a closed box is ${closedHeight}px tall, not ${HEADER_HEIGHT * zoom}px`,
+  );
+  const fontSize = await h.evaluate(
+    'getComputedStyle(document.querySelector(".node-name")).fontSize',
+  );
+  assert(fontSize === NAME_FONT_SIZE, `the box name is ${fontSize}`);
 }
 
 async function clickOpensEditor(h) {
@@ -115,8 +133,23 @@ async function clickOpensEditor(h) {
     const last = JSON.stringify(opened.at(-1));
     assert(last === wanted, `wrong message ${last}`);
   }
-  const after = await h.nodes();
-  assertSamePositions(before, after, THREE, "a click");
+  const after = await h.until(
+    () => h.nodes(),
+    (found) => found[ID.helper].open,
+    "the clicked box to open",
+  );
+  assertSamePositions(before, after, [ID.main, ID.helper], "a click");
+  assert(after[ID.helper].code.includes("validate"), "no code was shown");
+  assert(!after[ID.format].open, "the box below the clicked one opened");
+  assert(
+    after[ID.format].x === before[ID.format].x,
+    "the box below the clicked one moved sideways",
+  );
+  const pushed = after[ID.format].y - before[ID.format].y;
+  assert(
+    Math.abs(pushed - CODE_REGION_HEIGHT) <= 1,
+    `the box below was pushed ${pushed}px, not ${CODE_REGION_HEIGHT}px`,
+  );
   const pinned = THREE.filter((id) => after[id].pinned);
   assert(pinned.length === 0, `a click pinned ${pinned}`);
 }
@@ -237,6 +270,10 @@ async function reloadRestores(h) {
     "the restored boxes",
   );
   assertSamePositions(before, after, FIVE, "the reload");
+  for (const id of FIVE) {
+    const same = after[id].open === before[id].open;
+    assert(same, `the reload changed whether ${id} is open`);
+  }
   assert(after[ID.format].pinned, "the pin was not restored");
   assert((await h.edges()).length === 4, "the restored graph lost edges");
   await h.until(
@@ -248,7 +285,10 @@ async function reloadRestores(h) {
 
 module.exports = [
   { name: "a centre slice draws its boxes and edges", run: centreDraws },
-  { name: "a click opens the editor and does not pin", run: clickOpensEditor },
+  {
+    name: "a click opens the editor and the box, and does not pin",
+    run: clickOpensEditor,
+  },
   {
     name: "a double-click expands and keeps positions",
     run: doubleClickExpands,

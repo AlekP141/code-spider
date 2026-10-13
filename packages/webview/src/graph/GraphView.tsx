@@ -116,7 +116,7 @@ function GraphCanvas({
     () => ({ busy, loading, refreshing }),
     [busy, loading, refreshing],
   );
-  const { onExpand, onCollapse } = actions;
+  const { onExpand, onCollapse, onOpen, onClose } = actions;
   const lastUnpin = useRef<LastUnpin>(undefined);
   const onUnpin = useCallback<NodeActions["onUnpin"]>(
     (nodeId) => {
@@ -126,8 +126,8 @@ function GraphCanvas({
     [actions],
   );
   const context = useMemo<NodeContextValue>(
-    () => ({ graph, ui: nodeUi, failures, onUnpin }),
-    [graph, nodeUi, failures, onUnpin],
+    () => ({ graph, ui: nodeUi, failures, onUnpin, onOpen, onClose }),
+    [graph, nodeUi, failures, onUnpin, onOpen, onClose],
   );
 
   const onNodesChange = useCallback<OnNodesChange<SpiderFlowNode>>(
@@ -158,8 +158,9 @@ function GraphCanvas({
       if (justUnpinned(lastUnpin.current, node.id, performance.now())) return;
       const message = nodeClickMessage(node.data.node, project);
       if (message) onPost(message);
+      onOpen(node.id);
     },
-    [project, onPost],
+    [project, onPost, onOpen],
   );
 
   const onNodeDoubleClick = useCallback(

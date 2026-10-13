@@ -222,6 +222,12 @@ const messages = {
     expansions: [{ nodeId: ID.helper, slice: REORDERED_HELPER_SLICE }],
   }),
   sourceChanged: (version) => ({ type: "sourceChanged", version }),
+  expandFailed: (nodeId, generation, message) => ({
+    type: "expandFailed",
+    nodeId,
+    generation,
+    message,
+  }),
 };
 
 module.exports = {

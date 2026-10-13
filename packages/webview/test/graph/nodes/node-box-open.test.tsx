@@ -16,6 +16,10 @@ function render(
   );
 }
 
+function count(html: string, tag: string): number {
+  return html.split(tag).length - 1;
+}
+
 const chip = {
   id: "external:x#y",
   kind: "external",
@@ -61,5 +65,56 @@ describe("NodeBox open and closed", () => {
     const html = render({ id: "a#f" });
     expect(html).toContain("is-closed");
     expect(html).not.toContain("<pre");
+  });
+});
+
+describe("NodeBox chevron", () => {
+  const closedChevron = render({ id: "a#f" }, { open: false });
+  const openChevron = render({ id: "a#f" }, { open: true });
+
+  it("shows a closed box's chevron titled and labelled Show code", () => {
+    expect(closedChevron).toContain('title="Show code"');
+    expect(closedChevron).toContain('aria-label="Show code"');
+    expect(closedChevron).not.toContain("Hide code");
+  });
+
+  it("shows an open box's chevron titled and labelled Hide code", () => {
+    expect(openChevron).toContain('title="Hide code"');
+    expect(openChevron).toContain('aria-label="Hide code"');
+    expect(openChevron).not.toContain("Show code");
+  });
+
+  it("rotates only the open chevron by 90 degrees", () => {
+    expect(openChevron).toContain('transform="rotate(90 8 8)"');
+    expect(closedChevron).not.toContain("rotate");
+  });
+
+  it("has no chevron for a box without a code region, even when open", () => {
+    const html = render(chip, { open: true });
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("node-controls");
+  });
+
+  it("puts the chevron after the pin and the spinner", () => {
+    const html = render(
+      { id: "a#f" },
+      { pinned: true, loading: true, open: false },
+    );
+    const chevron = html.indexOf("Show code");
+    expect(html.indexOf("Unpin")).toBeLessThan(chevron);
+    expect(html.indexOf("node-spinner")).toBeLessThan(chevron);
+  });
+});
+
+describe("NodeBox failure message", () => {
+  it("hangs after the box as its sibling, outside it", () => {
+    const html = render({ id: "a#f" }, { failure: "Could not expand: gone" });
+    const strip = html.indexOf('<div class="node-failure"');
+    expect(strip).toBeGreaterThan(0);
+    const before = html.slice(0, strip);
+    expect(count(before, "<div")).toBe(count(before, "</div>"));
+    expect(html.slice(strip)).toBe(
+      '<div class="node-failure" role="alert" title="Could not expand: gone">Could not expand: gone</div>',
+    );
   });
 });
