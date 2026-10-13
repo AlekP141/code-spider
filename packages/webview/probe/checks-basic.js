@@ -2,6 +2,7 @@
 
 const { assert, assertSamePositions } = require("./harness.js");
 const { ID, PROJECT, messages } = require("./fixtures.js");
+const { clickOpensAndCloses } = require("./checks-click.js");
 
 const THREE = [ID.main, ID.helper, ID.format];
 const FIVE = [...THREE, ID.parse, ID.validate];
@@ -15,7 +16,7 @@ const DRAG_OFFSETS = [
 ];
 const HEADER_HEIGHT = 36;
 const NAME_FONT_SIZE = "16px";
-const CODE_REGION_HEIGHT = 56;
+const CLICK_DELAY_MS = 250;
 const MARGIN = 12;
 const TOOLBAR_HEIGHT = 60;
 const DRAG_STEPS = 12;
@@ -112,50 +113,9 @@ async function centreDraws(h) {
   assert(fontSize === NAME_FONT_SIZE, `the box name is ${fontSize}`);
 }
 
-async function clickOpensEditor(h) {
-  const before = await h.nodes();
-  const header = await h.call("centreOfNode", ID.helper, ".node-header");
-  const wanted = JSON.stringify({
-    type: "openInEditor",
-    project: PROJECT,
-    nodeId: ID.helper,
-  });
-  for (const [travel, count] of [
-    [0, 1],
-    [3, 2],
-  ]) {
-    await h.click(header, travel);
-    const opened = await h.until(
-      () => h.posted("openInEditor"),
-      (found) => found.length === count,
-      `openInEditor after a click moving ${travel}px`,
-    );
-    const last = JSON.stringify(opened.at(-1));
-    assert(last === wanted, `wrong message ${last}`);
-  }
-  const after = await h.until(
-    () => h.nodes(),
-    (found) => found[ID.helper].open,
-    "the clicked box to open",
-  );
-  assertSamePositions(before, after, [ID.main, ID.helper], "a click");
-  assert(after[ID.helper].code.includes("validate"), "no code was shown");
-  assert(!after[ID.format].open, "the box below the clicked one opened");
-  assert(
-    after[ID.format].x === before[ID.format].x,
-    "the box below the clicked one moved sideways",
-  );
-  const pushed = after[ID.format].y - before[ID.format].y;
-  assert(
-    Math.abs(pushed - CODE_REGION_HEIGHT) <= 1,
-    `the box below was pushed ${pushed}px, not ${CODE_REGION_HEIGHT}px`,
-  );
-  const pinned = THREE.filter((id) => after[id].pinned);
-  assert(pinned.length === 0, `a click pinned ${pinned}`);
-}
-
 async function doubleClickExpands(h, shared) {
   const before = await h.nodes();
+  const jumps = (await h.posted("openInEditor")).length;
   const header = await h.call("centreOfNode", ID.helper, ".node-header");
   await h.doubleClick(header);
   const [expand] = await h.until(
@@ -184,6 +144,11 @@ async function doubleClickExpands(h, shared) {
   await h.frame();
   const later = await h.nodes();
   assertSamePositions(before, later, THREE, "the expansion, later,");
+  await new Promise((done) => setTimeout(done, 2 * CLICK_DELAY_MS));
+  const settled = await h.nodes();
+  assert(settled[ID.helper].open, "the double-click closed the box");
+  const jumped = (await h.posted("openInEditor")).length - jumps;
+  assert(jumped === 0, `the double-click jumped ${jumped} times`);
 }
 
 function isClear(box, others, offset, view) {
@@ -286,8 +251,8 @@ async function reloadRestores(h) {
 module.exports = [
   { name: "a centre slice draws its boxes and edges", run: centreDraws },
   {
-    name: "a click opens the editor and the box, and does not pin",
-    run: clickOpensEditor,
+    name: "a click opens the editor and the box, and a header click closes it",
+    run: clickOpensAndCloses,
   },
   {
     name: "a double-click expands and keeps positions",

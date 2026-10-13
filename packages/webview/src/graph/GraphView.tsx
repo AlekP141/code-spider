@@ -11,16 +11,22 @@ import {
 } from "@xyflow/react";
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import type { AppState, FitRequest } from "../app/app-state.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
 import type { WebviewToExtension } from "../host/protocol.js";
 import type { GraphState, Point } from "../view/types.js";
-import { edgeClickMessage, nodeClickMessage } from "./jump.js";
+import {
+  codeLineAt,
+  edgeClickMessage,
+  nodeClickMessage,
+} from "./jump.js";
 import {
   applyLive,
   recordLive,
@@ -59,6 +65,9 @@ const defaultEdgeOptions = {
 /** Pointer travel in px before a press becomes a drag; below it, a click. */
 const DRAG_THRESHOLD_PX = 4;
 
+/** A single click waits this long, so a double click can cancel it. */
+const CLICK_DELAY_MS = 200;
+
 export type GraphViewProps = {
   graph: GraphState;
   /** The view's gap, used for labels when the graph has none of its own. */
@@ -73,6 +82,18 @@ export type GraphViewProps = {
   onPost: (message: WebviewToExtension) => void;
   onDragStop: (positions: Record<NodeId, Point>) => void;
 };
+
+/** The code line a click landed on; undefined outside the code. */
+function clickedCodeLine(
+  event: ReactMouseEvent,
+  codePreview: string,
+): number | undefined {
+  const code = (event.target as Element).closest<HTMLElement>(".node-code");
+  if (!code) return undefined;
+  const rect = code.getBoundingClientRect();
+  const zoom = rect.height / code.offsetHeight;
+  return codeLineAt((event.clientY - rect.top) / zoom, codePreview);
+}
 
 const ENTERING_CLASS = "is-entering";
 
@@ -153,18 +174,27 @@ function GraphCanvas({
     [onDragStop],
   );
 
+  const pendingClick = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(pendingClick.current), []);
+
   const onNodeClick = useCallback(
-    (_event: unknown, node: SpiderFlowNode) => {
+    (event: ReactMouseEvent, node: SpiderFlowNode) => {
       if (justUnpinned(lastUnpin.current, node.id, performance.now())) return;
-      const message = nodeClickMessage(node.data.node, project);
-      if (message) onPost(message);
-      onOpen(node.id);
+      const line = clickedCodeLine(event, node.data.node.codePreview);
+      clearTimeout(pendingClick.current);
+      pendingClick.current = setTimeout(() => {
+        if (line === undefined && node.data.open) return onClose(node.id);
+        const message = nodeClickMessage(node.data.node, project, line);
+        if (message) onPost(message);
+        onOpen(node.id);
+      }, CLICK_DELAY_MS);
     },
-    [project, onPost, onOpen],
+    [project, onPost, onOpen, onClose],
   );
 
   const onNodeDoubleClick = useCallback(
     (_event: unknown, node: SpiderFlowNode) => {
+      clearTimeout(pendingClick.current);
       if (justUnpinned(lastUnpin.current, node.id, performance.now())) return;
       const action = doubleClickAction(node.data.node, graph, nodeUi);
       if (action === "expand") onExpand(node.id);

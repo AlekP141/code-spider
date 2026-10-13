@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { CODE_PADDING_Y, LINE_HEIGHT } from "../../src/graph/constants.js";
 import {
+  codeLineAt,
   edgeClickMessage,
   expandMessage,
   nodeClickMessage,
@@ -11,6 +13,24 @@ import { makeNode } from "../support/slices.js";
 
 const project = "/repo/tsconfig.json";
 
+describe("codeLineAt", () => {
+  const preview = "a\nb\nc\nd";
+
+  it("maps a point to the line it lies in, below the top padding", () => {
+    expect(codeLineAt(CODE_PADDING_Y, preview)).toBe(0);
+    expect(codeLineAt(CODE_PADDING_Y + LINE_HEIGHT - 1, preview)).toBe(0);
+    expect(codeLineAt(CODE_PADDING_Y + LINE_HEIGHT, preview)).toBe(1);
+    expect(codeLineAt(CODE_PADDING_Y + 3 * LINE_HEIGHT + 1, preview)).toBe(3);
+  });
+
+  it("keeps to the lines the preview has", () => {
+    expect(codeLineAt(0, preview)).toBe(0);
+    expect(codeLineAt(-5, preview)).toBe(0);
+    expect(codeLineAt(CODE_PADDING_Y + 10 * LINE_HEIGHT, preview)).toBe(3);
+    expect(codeLineAt(CODE_PADDING_Y + 2 * LINE_HEIGHT, "one")).toBe(0);
+  });
+});
+
 describe("nodeClickMessage", () => {
   it("asks the extension to open a repo function at its declaration", () => {
     const node = makeNode({ id: "src/a.ts#f", file: "src/a.ts" });
@@ -19,6 +39,17 @@ describe("nodeClickMessage", () => {
       project,
       nodeId: "src/a.ts#f",
     });
+  });
+
+  it("names the clicked line when there is one", () => {
+    const node = makeNode({ id: "src/a.ts#f", file: "src/a.ts" });
+    expect(nodeClickMessage(node, project, 2)).toEqual({
+      type: "openInEditor",
+      project,
+      nodeId: "src/a.ts#f",
+      line: 2,
+    });
+    expect(nodeClickMessage(node, project, 0)).toMatchObject({ line: 0 });
   });
 
   it("opens module and component nodes too", () => {

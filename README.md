@@ -10,9 +10,10 @@ It works on TypeScript and JavaScript files (`.ts`, `.tsx`, `.js` and `.jsx`). T
 
 In the graph you can:
 
-- Click a box to jump to that function in the editor. The box opens to show the start of its code, and any boxes below it move down to make room.
-- Click the small arrow at the right of a box's name to open or close the box. Closing a box leaves the other boxes where they are; press `Tidy` to line them up again. Boxes that have no code of their own, such as code from outside your project, have no arrow and do not open.
-- Double-click a function's box to show the functions around it. Double-click it again to hide them. This does not work on the box in the middle, or on boxes that are not functions, such as a file's top-level code or code from outside your project. A double-click also opens the box.
+- Click a box's name to jump to that function in the editor. The box opens to show the start of its code, and any boxes below it move down to make room. Click the name again to close the box.
+- Click a line of code in an open box to jump to that line in the editor.
+- Click the small arrow at the right end of a box's top bar to open or close the box without jumping. Closing a box leaves the other boxes where they are; press `Tidy` to line them up again. Boxes that have no code of their own, such as code from outside your project, have no arrow and do not open.
+- Double-click a function's box to show the functions around it. Double-click it again to hide them. This does not work on the box in the middle, or on boxes that are not functions, such as a file's top-level code or code from outside your project.
 - Drag a box. It stays where you put it.
 - Use the buttons above the graph:
   - `Back` goes to the previous graph. The last 20 are kept.
