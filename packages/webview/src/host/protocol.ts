@@ -30,7 +30,13 @@ export type ExtensionToWebview =
 
 export type WebviewToExtension =
   | { type: "ready" }
-  | { type: "openInEditor"; project: string; nodeId: NodeId }
+  | {
+      type: "openInEditor";
+      project: string;
+      nodeId: NodeId;
+      /** Lines below the node's first line; absent for the declaration. */
+      line?: number;
+    }
   | { type: "openCallSite"; project: string; edgeId: string }
   | { type: "focus"; project: string; nodeId: NodeId }
   | { type: "expand"; project: string; nodeId: NodeId; generation: number }

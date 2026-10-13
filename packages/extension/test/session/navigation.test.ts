@@ -123,6 +123,22 @@ describe("JumpHandler", () => {
     expect(editor.reveal).toHaveBeenCalledWith(nodeTarget);
   });
 
+  it("reveals the start of a line inside the node when one is named", async () => {
+    const { editor, jumps } = setup();
+    const message = {
+      type: "openInEditor",
+      project: "/p/tsconfig.json",
+      nodeId: "src/a.ts#f",
+    } as const;
+    await jumps.handle({ ...message, line: 3 });
+    expect(editor.reveal).toHaveBeenLastCalledWith({
+      file: "/repo/a.ts",
+      range: { startLine: 4, startCharacter: 0, endLine: 4, endCharacter: 0 },
+    });
+    await jumps.handle({ ...message, line: 0 });
+    expect(editor.reveal).toHaveBeenLastCalledWith(nodeTarget);
+  });
+
   it("reveals the call site of the edge in the named project", async () => {
     const { editor, lookup, jumps } = setup();
     await jumps.handle({

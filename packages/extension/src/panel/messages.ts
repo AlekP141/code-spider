@@ -31,10 +31,19 @@ export function parseWebviewMessage(
             expanded: message.expanded,
           }
         : undefined;
-    case "openInEditor":
+    case "openInEditor": {
+      if (typeof project !== "string" || typeof nodeId !== "string") {
+        return undefined;
+      }
+      const { line } = message;
+      if (line === undefined) return { type: "openInEditor", project, nodeId };
+      return typeof line === "number" && Number.isInteger(line) && line >= 0
+        ? { type: "openInEditor", project, nodeId, line }
+        : undefined;
+    }
     case "focus":
       return typeof project === "string" && typeof nodeId === "string"
-        ? { type: message.type, project, nodeId }
+        ? { type: "focus", project, nodeId }
         : undefined;
     case "expand":
       return typeof project === "string" &&

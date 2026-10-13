@@ -58,6 +58,21 @@ describe("parseWebviewMessage", () => {
     }
   });
 
+  it("accepts openInEditor with a whole, non-negative line and drops others", () => {
+    const message = { type: "openInEditor", project, nodeId: "a.ts#f" };
+    expect(parseWebviewMessage({ ...message, line: 4 })).toEqual({
+      ...message,
+      line: 4,
+    });
+    expect(parseWebviewMessage({ ...message, line: 0 })).toEqual({
+      ...message,
+      line: 0,
+    });
+    for (const line of [-1, 1.5, "2", null, Number.NaN]) {
+      expect(parseWebviewMessage({ ...message, line })).toBeUndefined();
+    }
+  });
+
   it("accepts expand with a project, a nodeId and an integer generation", () => {
     expect(
       parseWebviewMessage({

@@ -50,6 +50,16 @@ export function callSiteJumpTarget(
   };
 }
 
+/** A line inside the node opens with the cursor at its start. */
+function atLine(target: JumpTarget, line: number): JumpTarget {
+  if (line === 0) return target;
+  const startLine = target.range.startLine + line;
+  return {
+    file: target.file,
+    range: { startLine, startCharacter: 0, endLine: startLine, endCharacter: 0 },
+  };
+}
+
 export class JumpHandler {
   constructor(
     private readonly lookup: JumpLookup,
@@ -57,10 +67,12 @@ export class JumpHandler {
   ) {}
 
   async handle(message: JumpMessage): Promise<void> {
-    const target =
-      message.type === "openInEditor"
-        ? this.lookup.nodeTarget(message.project, message.nodeId)
-        : this.lookup.callSiteTarget(message.project, message.edgeId);
-    if (target) await this.editor.reveal(target);
+    if (message.type === "openCallSite") {
+      const site = this.lookup.callSiteTarget(message.project, message.edgeId);
+      if (site) await this.editor.reveal(site);
+      return;
+    }
+    const target = this.lookup.nodeTarget(message.project, message.nodeId);
+    if (target) await this.editor.reveal(atLine(target, message.line ?? 0));
   }
 }
