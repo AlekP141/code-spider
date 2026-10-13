@@ -4,18 +4,19 @@ Code Spider shows the functions that call the function under your cursor, and th
 
 ## What it does
 
-Put your cursor in a function and open a graph. The function is in the middle. Each box shows a function's name and the start of its code. The functions it calls are in the column to its left, in the order the calls appear in the code. The functions that call it are on the right.
+Put your cursor in a function and open a graph. The function is in the middle. Each box shows a function's name. The box in the middle also shows the start of its code (it is open); every other box starts closed, with just its name. The functions it calls are in the column to its left, in the order the calls appear in the code. The functions that call it are on the right.
 
 It works on TypeScript and JavaScript files (`.ts`, `.tsx`, `.js` and `.jsx`). The project needs a `tsconfig.json` in the file's folder or in a folder above it, up to the top of the repository.
 
 In the graph you can:
 
-- Click a box to jump to that function in the editor.
-- Double-click a function's box to show the functions around it. Double-click it again to hide them. This does not work on the box in the middle, or on boxes that are not functions, such as a file's top-level code or code from outside your project.
+- Click a box to jump to that function in the editor. The box opens to show the start of its code, and any boxes below it move down to make room.
+- Click the small arrow at the right of a box's name to open or close the box. Closing a box leaves the other boxes where they are; press `Tidy` to line them up again. Boxes that have no code of their own, such as code from outside your project, have no arrow and do not open.
+- Double-click a function's box to show the functions around it. Double-click it again to hide them. This does not work on the box in the middle, or on boxes that are not functions, such as a file's top-level code or code from outside your project. A double-click also opens the box.
 - Drag a box. It stays where you put it.
 - Use the buttons above the graph:
   - `Back` goes to the previous graph. The last 20 are kept.
-  - `Tidy` lines up the boxes again. Boxes you dragged stay where they are.
+  - `Tidy` lines up the boxes again. Boxes you dragged stay where they are. It also removes the empty space left by boxes you closed.
   - `Refresh` reads the code again. A dot appears on it when a file has been saved since the graph was drawn.
   - `Stepped` and `Curved` change how the lines are drawn.
   - `Spacing` changes how far apart the boxes are. Boxes you dragged stay where they are.

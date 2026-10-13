@@ -384,7 +384,12 @@ graph, current and in the Back history. It moves no box and needs no layout.
 ### 7.6 Node rendering
 
 Every node renders as a box: a two-part header — name on the left, input type on
-the right — above a code region.
+the right — above a code region. A box is open or closed. Closed, it is only the
+header; open, it also shows the code region. The box in the middle starts open
+and every other box starts closed. A click on a box jumps to its code and opens
+it, pushing the unpinned boxes below it down to make room; a small arrow in the
+header opens and closes it. Closing leaves the other boxes where they are, and
+Tidy packs them again.
 
 ```
 ┌──────────────────────────────────────────┐
@@ -416,7 +421,7 @@ arranges nodes in columns, and ragged widths make those columns read as broken.
 Height varies per node:
 
 ```
-height = header + clamp(lineCount, 3, 25) × lineHeight
+height = header, plus clamp(lineCount, 3, 25) × lineHeight when the box is open
 ```
 
 Functions longer than 25 lines clip with a fade at the bottom edge; the full
@@ -428,7 +433,7 @@ arithmetic and is available before ELK runs. Rendering offscreen to measure is
 slower, asynchronous, and a well-known source of layout race conditions.
 
 A side benefit: variable heights make a zoomed-out graph encode complexity
-visually. A tall box is a long function, spotted without reading anything.
+visually. A tall open box is a long function, spotted without reading anything.
 
 **Zoom as level of detail.** Below a zoom of 0.5 the code region renders as
 grey bars, one per line, each with the length and indentation of its line; at
@@ -456,7 +461,8 @@ expansion, where existing nodes do not change size.
 
 ### 7.7 Editor integration
 
-Clicking a node calls `showTextDocument` and reveals its declaration range.
+Clicking a node calls `showTextDocument` and reveals its declaration range
+and opens the node in the graph.
 Clicking an edge jumps to the exact call site, which the edge already carries.
 Theming derives from VS Code's CSS variables so the graph matches the active
 theme.
@@ -490,7 +496,8 @@ beside the code if it is not already open, and replaces its contents. The
 previous graph goes onto the Back history.
 
 Inside the panel, a double-click on a box expands it in place and a second
-double-click collapses it. A toolbar above the graph has **Back** (a history of
+double-click collapses it. A click opens a box to show its code and a small arrow
+in its header closes it again; boxes start closed except the one in the middle. A toolbar above the graph has **Back** (a history of
 20 graphs), **Tidy**, **Refresh**, a **Lines** switch (Stepped or Curved) and a
 **Spacing** slider for the column gap; the column gap and the line style are
 stored in the extension's global state. Refresh shows a dot when a source file
@@ -582,9 +589,9 @@ brittle, and the thin shell is deliberately not where the logic lives.
 - **The real webview bundle has an Electron probe.** `pnpm probe` opens the
   built webview in the VS Code build the smoke tests download, with a fake
   `acquireVsCodeApi`, the page's real content security policy and real mouse
-  input, and runs ten checks: drawing and call order, click, double-click
-  expand, drag, reload, refresh, the dot, zoom level of detail, the Lines switch
-  and a refresh that swaps and inserts calls. It is separate from
+  input, and runs twelve checks: drawing and call order, click, double-click
+  expand, drag, reload, refresh, the dot, zoom level of detail, the Lines switch,
+  a refresh that swaps and inserts calls, the chevron and the failure message. It is separate from
   `pnpm -r test`.
 
 ## 10. Milestones
@@ -633,6 +640,10 @@ button, and zoom-based level of detail in node code regions. Added after M2:
 - Done in M3b: a checked-in Electron script that tests the real webview bundle.
 - Done in M3c: called boxes are drawn in the order of the calls in the code, on
   the first layout, Tidy, expansion and Refresh.
+- Done after M4 (2026-10-13): boxes start closed, showing only the header, except
+  the one in the middle; a click jumps to the code and opens the box, pushing the
+  boxes below it down; a small arrow in the header opens and closes it; the
+  header text is larger.
 
 **M4 — Polish and package.** Theming, truncation and unknown-node states, error
 handling, `.vsix`.
