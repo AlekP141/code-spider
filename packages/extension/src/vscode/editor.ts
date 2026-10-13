@@ -4,7 +4,7 @@ import type { EditorPort, JumpTarget } from "../session/navigation.js";
 /**
  * Opens files in the column of the last text editor the user used. Clicking
  * inside the webview makes the panel's group active, and opening there would
- * bury the code under the graph.
+ * bury the code under the graph. Focus stays on the graph.
  */
 export class EditorRevealer implements EditorPort, vscode.Disposable {
   private column: vscode.ViewColumn =
@@ -22,6 +22,7 @@ export class EditorRevealer implements EditorPort, vscode.Disposable {
     );
     await vscode.window.showTextDocument(document, {
       viewColumn: this.column,
+      preserveFocus: true,
       selection: new vscode.Range(
         range.startLine,
         range.startCharacter,
