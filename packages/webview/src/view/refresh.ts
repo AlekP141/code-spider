@@ -1,7 +1,7 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
 import { walkParents } from "../graph/layout/call-order.js";
 import { NODE_WIDTH } from "../graph/constants.js";
-import { makeRoom, type RoomBox } from "../graph/layout/make-room.js";
+import { makeRoom } from "../graph/layout/make-room.js";
 import { hasCodeRegion, nodeHeight } from "../graph/nodes/node-size.js";
 import { placeExpansion } from "../graph/layout/placement.js";
 import type { ExtensionToWebview } from "../host/protocol.js";
@@ -13,6 +13,7 @@ import {
   mergeExpansion,
 } from "./graph-state.js";
 import { freshPerSlice, restackPass, type Applied } from "./refresh-order.js";
+import { roomBoxes } from "./room-boxes.js";
 import type { GraphState, Point } from "./types.js";
 
 export type RefreshAnswer = Extract<ExtensionToWebview, { type: "refreshed" }>;
@@ -70,19 +71,6 @@ function rebuildSlices(
       applied.push({ key: nodeId, slice });
     }
   }
-}
-
-function keptBoxes(
-  graph: GraphState,
-  positions: Record<NodeId, Point>,
-): RoomBox[] {
-  return Object.entries(positions).flatMap(([nodeId, at]) => {
-    const node = graph.nodes[nodeId];
-    if (!node) return [];
-    const height = nodeHeight(node, isOpen(graph, nodeId));
-    const rect = { ...at, width: NODE_WIDTH, height };
-    return [{ id: nodeId, rect }];
-  });
 }
 
 function placePass(input: {
@@ -165,7 +153,7 @@ export function rebuildGraph(
     columnGap,
   });
   const room = makeRoom(
-    keptBoxes(rebuilt, restacked.positions),
+    roomBoxes(rebuilt, restacked.positions),
     pinnedIds,
     columnGap,
     restacked.chains,

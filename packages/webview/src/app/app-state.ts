@@ -6,6 +6,7 @@ import {
   noteSourceChanged,
   startRefresh,
 } from "./app-refresh.js";
+import { closeBox, openBox } from "./app-open.js";
 import { applySettings, withColumnGap, withEdgeStyle } from "./app-settings.js";
 import {
   acceptAnswer,
@@ -74,6 +75,7 @@ export type LocalAction =
     }
   | { type: "tidyFailed"; message: string }
   | { type: "expandStarted" | "collapsed" | "unpinned"; nodeId: NodeId }
+  | { type: "nodeOpened" | "nodeClosed"; nodeId: NodeId }
   | { type: "failureExpired"; nodeId: NodeId; token: number }
   | { type: "enteringExpired"; token: number }
   | { type: "back" }
@@ -228,6 +230,10 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return collapseExpanded(state, action.nodeId);
     case "unpinned":
       return unpinBox(state, action.nodeId);
+    case "nodeOpened":
+      return openBox(state, action.nodeId);
+    case "nodeClosed":
+      return closeBox(state, action.nodeId);
     case "failureExpired":
       return expireFailure(state, action.nodeId, action.token);
     case "enteringExpired":

@@ -8,6 +8,8 @@ export type NodeActions = {
   onExpand: (nodeId: NodeId) => void;
   onCollapse: (nodeId: NodeId) => void;
   onUnpin: (nodeId: NodeId) => void;
+  onOpen: (nodeId: NodeId) => void;
+  onClose: (nodeId: NodeId) => void;
 };
 
 export type NodeContextValue = {

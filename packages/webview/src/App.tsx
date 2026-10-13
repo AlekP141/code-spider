@@ -45,6 +45,8 @@ export function App() {
       },
       onCollapse: (nodeId) => dispatch({ type: "collapsed", nodeId }),
       onUnpin: (nodeId) => dispatch({ type: "unpinned", nodeId }),
+      onOpen: (nodeId) => dispatch({ type: "nodeOpened", nodeId }),
+      onClose: (nodeId) => dispatch({ type: "nodeClosed", nodeId }),
     }),
     [project, generation],
   );
