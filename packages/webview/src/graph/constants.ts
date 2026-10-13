@@ -1,5 +1,5 @@
 export const NODE_WIDTH = 320;
-export const HEADER_HEIGHT = 28;
+export const HEADER_HEIGHT = 36;
 export const LINE_HEIGHT = 16;
 export const CODE_PADDING_Y = 4;
 export const MIN_CODE_LINES = 3;

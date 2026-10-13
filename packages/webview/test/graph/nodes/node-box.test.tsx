@@ -4,6 +4,7 @@ import {
   NodeBox,
   type NodeBoxProps,
 } from "../../../src/graph/nodes/NodeBox.js";
+import { HEADER_HEIGHT } from "../../../src/graph/constants.js";
 import { codeRegionHeight } from "../../../src/graph/nodes/node-size.js";
 import { makeNode } from "../../support/slices.js";
 
@@ -41,7 +42,9 @@ describe("NodeBox", () => {
   it("sizes the header and the code region from the shared constants", () => {
     const node = makeNode({ id: "a#f", lineCount: 10 });
     const html = renderToStaticMarkup(<NodeBox node={node} isFocus={false} />);
-    expect(html).toContain('class="node-header" style="height:28px"');
+    expect(html).toContain(
+      `class="node-header" style="height:${HEADER_HEIGHT}px"`,
+    );
     expect(html).toContain(`height:${codeRegionHeight(node)}px`);
   });
 

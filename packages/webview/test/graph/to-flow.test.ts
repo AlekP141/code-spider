@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { NODE_WIDTH } from "../../src/graph/constants.js";
+import {
+  CODE_PADDING_Y,
+  HEADER_HEIGHT,
+  LINE_HEIGHT,
+  NODE_WIDTH,
+} from "../../src/graph/constants.js";
 import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import { toFlow } from "../../src/graph/to-flow.js";
 import { graphFromSlice, pinNodes } from "../../src/view/graph-state.js";
@@ -27,7 +32,9 @@ describe("toFlow with a real call-chain slice", () => {
     const handleSignup = nodes.find(
       (flowNode) => flowNode.id === "src/signup.ts#handleSignup",
     );
-    expect(handleSignup?.height).toBe(28 + 6 * 16 + 8);
+    expect(handleSignup?.height).toBe(
+      HEADER_HEIGHT + 6 * LINE_HEIGHT + 2 * CODE_PADDING_Y,
+    );
   });
 
   it("gives every node its analytic size as measured, so React Flow never reads the DOM", () => {
@@ -189,10 +196,12 @@ describe("toFlow with every node and edge kind", () => {
     const heights = Object.fromEntries(
       nodes.map((flowNode) => [flowNode.data.node.kind, flowNode.height]),
     );
-    expect(heights.external).toBe(28);
-    expect(heights.unknown).toBe(28);
-    expect(heights.module).toBe(28);
-    expect(heights.component).toBe(28 + 12 * 16 + 8);
+    expect(heights.external).toBe(HEADER_HEIGHT);
+    expect(heights.unknown).toBe(HEADER_HEIGHT);
+    expect(heights.module).toBe(HEADER_HEIGHT);
+    expect(heights.component).toBe(
+      HEADER_HEIGHT + 12 * LINE_HEIGHT + 2 * CODE_PADDING_Y,
+    );
   });
 
   it("applies the passes, unresolved and external appearances", () => {

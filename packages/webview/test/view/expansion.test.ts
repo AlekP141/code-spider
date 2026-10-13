@@ -67,7 +67,10 @@ describe("applyExpansion", () => {
       width: 320,
       height,
     });
-    expect(graph.positions[id("e")]).toEqual({ x: 1000, y: 384 });
+    expect(graph.positions[id("e")]).toEqual({
+      x: 1000,
+      y: 500 - rowGap(192) - height,
+    });
     expect(isClear(rectOf(id("e")), rectOf(id("a")), rowGap(192))).toBe(true);
   });
 

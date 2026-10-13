@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { nodeHeight } from "../../src/graph/nodes/node-size.js";
 import { calledSlice, id, tweakNode } from "../support/graph-states.js";
 import {
   A,
@@ -120,7 +121,7 @@ describe("rebuildGraph puts called boxes in code order", () => {
   });
 
   describe("make-room keeps a group in order", () => {
-    const TALL = 356;
+    const TALL = nodeHeight({ lineCount: 20, codePreview: "x" });
     const BELOW = 520 + HEIGHT + MARGIN;
     const grown = tweakNode(calledSlice("a", ["m1", "m2", "p", "q"]), "m1", {
       lineCount: 20,
