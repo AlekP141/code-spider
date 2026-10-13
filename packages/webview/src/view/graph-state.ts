@@ -1,4 +1,5 @@
 import type { GraphEdge, GraphSlice, NodeId } from "@code-spider/core/types";
+import { hasCodeRegion } from "../graph/nodes/node-size.js";
 import type { GraphState, Point, SliceRecord } from "./types.js";
 
 export type Merged = { graph: GraphState; added: NodeId[] };
@@ -34,6 +35,7 @@ export function graphFromSlice(
 ): GraphState {
   const nodes = Object.fromEntries(slice.nodes.map((node) => [node.id, node]));
   const kept = slice.edges.filter((edge) => joinsNodes(edge, nodes));
+  const centre = nodes[slice.focusId];
   return {
     generation: 0,
     project,
@@ -43,8 +45,13 @@ export function graphFromSlice(
     slices: { [slice.focusId]: sliceRecord(slice, slice.focusId, kept) },
     positions,
     pinned: [],
+    open: centre && hasCodeRegion(centre) ? [slice.focusId] : [],
     revision: 0,
   };
+}
+
+export function isOpen(graph: GraphState, nodeId: NodeId): boolean {
+  return graph.open?.includes(nodeId) ?? false;
 }
 
 export function isExpanded(graph: GraphState, nodeId: NodeId): boolean {
@@ -127,6 +134,7 @@ export function collapseNode(graph: GraphState, nodeId: NodeId): GraphState {
         listed.has(key) && keptNode(edge.from) && keptNode(edge.to),
     ),
   );
+  const hasNode = (id: NodeId) => Object.hasOwn(nodes, id);
   const removed =
     Object.keys(graph.nodes).length !== Object.keys(nodes).length ||
     Object.keys(graph.edges).length !== Object.keys(edges).length;
@@ -136,6 +144,7 @@ export function collapseNode(graph: GraphState, nodeId: NodeId): GraphState {
     edges,
     slices,
     positions: keepEntries(graph.positions, keptNode),
+    ...(graph.open ? { open: graph.open.filter(hasNode) } : {}),
     revision: removed ? graph.revision + 1 : graph.revision,
   };
 }

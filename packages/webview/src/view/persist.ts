@@ -120,6 +120,7 @@ function isConsistent(graph: GraphState): boolean {
         record.edgeIds.every(hasEdge),
     ) &&
     graph.pinned.every(hasNode) &&
+    (graph.open ?? []).every(hasNode) &&
     Object.keys(graph.positions).every(hasNode)
   );
 }
@@ -135,6 +136,7 @@ export function isGraphState(value: unknown): value is GraphState {
     everyValue(value.slices, isSliceRecord) &&
     everyValue(value.positions, isPoint) &&
     isStringArray(value.pinned) &&
+    (value.open === undefined || isStringArray(value.open)) &&
     isNumber(value.revision) &&
     (value.sourceVersion === undefined || isNumber(value.sourceVersion)) &&
     (value.columnGap === undefined || isNormalisedGap(value.columnGap)) &&

@@ -2,7 +2,7 @@ import type { GraphSlice, NodeId } from "@code-spider/core/types";
 import { walkParents } from "../graph/layout/call-order.js";
 import { NODE_WIDTH } from "../graph/constants.js";
 import { makeRoom, type RoomBox } from "../graph/layout/make-room.js";
-import { nodeHeight } from "../graph/nodes/node-size.js";
+import { hasCodeRegion, nodeHeight } from "../graph/nodes/node-size.js";
 import { placeExpansion } from "../graph/layout/placement.js";
 import type { ExtensionToWebview } from "../host/protocol.js";
 import { rectsOf } from "./expansion.js";
@@ -126,8 +126,15 @@ export function rebuildGraph(
   answer: RefreshAnswer,
   columnGap: number,
 ): Rebuilt {
-  const { graph: rebuilt, applied } = rebuildSlices(current, answer);
-  const has = (nodeId: NodeId) => Object.hasOwn(rebuilt.nodes, nodeId);
+  const { graph: sliced, applied } = rebuildSlices(current, answer);
+  const has = (nodeId: NodeId) => Object.hasOwn(sliced.nodes, nodeId);
+  const rebuilt: GraphState = {
+    ...sliced,
+    open: (current.open ?? []).filter((nodeId) => {
+      const node = sliced.nodes[nodeId];
+      return node !== undefined && hasCodeRegion(node);
+    }),
+  };
   const pinned = current.pinned.filter(has);
   const pinnedIds = new Set(pinned);
   const kept = Object.fromEntries(

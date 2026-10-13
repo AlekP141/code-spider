@@ -18,6 +18,8 @@ export type GraphState = {
   /** Top-left corners in flow coordinates. */
   positions: Record<NodeId, Point>;
   pinned: NodeId[];
+  /** Nodes whose code is shown; absent in older saves, which means none. */
+  open?: NodeId[];
   /** Goes up by one on any change to nodes, edges, pins or positions. */
   revision: number;
   /** The gap its positions were laid out with; absent in older saves. */
