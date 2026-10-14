@@ -4,6 +4,7 @@ import { nodeNameOf } from "../focus/callable-names.js";
 import type { FocusTarget } from "../focus/focus.js";
 import { inputTypeLabel, returnTypeLabel } from "./labels.js";
 import { makeNodeId, toPosixPath } from "./node-id.js";
+import { isTestPath } from "./test-path.js";
 import type { GraphNode, NodeKind, Range } from "../types.js";
 
 export const CODE_PREVIEW_MAX_LINES = 25;
@@ -48,6 +49,7 @@ export function buildModuleNode(
     isAsync: false,
     lineCount: sourceFile.getEndLineNumber(),
     codePreview: "",
+    ...testFlag(file, "module"),
   };
 }
 
@@ -74,7 +76,13 @@ export function buildGraphNode(
     isAsync,
     lineCount: lines.length,
     codePreview: lines.slice(0, CODE_PREVIEW_MAX_LINES).join("\n"),
+    ...testFlag(file, kind),
   };
+}
+
+function testFlag(file: string, kind: NodeKind): { isTest?: true } {
+  const placeholder = kind === "external" || kind === "unknown";
+  return !placeholder && isTestPath(file) ? { isTest: true } : {};
 }
 
 function repoRelative(sourceFile: SourceFile, ctx: BuildContext): string {

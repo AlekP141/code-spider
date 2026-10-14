@@ -25,6 +25,8 @@ export type GraphNode = {
   isAsync: boolean;
   lineCount: number;
   codePreview: string;
+  /** True when the node's file is test code (see isTestPath); absent otherwise. */
+  isTest?: true;
   /** Set by the extension from the git diff (uncommitted, or against the main branch), not by the analyser. */
   change?: "added" | "modified";
 };

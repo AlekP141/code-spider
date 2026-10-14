@@ -46,8 +46,8 @@ export function collectCallerEdges(
     passes: signatureLabel(target.declaration),
   };
 
-  const nodes = new Map<NodeId, GraphNode>();
-  const edges = new Map<string, GraphEdge>();
+  const entries = new Map<string, { node: GraphNode; edge: GraphEdge }>();
+  let realKept = 0;
   let truncated = false;
 
   for (const ref of referencesInOrder(target.nameNode)) {
@@ -62,28 +62,38 @@ export function collectCallerEdges(
     if (node.id === focusId) continue;
 
     const key = `${node.id}|${site.kind}`;
-    if (edges.has(key)) continue;
+    if (entries.has(key)) continue;
 
-    if (edges.size >= MAX_CALLERS) {
+    if (!node.isTest && realKept >= MAX_CALLERS) {
       truncated = true;
       break;
     }
+    if (!node.isTest) realKept++;
 
-    nodes.set(node.id, node);
-    edges.set(key, {
-      id: edgeId(focusId, node.id, site.kind),
-      from: focusId,
-      to: node.id,
-      kind: site.kind,
-      supplies: supplies[site.kind],
-      callSite: rangeOf(site.node),
-      resolved: true,
+    entries.set(key, {
+      node,
+      edge: {
+        id: edgeId(focusId, node.id, site.kind),
+        from: focusId,
+        to: node.id,
+        kind: site.kind,
+        supplies: supplies[site.kind],
+        callSite: rangeOf(site.node),
+        resolved: true,
+      },
     });
   }
 
+  const all = [...entries.values()];
+  const room = MAX_CALLERS - realKept;
+  const tests = all.filter((e) => e.node.isTest);
+  const keptTests = new Set(tests.slice(0, room));
+  truncated ||= tests.length > room;
+  const kept = all.filter((e) => !e.node.isTest || keptTests.has(e));
+
   return {
-    nodes: [...nodes.values()],
-    edges: [...edges.values()],
+    nodes: [...new Map(kept.map((e) => [e.node.id, e.node])).values()],
+    edges: kept.map((e) => e.edge),
     truncated,
   };
 }
