@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { readChanges } from "../../src/diff/git-diff.js";
 import {
@@ -198,6 +199,23 @@ describe("readChanges", () => {
       const { changes, fellBack } = await readChanges(repo.dir, mode);
       expect(changes.size).toBe(0);
       expect(fellBack).toBe(false);
+    }
+  });
+});
+
+describe("TestRepo", () => {
+  it("builds its own repository even when GIT_DIR points elsewhere", () => {
+    const outside = tempDir();
+    const saved = process.env.GIT_DIR;
+    process.env.GIT_DIR = outside;
+    try {
+      const repo = baseRepo();
+      const top = repo.git("rev-parse", "--show-toplevel").trim();
+      expect(realpathSync(top)).toBe(realpathSync(repo.dir));
+      expect(repo.git("log", "--format=%s").trim()).toBe("base");
+    } finally {
+      if (saved === undefined) delete process.env.GIT_DIR;
+      else process.env.GIT_DIR = saved;
     }
   });
 });

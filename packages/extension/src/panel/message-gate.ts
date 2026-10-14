@@ -39,8 +39,8 @@ const isReplayed = (kind: Kind): kind is Replayed =>
  * - content (a centre slice, an error) waits for the first `ready` and is
  *   delivered once;
  * - ephemeral messages (an expansion slice, a failed expansion, a refresh
- *   answer) are sent when ready and dropped otherwise, so a late answer
- *   never reaches a new panel;
+ *   answer, change marks) are sent when ready and dropped otherwise, so a
+ *   late answer never reaches a new panel;
  * - settings, indexing, busy and sourceChanged are state: the latest of each
  *   replays on every `ready`.
  */

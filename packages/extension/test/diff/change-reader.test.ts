@@ -11,9 +11,11 @@ const reading = (fellBack: boolean, ...paths: string[]): DiffReading => ({
 
 function setup(first: DiffReading = reading(false)) {
   const mode = { value: "uncommitted" as DiffMode };
-  const diff = { changes: vi.fn(
-    async (_root: string, _mode: DiffMode): Promise<DiffReading> => first,
-  ) };
+  const diff = {
+    changes: vi.fn(
+      async (_root: string, _mode: DiffMode): Promise<DiffReading> => first,
+    ),
+  };
   const notifier = { warn: vi.fn(), error: vi.fn(), status: vi.fn() };
   const reader = new ChangeReader(diff, () => mode.value, notifier);
   return { mode, diff, notifier, reader };

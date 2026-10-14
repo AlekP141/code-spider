@@ -11,11 +11,23 @@ const IDENTITY = [
   "-c",
   "commit.gpgsign=false",
 ];
-const ISOLATED_ENV = {
-  ...process.env,
-  GIT_CONFIG_GLOBAL: "/dev/null",
-  GIT_CONFIG_NOSYSTEM: "1",
-};
+const REPO_LOCATING_VARIABLES = [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_COMMON_DIR",
+];
+
+function isolatedEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_NOSYSTEM: "1",
+  };
+  for (const name of REPO_LOCATING_VARIABLES) delete env[name];
+  return env;
+}
 
 const created: string[] = [];
 
@@ -37,7 +49,7 @@ export class TestRepo {
   git(...args: string[]): string {
     return execFileSync("git", [...IDENTITY, ...args], {
       cwd: this.dir,
-      env: ISOLATED_ENV,
+      env: isolatedEnv(),
       encoding: "utf8",
     });
   }
