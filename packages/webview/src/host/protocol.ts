@@ -1,5 +1,8 @@
-import type { GraphSlice, NodeId } from "@code-spider/core/types";
+import type { GraphNode, GraphSlice, NodeId } from "@code-spider/core/types";
+import type { DiffMode } from "../settings/diff-mode.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
+
+export type ChangeKind = NonNullable<GraphNode["change"]>;
 
 export type SliceMode =
   | { kind: "centre"; sourceVersion: number }
@@ -16,7 +19,12 @@ export type ExtensionToWebview =
   | { type: "analysisError"; message: string }
   | { type: "busy"; busy: boolean }
   | { type: "indexing"; indexing: boolean }
-  | { type: "settings"; columnGap: number; edgeStyle: EdgeStyle }
+  | {
+      type: "settings";
+      columnGap: number;
+      edgeStyle: EdgeStyle;
+      diffMode: DiffMode;
+    }
   | {
       type: "refreshed";
       project: string;
@@ -26,7 +34,8 @@ export type ExtensionToWebview =
       expansions: { nodeId: NodeId; slice: GraphSlice }[];
     }
   | { type: "refreshFailed"; generation: number; message: string }
-  | { type: "sourceChanged"; version: number };
+  | { type: "sourceChanged"; version: number }
+  | { type: "changeMarks"; project: string; marks: Record<NodeId, ChangeKind> };
 
 export type WebviewToExtension =
   | { type: "ready" }
@@ -42,6 +51,7 @@ export type WebviewToExtension =
   | { type: "expand"; project: string; nodeId: NodeId; generation: number }
   | { type: "setColumnGap"; value: number }
   | { type: "setEdgeStyle"; value: EdgeStyle }
+  | { type: "setDiffMode"; value: DiffMode }
   | {
       type: "refresh";
       project: string;

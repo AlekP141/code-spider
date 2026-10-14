@@ -9,6 +9,7 @@ const checks = [
   ...require("./checks-basic.js"),
   ...require("./checks-detail.js"),
   ...require("./checks-open.js"),
+  ...require("./checks-changes.js"),
 ];
 
 const emit = (event) => console.log(JSON.stringify(event));

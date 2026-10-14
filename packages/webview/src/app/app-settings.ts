@@ -1,5 +1,6 @@
 import type { AppState } from "./app-state.js";
 import { normaliseColumnGap } from "../settings/column-gap.js";
+import { normaliseDiffMode } from "../settings/diff-mode.js";
 import {
   DEFAULT_EDGE_STYLE,
   normaliseEdgeStyle,
@@ -20,6 +21,11 @@ export function withEdgeStyle(state: AppState, raw: unknown): AppState {
   return { ...state, view: { ...state.view, edgeStyle } };
 }
 
+export function withDiffMode(state: AppState, raw: unknown): AppState {
+  const diffMode = normaliseDiffMode(raw);
+  return diffMode === state.diffMode ? state : { ...state, diffMode };
+}
+
 /** Only the first `settings` after each load applies; it never runs Tidy. */
 export function applySettings(
   state: AppState,
@@ -27,8 +33,9 @@ export function applySettings(
 ): AppState {
   if (state.settingsApplied) return state;
   const gapApplied = withColumnGap(state, message.columnGap);
+  const styleApplied = withEdgeStyle(gapApplied, message.edgeStyle);
   return {
-    ...withEdgeStyle(gapApplied, message.edgeStyle),
+    ...withDiffMode(styleApplied, message.diffMode),
     settingsApplied: true,
   };
 }

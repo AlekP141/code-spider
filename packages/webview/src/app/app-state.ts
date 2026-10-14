@@ -1,5 +1,6 @@
 import type { NodeId } from "@code-spider/core/types";
 import type { ExtensionToWebview } from "../host/protocol.js";
+import { applyChangeMarks } from "./app-change-marks.js";
 import {
   applyRefreshed,
   failRefresh,
@@ -7,7 +8,12 @@ import {
   startRefresh,
 } from "./app-refresh.js";
 import { closeBox, openBox } from "./app-open.js";
-import { applySettings, withColumnGap, withEdgeStyle } from "./app-settings.js";
+import {
+  applySettings,
+  withColumnGap,
+  withDiffMode,
+  withEdgeStyle,
+} from "./app-settings.js";
 import {
   acceptAnswer,
   collapseExpanded,
@@ -19,6 +25,7 @@ import {
   unpinBox,
 } from "./app-walk.js";
 import { isWorking } from "./app-working.js";
+import { DEFAULT_DIFF_MODE, type DiffMode } from "../settings/diff-mode.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
 import type { Rect } from "../graph/layout/placement.js";
 import { graphFromSlice, pinNodes, setPositions } from "../view/graph-state.js";
@@ -59,6 +66,8 @@ export type AppState = {
   refreshing: boolean;
   /** The newest `sourceChanged` seen; never persisted. */
   latestSourceVersion: number | undefined;
+  /** What the box colours show; never persisted. */
+  diffMode: DiffMode;
   /** Only the first `settings` message after each load is applied. */
   settingsApplied: boolean;
 };
@@ -81,7 +90,8 @@ export type LocalAction =
   | { type: "back" }
   | { type: "refreshStarted" }
   | { type: "columnGapChanged"; value: number }
-  | { type: "edgeStyleChanged"; value: EdgeStyle };
+  | { type: "edgeStyleChanged"; value: EdgeStyle }
+  | { type: "diffModeChanged"; value: DiffMode };
 
 export type AppAction = ExtensionToWebview | LocalAction;
 
@@ -103,6 +113,7 @@ export function createAppState(saved: unknown): AppState {
     reveal: undefined,
     refreshing: false,
     latestSourceVersion: undefined,
+    diffMode: DEFAULT_DIFF_MODE,
     settingsApplied: false,
   };
 }
@@ -246,5 +257,9 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return withColumnGap(state, action.value);
     case "edgeStyleChanged":
       return withEdgeStyle(state, action.value);
+    case "diffModeChanged":
+      return withDiffMode(state, action.value);
+    case "changeMarks":
+      return applyChangeMarks(state, action);
   }
 }

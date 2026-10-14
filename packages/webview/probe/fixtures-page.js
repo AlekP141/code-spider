@@ -31,6 +31,8 @@ const THEME = {
   "--vscode-font-family": "sans-serif",
   "--vscode-badge-foreground": "#ffffff",
   "--vscode-badge-background": "#4d4d4d",
+  "--vscode-gitDecoration-addedResourceForeground": "#81b88b",
+  "--vscode-gitDecoration-modifiedResourceForeground": "#e2c08d",
 };
 
 /**

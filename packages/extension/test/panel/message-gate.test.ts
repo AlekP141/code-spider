@@ -25,6 +25,16 @@ const failed: ExtensionToWebview = {
   message: "gone",
 };
 
+const settings = (
+  columnGap: number,
+  edgeStyle: "stepped" | "curved",
+): ExtensionToWebview => ({
+  type: "settings",
+  columnGap,
+  edgeStyle,
+  diffMode: "uncommitted",
+});
+
 function setup() {
   const sent: ExtensionToWebview[] = [];
   const gate = new MessageGate((message) => sent.push(message));
@@ -144,6 +154,23 @@ describe("MessageGate refresh answers", () => {
     gate.markReady();
     expect(sent).toEqual([]);
   });
+
+  it("drops changeMarks before ready and sends them after it", () => {
+    const { sent, gate } = setup();
+    const marks: ExtensionToWebview = {
+      type: "changeMarks",
+      project: "/repo/tsconfig.json",
+      marks: { "a#one": "added" },
+    };
+    gate.post(marks);
+    gate.markReady();
+    expect(sent).toEqual([]);
+    gate.post(marks);
+    expect(sent).toEqual([marks]);
+    gate.reset();
+    gate.markReady();
+    expect(sent).toEqual([marks]);
+  });
 });
 
 describe("MessageGate replayed state", () => {
@@ -152,7 +179,7 @@ describe("MessageGate replayed state", () => {
     gate.post(slice("a#one"));
     gate.post({ type: "busy", busy: true });
     gate.post({ type: "indexing", indexing: true });
-    gate.post({ type: "settings", columnGap: 160, edgeStyle: "stepped" });
+    gate.post(settings(160, "stepped"));
     gate.markReady();
     expect(sent.map((message) => message.type)).toEqual([
       "settings",
@@ -167,7 +194,7 @@ describe("MessageGate replayed state", () => {
     gate.post(slice("a#one"));
     gate.post({ type: "sourceChanged", version: 2 });
     gate.post({ type: "busy", busy: true });
-    gate.post({ type: "settings", columnGap: 160, edgeStyle: "stepped" });
+    gate.post(settings(160, "stepped"));
     gate.markReady();
     expect(sent.map((message) => message.type)).toEqual([
       "settings",
@@ -195,13 +222,13 @@ describe("MessageGate replayed state", () => {
   it("replays the latest value of each on every ready", () => {
     const { sent, gate } = setup();
     gate.markReady();
-    gate.post({ type: "settings", columnGap: 160, edgeStyle: "stepped" });
-    gate.post({ type: "settings", columnGap: 224, edgeStyle: "curved" });
+    gate.post(settings(160, "stepped"));
+    gate.post(settings(224, "curved"));
     gate.post({ type: "busy", busy: true });
     sent.length = 0;
     gate.markReady();
     expect(sent).toEqual([
-      { type: "settings", columnGap: 224, edgeStyle: "curved" },
+      settings(224, "curved"),
       { type: "busy", busy: true },
     ]);
   });
@@ -210,14 +237,14 @@ describe("MessageGate replayed state", () => {
     const { sent, gate } = setup();
     gate.markReady();
     gate.post(slice("a#one"));
-    gate.post({ type: "settings", columnGap: 160, edgeStyle: "stepped" });
+    gate.post(settings(160, "stepped"));
     gate.post({ type: "indexing", indexing: true });
     gate.post({ type: "busy", busy: true });
     sent.length = 0;
     gate.reset();
     gate.markReady();
     expect(sent).toEqual([
-      { type: "settings", columnGap: 160, edgeStyle: "stepped" },
+      settings(160, "stepped"),
       { type: "indexing", indexing: true },
       { type: "busy", busy: true },
     ]);

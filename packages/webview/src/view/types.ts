@@ -20,7 +20,10 @@ export type GraphState = {
   pinned: NodeId[];
   /** Nodes whose code is shown; absent in older saves, which means none. */
   open?: NodeId[];
-  /** Goes up by one on any change to nodes, edges, pins or positions. */
+  /**
+   * Goes up by one on any change to nodes, edges, pins or positions. Change
+   * marks do not count: a mark is not geometry.
+   */
   revision: number;
   /** The gap its positions were laid out with; absent in older saves. */
   columnGap?: number;

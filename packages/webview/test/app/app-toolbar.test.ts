@@ -149,6 +149,7 @@ describe("settings", () => {
       type: "settings",
       columnGap: 100,
       edgeStyle: "stepped",
+      diffMode: "uncommitted",
     });
     expect(next.view.columnGap).toBe(96);
     expect(next.settingsApplied).toBe(true);
@@ -162,11 +163,13 @@ describe("settings", () => {
       type: "settings",
       columnGap: 128,
       edgeStyle: "stepped",
+      diffMode: "uncommitted",
     });
     const again = reduceApp(first, {
       type: "settings",
       columnGap: 256,
       edgeStyle: "curved",
+      diffMode: "uncommitted",
     });
     expect(again).toBe(first);
     expect(again.view.columnGap).toBe(128);
@@ -177,6 +180,7 @@ describe("settings", () => {
       type: "settings",
       columnGap: 128,
       edgeStyle: "curved",
+      diffMode: "uncommitted",
     });
     expect(createAppState(applied.view).settingsApplied).toBe(false);
   });

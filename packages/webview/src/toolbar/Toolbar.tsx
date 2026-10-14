@@ -1,4 +1,5 @@
 import { COLUMN_GAP } from "../settings/column-gap.js";
+import { DIFF_MODES, type DiffMode } from "../settings/diff-mode.js";
 import { EDGE_STYLES, type EdgeStyle } from "../settings/edge-style.js";
 
 export type ToolbarProps = {
@@ -8,17 +9,28 @@ export type ToolbarProps = {
   changedSince: boolean;
   columnGap: number;
   edgeStyle: EdgeStyle;
+  diffMode: DiffMode;
   onBack(): void;
   onTidy(): void;
   onRefresh(): void;
   onColumnGap(value: number): void;
   onEdgeStyle(value: EdgeStyle): void;
+  onDiffMode(value: DiffMode): void;
 };
 
 const REFRESH_TITLE = "Re-read the code for this graph";
 const STYLE_LABELS: Record<EdgeStyle, string> = {
   stepped: "Stepped",
   curved: "Curved",
+};
+const DIFF_LABELS: Record<DiffMode, string> = {
+  uncommitted: "Uncommitted",
+  pr: "PR",
+};
+const DIFF_TITLES: Record<DiffMode, string> = {
+  uncommitted:
+    "Colour the functions you have added or changed since your last commit",
+  pr: "Colour the functions added or changed since this branch left the main branch",
 };
 const CHANGED_LABEL = "Files changed since this graph was drawn";
 
@@ -67,6 +79,25 @@ export function Toolbar(props: ToolbarProps) {
               }}
             >
               {STYLE_LABELS[style]}
+            </button>
+          );
+        })}
+      </div>
+      <div className="toolbar-changes" role="group" aria-label="Changes">
+        {DIFF_MODES.map((mode) => {
+          const pressed = mode === props.diffMode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              className="toolbar-button toolbar-toggle"
+              title={DIFF_TITLES[mode]}
+              aria-pressed={pressed}
+              onClick={() => {
+                if (!pressed) props.onDiffMode(mode);
+              }}
+            >
+              {DIFF_LABELS[mode]}
             </button>
           );
         })}

@@ -12,6 +12,7 @@ function kindOf(message: ExtensionToWebview): Kind {
     case "expandFailed":
     case "refreshed":
     case "refreshFailed":
+    case "changeMarks":
       return "ephemeral";
     case "settings":
     case "indexing":

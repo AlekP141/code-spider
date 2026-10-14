@@ -13,11 +13,13 @@ function props(overrides: Partial<ToolbarProps> = {}): ToolbarProps {
     changedSince: false,
     columnGap: 192,
     edgeStyle: "stepped",
+    diffMode: "uncommitted",
     onBack: noop,
     onTidy: noop,
     onRefresh: noop,
     onColumnGap: noop,
     onEdgeStyle: noop,
+    onDiffMode: noop,
     ...overrides,
   };
 }
@@ -122,6 +124,49 @@ describe("Toolbar", () => {
     expect(picked).toEqual([]);
     curved?.props.onClick();
     expect(picked).toEqual(["curved"]);
+  });
+
+  it("puts the Changes group after Lines and before Spacing, Uncommitted before PR", () => {
+    const html = render();
+    expect(html).toMatch(/<div[^>]*role="group"[^>]*aria-label="Changes"/);
+    expect(html.indexOf("Lines")).toBeLessThan(html.indexOf("Changes"));
+    expect(html.indexOf("Changes")).toBeLessThan(html.indexOf("Spacing"));
+    expect(html.indexOf("Uncommitted")).toBeLessThan(html.indexOf(">PR<"));
+  });
+
+  it("presses the button of the active mode only", () => {
+    const uncommitted = render({ diffMode: "uncommitted" });
+    expect(buttonTag(uncommitted, "Uncommitted")).toContain(
+      'aria-pressed="true"',
+    );
+    expect(buttonTag(uncommitted, "PR")).toContain('aria-pressed="false"');
+    const pr = render({ diffMode: "pr" });
+    expect(buttonTag(pr, "Uncommitted")).toContain('aria-pressed="false"');
+    expect(buttonTag(pr, "PR")).toContain('aria-pressed="true"');
+  });
+
+  it("reports a click on the other mode and ignores one on the active mode", () => {
+    const picked: string[] = [];
+    const tree = Toolbar({
+      ...props(),
+      diffMode: "uncommitted",
+      onDiffMode: (value) => picked.push(value),
+    });
+    const [, , uncommitted, pr] = pressableButtons(tree);
+    uncommitted?.props.onClick();
+    expect(picked).toEqual([]);
+    pr?.props.onClick();
+    expect(picked).toEqual(["pr"]);
+  });
+
+  it("gives each button its title", () => {
+    const html = render();
+    expect(buttonTag(html, "Uncommitted")).toContain(
+      'title="Colour the functions you have added or changed since your last commit"',
+    );
+    expect(buttonTag(html, "PR")).toContain(
+      'title="Colour the functions added or changed since this branch left the main branch"',
+    );
   });
 
   it("carries the slider's range, step and current value", () => {

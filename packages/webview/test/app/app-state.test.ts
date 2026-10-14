@@ -58,6 +58,7 @@ describe("createAppState", () => {
       nextToken: 1,
       reveal: undefined,
       refreshing: false,
+      diffMode: "uncommitted",
       settingsApplied: false,
     });
   });
@@ -180,6 +181,7 @@ describe("messages about the extension's work", () => {
       type: "settings",
       columnGap: 96,
       edgeStyle: "stepped",
+      diffMode: "uncommitted",
     });
     expect(next.view.columnGap).toBe(96);
     expect(next.settingsApplied).toBe(true);

@@ -192,7 +192,9 @@ const messages = {
     type: "settings",
     columnGap: 192,
     edgeStyle,
+    diffMode: "uncommitted",
   }),
+  changeMarks: (marks) => ({ type: "changeMarks", project: PROJECT, marks }),
   centre: (sourceVersion) => ({
     type: "slice",
     slice: CENTRE_SLICE,

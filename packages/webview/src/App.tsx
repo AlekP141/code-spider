@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { canRefresh, showsChangeDot } from "./app/app-refresh.js";
 import { createAppState, reduceApp } from "./app/app-state.js";
 import { isWorking } from "./app/app-working.js";
+import type { DiffMode } from "./settings/diff-mode.js";
 import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "./settings/edge-style.js";
 import { GraphView } from "./graph/GraphView.js";
 import { expandMessage, refreshMessage } from "./graph/jump.js";
@@ -65,6 +66,11 @@ export function App() {
     postToExtension({ type: "setEdgeStyle", value });
   }, []);
 
+  const onDiffMode = useCallback((value: DiffMode) => {
+    dispatch({ type: "diffModeChanged", value });
+    postToExtension({ type: "setDiffMode", value });
+  }, []);
+
   const onDragStop = useCallback(
     (positions: Record<NodeId, Point>) =>
       dispatch({ type: "dragStopped", positions }),
@@ -89,11 +95,13 @@ export function App() {
         changedSince={showsChangeDot(state)}
         columnGap={state.view.columnGap}
         edgeStyle={edgeStyle}
+        diffMode={state.diffMode}
         onBack={onBack}
         onTidy={tidy}
         onRefresh={onRefresh}
         onColumnGap={onColumnGap}
         onEdgeStyle={onEdgeStyle}
+        onDiffMode={onDiffMode}
       />
       {state.indexing ? (
         <div className="banner" role="status">

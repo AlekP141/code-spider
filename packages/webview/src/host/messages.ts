@@ -1,3 +1,4 @@
+import { isDiffMode } from "../settings/diff-mode.js";
 import { isEdgeStyle } from "../settings/edge-style.js";
 import type { ExtensionToWebview, SliceMode } from "./protocol.js";
 
@@ -23,6 +24,15 @@ function isExpansionAnswer(value: unknown): boolean {
     typeof answer.nodeId === "string" &&
     typeof answer.slice === "object" &&
     answer.slice !== null
+  );
+}
+
+function isChangeMarks(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value).every(
+    (kind) => kind === "added" || kind === "modified",
   );
 }
 
@@ -53,7 +63,9 @@ export function isExtensionMessage(
       return typeof message.indexing === "boolean";
     case "settings":
       return (
-        isFiniteNumber(message.columnGap) && isEdgeStyle(message.edgeStyle)
+        isFiniteNumber(message.columnGap) &&
+        isEdgeStyle(message.edgeStyle) &&
+        isDiffMode(message.diffMode)
       );
     case "refreshed":
       return (
@@ -72,6 +84,10 @@ export function isExtensionMessage(
       );
     case "sourceChanged":
       return isFiniteNumber(message.version);
+    case "changeMarks":
+      return (
+        typeof message.project === "string" && isChangeMarks(message.marks)
+      );
     default:
       return false;
   }

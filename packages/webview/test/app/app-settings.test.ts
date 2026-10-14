@@ -23,7 +23,12 @@ function showing(): AppState {
 }
 
 const settings = (columnGap: number, edgeStyle: unknown) =>
-  ({ type: "settings", columnGap, edgeStyle: edgeStyle as EdgeStyle }) as const;
+  ({
+    type: "settings",
+    columnGap,
+    edgeStyle: edgeStyle as EdgeStyle,
+    diffMode: "uncommitted",
+  }) as const;
 
 const pick = (state: AppState, value: EdgeStyle) =>
   reduceApp(state, { type: "edgeStyleChanged", value });

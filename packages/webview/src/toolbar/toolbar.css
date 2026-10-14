@@ -60,7 +60,8 @@
   min-width: 5ch;
 }
 
-.toolbar-lines {
+.toolbar-lines,
+.toolbar-changes {
   align-items: center;
   display: flex;
   margin-left: 8px;

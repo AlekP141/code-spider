@@ -76,6 +76,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
       type: "settings",
       columnGap: columnGap.get(),
       edgeStyle: edgeStyle.get(),
+      diffMode: diffMode.get(),
     });
   const columnGap = new ColumnGapStore(context.globalState, announce);
   const edgeStyle = new EdgeStyleStore(context.globalState, announce);

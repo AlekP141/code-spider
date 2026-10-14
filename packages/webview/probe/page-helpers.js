@@ -34,6 +34,9 @@ function pageHelpers() {
             ?.getBoundingClientRect().top,
           entering: element.classList.contains("is-entering"),
           code: element.querySelector(".node-code")?.textContent ?? "",
+          change: /\bchange-(added|modified)\b/.exec(
+            element.querySelector(".node-box")?.className ?? "",
+          )?.[1],
         };
       }
       return boxes;

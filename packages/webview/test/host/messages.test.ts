@@ -43,12 +43,17 @@ describe("isExtensionMessage", () => {
         type: "settings",
         columnGap: 192,
         edgeStyle: "curved",
+        diffMode: "uncommitted",
       }),
     ).toBe(true);
   });
 
   it("needs a known edgeStyle on settings", () => {
-    const settings = { type: "settings", columnGap: 192 };
+    const settings = {
+      type: "settings",
+      columnGap: 192,
+      diffMode: "uncommitted",
+    };
     expect(isExtensionMessage(settings)).toBe(false);
     for (const edgeStyle of ["wavy", 1, null]) {
       expect(isExtensionMessage({ ...settings, edgeStyle })).toBe(false);
@@ -128,6 +133,7 @@ describe("isExtensionMessage", () => {
         type: "settings",
         columnGap: "wide",
         edgeStyle: "stepped",
+        diffMode: "uncommitted",
       }),
     ).toBe(false);
     expect(isExtensionMessage({ type: "expandFailed", nodeId: "a#b" })).toBe(
@@ -210,6 +216,7 @@ describe("isExtensionMessage", () => {
           type: "settings",
           columnGap: bad,
           edgeStyle: "stepped",
+          diffMode: "uncommitted",
         }),
       ).toBe(false);
     }
