@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import type { NodeId } from "@code-spider/core";
+import type { DiffMode } from "@code-spider/webview/diff-mode";
 import type { ChangeTracker } from "../changes/changes.js";
 import type {
   AnalysisPort,
@@ -11,6 +12,7 @@ import type {
   PanelPort,
 } from "../ports.js";
 import { annotateSlice } from "../diff/annotate.js";
+import { ChangeReader } from "../diff/change-reader.js";
 import {
   CENTRE_GONE_MESSAGE,
   noticeUnsavedEdits,
@@ -54,6 +56,7 @@ export type SessionDeps = {
   jumps: JumpRegistry;
   documents: DocumentsPort;
   diff: DiffPort;
+  diffMode: () => DiffMode;
 };
 
 const UNKNOWN_PROJECT = "Unknown project";
@@ -65,7 +68,15 @@ export class GraphSession {
   private warming = 0;
   private lastNotifiedCrash: WorkerCrashedError | undefined;
 
-  constructor(private readonly deps: SessionDeps) {}
+  private readonly changeReader: ChangeReader;
+
+  constructor(private readonly deps: SessionDeps) {
+    this.changeReader = new ChangeReader(
+      deps.diff,
+      deps.diffMode,
+      deps.notifier,
+    );
+  }
 
   currentGraph(): CurrentGraph | undefined {
     return this.graph;
@@ -146,8 +157,7 @@ export class GraphSession {
 
   /** Rebuilds the graph on screen; never starts a newer centre request. */
   async refresh(request: RefreshGraphRequest): Promise<void> {
-    const { worker, panel, changes, jumps, documents, notifier, diff } =
-      this.deps;
+    const { worker, panel, changes, jumps, documents, notifier } = this.deps;
     const { project, generation, focusId, expanded } = request;
     if (!jumps.has(project)) {
       panel.post(refreshFailedMessage(generation, UNKNOWN_PROJECT));
@@ -164,7 +174,7 @@ export class GraphSession {
           expanded,
           files,
         );
-        const marks = await diff.changes(analysed.repoRoot);
+        const marks = await this.changeReader.read(analysed.repoRoot);
         const result = {
           ...analysed,
           centre: analysed.centre && annotateSlice(analysed.centre, marks),
@@ -206,7 +216,7 @@ export class GraphSession {
   }
 
   private async withChanges(result: FocusResult): Promise<FocusResult> {
-    const changes = await this.deps.diff.changes(result.repoRoot);
+    const changes = await this.changeReader.read(result.repoRoot);
     return { ...result, slice: annotateSlice(result.slice, changes) };
   }
 

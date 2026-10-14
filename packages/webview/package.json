@@ -6,7 +6,8 @@
   "exports": {
     "./protocol": "./src/host/protocol.ts",
     "./column-gap": "./src/settings/column-gap.ts",
-    "./edge-style": "./src/settings/edge-style.ts"
+    "./edge-style": "./src/settings/edge-style.ts",
+    "./diff-mode": "./src/settings/diff-mode.ts"
   },
   "scripts": {
     "build": "node build.mjs",

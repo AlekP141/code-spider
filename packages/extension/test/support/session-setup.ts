@@ -1,10 +1,10 @@
 import type { GraphNode } from "@code-spider/core";
+import type { DiffMode } from "@code-spider/webview/diff-mode";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 import { vi } from "vitest";
-import type { ChangeMap } from "../../src/diff/parse-diff.js";
 import { ChangeTracker } from "../../src/changes/changes.js";
 import { JumpTable } from "../../src/session/jump-table.js";
-import type { AnalysisPort, PanelPort } from "../../src/ports.js";
+import type { AnalysisPort, DiffReading, PanelPort } from "../../src/ports.js";
 import { GraphSession } from "../../src/session/session.js";
 import type { FocusResult } from "../../src/worker/protocol.js";
 
@@ -84,7 +84,15 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
   const notifier = { warn: vi.fn(), error: vi.fn(), status: vi.fn() };
   const documents = { unsavedFiles: vi.fn((): string[] => []) };
   const indexing = { set: vi.fn() };
-  const diff = { changes: vi.fn(async (): Promise<ChangeMap> => new Map()) };
+  const mode = { value: "uncommitted" as DiffMode };
+  const diff = {
+    changes: vi.fn(
+      async (_repoRoot: string, _mode: DiffMode): Promise<DiffReading> => ({
+        changes: new Map(),
+        fellBack: false,
+      }),
+    ),
+  };
   const changes = new ChangeTracker();
   const jumps = new JumpTable();
   const session = new GraphSession({
@@ -97,6 +105,7 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     jumps,
     documents,
     diff,
+    diffMode: () => mode.value,
   });
   const types = () => posted.map((message) => message.type);
   return {
@@ -106,6 +115,7 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     notifier,
     documents,
     diff,
+    mode,
     indexing,
     changes,
     jumps,

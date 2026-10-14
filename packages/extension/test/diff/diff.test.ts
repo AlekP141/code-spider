@@ -76,7 +76,10 @@ describe("annotateSlice", () => {
 describe("GraphSession with a diff", () => {
   it("posts slices with the change marks", async () => {
     const { session, diff, posted } = setup();
-    diff.changes.mockResolvedValue(parseDiff("", ["src/a.ts"]));
+    diff.changes.mockResolvedValue({
+      changes: parseDiff("", ["src/a.ts"]),
+      fellBack: false,
+    });
     await session.showGraph({
       file: "/repo/src/a.ts",
       line: 1,
@@ -87,6 +90,6 @@ describe("GraphSession with a diff", () => {
     expect(slice?.type === "slice" && slice.slice.nodes[0]?.change).toBe(
       "added",
     );
-    expect(diff.changes).toHaveBeenCalledWith("/repo");
+    expect(diff.changes).toHaveBeenCalledWith("/repo", "uncommitted");
   });
 });

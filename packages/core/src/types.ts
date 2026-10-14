@@ -25,7 +25,7 @@ export type GraphNode = {
   isAsync: boolean;
   lineCount: number;
   codePreview: string;
-  /** Set by the extension from the uncommitted git diff, not by the analyser. */
+  /** Set by the extension from the git diff (uncommitted, or against the main branch), not by the analyser. */
   change?: "added" | "modified";
 };
 

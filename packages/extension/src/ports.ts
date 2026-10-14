@@ -1,4 +1,5 @@
 import type { NodeId } from "@code-spider/core";
+import type { DiffMode } from "@code-spider/webview/diff-mode";
 import type { ChangeMap } from "./diff/parse-diff.js";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 import type {
@@ -42,9 +43,12 @@ export interface JumpRegistry {
   files(project: string): string[];
 }
 
+/** `fellBack`: "pr" found no base branch and read the uncommitted changes. */
+export type DiffReading = { changes: ChangeMap; fellBack: boolean };
+
 export interface DiffPort {
-  /** Uncommitted changes, keyed by path relative to `repoRoot`. */
-  changes(repoRoot: string): Promise<ChangeMap>;
+  /** Changes in the given mode, keyed by path relative to `repoRoot`. */
+  changes(repoRoot: string, mode: DiffMode): Promise<DiffReading>;
 }
 
 export interface DocumentsPort {

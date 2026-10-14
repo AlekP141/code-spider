@@ -3,6 +3,7 @@ import type { WebviewToExtension } from "@code-spider/webview/protocol";
 import * as vscode from "vscode";
 import { ColumnGapStore } from "./settings/column-gap.js";
 import { createDispatcher } from "./session/dispatch.js";
+import { DiffModeStore } from "./settings/diff-mode-store.js";
 import { EdgeStyleStore } from "./settings/edge-style-store.js";
 import {
   COMMAND_SHOW_GRAPH,
@@ -68,6 +69,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     jumps: jumpTable,
     documents: workspaceDocuments,
     diff: gitDiff,
+    diffMode: () => diffMode.get(),
   });
   const announce = () =>
     panel.post({
@@ -77,6 +79,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     });
   const columnGap = new ColumnGapStore(context.globalState, announce);
   const edgeStyle = new EdgeStyleStore(context.globalState, announce);
+  const diffMode = new DiffModeStore(context.globalState, announce);
   const dispatch = createDispatcher({
     jumps: new JumpHandler(jumpTable, revealer),
     session,
