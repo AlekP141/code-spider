@@ -59,6 +59,7 @@ describe("createAppState", () => {
       reveal: undefined,
       refreshing: false,
       diffMode: "uncommitted",
+      testVisibility: "show",
       settingsApplied: false,
     });
   });

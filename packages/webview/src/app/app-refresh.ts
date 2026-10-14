@@ -54,6 +54,7 @@ export function applyRefreshed(
     current,
     answer,
     current.columnGap ?? state.view.columnGap,
+    state.testVisibility,
   );
   const applied = {
     ...state,

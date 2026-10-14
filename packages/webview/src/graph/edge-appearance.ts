@@ -8,26 +8,32 @@ export type EdgeAppearance = {
 
 export const DASHED = "6 4";
 export const DOTTED = "1 5";
+export const TEST_DASH = "3 3";
 
 /**
  * Dashed means "could not be resolved" and always wins; passes edges are
- * dotted so the two never look alike. Colour comes from the class in CSS.
+ * dotted so the two never look alike. An edge that touches test code gets the
+ * `edge-test` class and, if it would be solid, a short dash. Colour comes from
+ * the class in CSS.
  */
 export function edgeAppearance(
   kind: EdgeType,
   resolved: boolean,
+  touchesTest = false,
 ): EdgeAppearance {
-  const className = resolved ? `edge-${kind}` : `edge-${kind} edge-unresolved`;
+  const base = resolved ? `edge-${kind}` : `edge-${kind} edge-unresolved`;
+  const className = touchesTest ? `${base} edge-test` : base;
   if (!resolved) {
     return { className, strokeDasharray: DASHED, strokeWidth: 1.5 };
   }
+  const solid = touchesTest ? TEST_DASH : undefined;
   switch (kind) {
     case "passes":
       return { className, strokeDasharray: DOTTED, strokeWidth: 1.5 };
     case "jsx":
-      return { className, strokeDasharray: undefined, strokeWidth: 2.5 };
+      return { className, strokeDasharray: solid, strokeWidth: 2.5 };
     case "call":
     case "external":
-      return { className, strokeDasharray: undefined, strokeWidth: 1.5 };
+      return { className, strokeDasharray: solid, strokeWidth: 1.5 };
   }
 }

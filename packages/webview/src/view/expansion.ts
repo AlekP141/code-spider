@@ -1,5 +1,9 @@
 import type { GraphSlice, NodeId } from "@code-spider/core/types";
 import { NODE_WIDTH } from "../graph/constants.js";
+import {
+  DEFAULT_TEST_VISIBILITY,
+  type TestVisibility,
+} from "../settings/test-visibility.js";
 import { nodeHeight } from "../graph/nodes/node-size.js";
 import { placeExpansion, type Rect } from "../graph/layout/placement.js";
 import type { SliceMode } from "../host/protocol.js";
@@ -9,6 +13,7 @@ import {
   setPositions,
   type Merged,
 } from "./graph-state.js";
+import { hiddenIds } from "./test-visibility.js";
 import type { GraphState, ViewState } from "./types.js";
 import { replaceCurrent } from "./view-state.js";
 
@@ -30,8 +35,9 @@ export function rectsOf(graph: GraphState): Rect[] {
 }
 
 /**
- * Merges the slice, then places the nodes it added around `nodeId`. Nodes that
- * were already there keep their positions, dragged or not. A node without a
+ * Merges the slice, then places around `nodeId` the nodes it added and, while
+ * hiding, the ones it made visible. A hidden node gets no position. Nodes that
+ * were already placed keep their positions, dragged or not. A node without a
  * position anchors at the origin.
  */
 export function applyExpansion(
@@ -39,10 +45,18 @@ export function applyExpansion(
   nodeId: NodeId,
   slice: GraphSlice,
   columnGap: number,
+  visibility: TestVisibility = DEFAULT_TEST_VISIBILITY,
 ): Merged {
   const merged = mergeExpansion(graph, nodeId, slice);
   const anchorNode = graph.nodes[nodeId];
-  if (!anchorNode || merged.added.length === 0) return merged;
+  if (!anchorNode) return merged;
+  const hiddenBefore = hiddenIds(graph, visibility);
+  const hiddenAfter = hiddenIds(merged.graph, visibility);
+  const revealed = [...hiddenBefore].filter((id) => !hiddenAfter.has(id));
+  const toPlace = [...merged.added, ...revealed].filter(
+    (id) => !hiddenAfter.has(id),
+  );
+  if (toPlace.length === 0) return { graph: merged.graph, added: [] };
   const anchor: Rect = {
     ...(graph.positions[nodeId] ?? { x: 0, y: 0 }),
     width: NODE_WIDTH,
@@ -51,7 +65,7 @@ export function applyExpansion(
   const placed = placeExpansion({
     expandedId: nodeId,
     anchor,
-    added: merged.added.flatMap((id) => {
+    added: toPlace.flatMap((id) => {
       const node = merged.graph.nodes[id];
       return node
         ? [{ id, height: nodeHeight(node, isOpen(merged.graph, id)) }]
@@ -61,7 +75,7 @@ export function applyExpansion(
     existing: rectsOf(graph),
     columnGap,
   });
-  return { graph: setPositions(merged.graph, placed), added: merged.added };
+  return { graph: setPositions(merged.graph, placed), added: toPlace };
 }
 
 /**
@@ -72,6 +86,7 @@ export function acceptExpansion(
   view: ViewState,
   answer: ExpansionAnswer,
   columnGap: number,
+  visibility: TestVisibility = DEFAULT_TEST_VISIBILITY,
 ): Accepted {
   const { slice, project, mode } = answer;
   const current = view.current;
@@ -88,6 +103,7 @@ export function acceptExpansion(
     mode.nodeId,
     slice,
     columnGap,
+    visibility,
   );
   return { view: replaceCurrent(view, graph), added };
 }

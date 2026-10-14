@@ -24,9 +24,14 @@ import {
   startExpansion,
   unpinBox,
 } from "./app-walk.js";
+import { withTestVisibility } from "./app-test-visibility.js";
 import { isWorking } from "./app-working.js";
 import { DEFAULT_DIFF_MODE, type DiffMode } from "../settings/diff-mode.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
+import {
+  DEFAULT_TEST_VISIBILITY,
+  type TestVisibility,
+} from "../settings/test-visibility.js";
 import type { Rect } from "../graph/layout/placement.js";
 import { graphFromSlice, pinNodes, setPositions } from "../view/graph-state.js";
 import { isViewState } from "../view/persist.js";
@@ -44,6 +49,7 @@ export type PendingCentre = {
   id: number;
   graph: GraphState;
   columnGap: number;
+  testVisibility: TestVisibility;
 };
 
 export type FitRequest = { token: number; duration: number };
@@ -68,6 +74,8 @@ export type AppState = {
   latestSourceVersion: number | undefined;
   /** What the box colours show; never persisted. */
   diffMode: DiffMode;
+  /** Whether test boxes are drawn; never persisted. */
+  testVisibility: TestVisibility;
   /** Only the first `settings` message after each load is applied. */
   settingsApplied: boolean;
 };
@@ -91,7 +99,8 @@ export type LocalAction =
   | { type: "refreshStarted" }
   | { type: "columnGapChanged"; value: number }
   | { type: "edgeStyleChanged"; value: EdgeStyle }
-  | { type: "diffModeChanged"; value: DiffMode };
+  | { type: "diffModeChanged"; value: DiffMode }
+  | { type: "testVisibilityChanged"; value: TestVisibility };
 
 export type AppAction = ExtensionToWebview | LocalAction;
 
@@ -114,6 +123,7 @@ export function createAppState(saved: unknown): AppState {
     refreshing: false,
     latestSourceVersion: undefined,
     diffMode: DEFAULT_DIFF_MODE,
+    testVisibility: DEFAULT_TEST_VISIBILITY,
     settingsApplied: false,
   };
 }
@@ -135,6 +145,7 @@ function startCentre(
         sourceVersion,
       },
       columnGap: state.view.columnGap,
+      testVisibility: state.testVisibility,
     },
     nextPending: state.nextPending + 1,
   };
@@ -144,7 +155,7 @@ function refit(state: AppState, duration: number): FitRequest {
   return { token: state.fit.token + 1, duration };
 }
 
-/** The slider moved while ELK ran, so lay the same centre out again. */
+/** A setting moved while ELK ran, so lay the same centre out again. */
 function relayoutPending(state: AppState, pending: PendingCentre): AppState {
   return {
     ...state,
@@ -152,6 +163,7 @@ function relayoutPending(state: AppState, pending: PendingCentre): AppState {
       ...pending,
       id: state.nextPending,
       columnGap: state.view.columnGap,
+      testVisibility: state.testVisibility,
     },
     nextPending: state.nextPending + 1,
   };
@@ -196,7 +208,10 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return applySettings(state, action);
     case "centreLaidOut": {
       if (state.pending?.id !== action.id) return state;
-      if (state.pending.columnGap !== state.view.columnGap) {
+      if (
+        state.pending.columnGap !== state.view.columnGap ||
+        state.pending.testVisibility !== state.testVisibility
+      ) {
         return relayoutPending(state, state.pending);
       }
       const { graph: laidOut, columnGap } = state.pending;
@@ -259,6 +274,8 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return withEdgeStyle(state, action.value);
     case "diffModeChanged":
       return withDiffMode(state, action.value);
+    case "testVisibilityChanged":
+      return withTestVisibility(state, action.value);
     case "changeMarks":
       return applyChangeMarks(state, action);
   }

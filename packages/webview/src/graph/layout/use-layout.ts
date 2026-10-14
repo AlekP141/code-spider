@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type Dispatch } from "react";
 import type { AppAction, AppState } from "../../app/app-state.js";
+import { hiddenIds, visibleGraph } from "../../view/test-visibility.js";
 import { layoutGraph } from "./layout.js";
 import { tidyGraph } from "./tidy-graph.js";
 
@@ -19,7 +20,9 @@ export function useGraphLayout(
   const { pending } = state;
   useEffect(() => {
     if (!pending) return;
-    layoutGraph(pending.graph, pending.columnGap).then(
+    const { graph, columnGap, testVisibility } = pending;
+    const shown = visibleGraph(graph, hiddenIds(graph, testVisibility));
+    layoutGraph(shown, columnGap).then(
       (positions) =>
         dispatch({ type: "centreLaidOut", id: pending.id, positions }),
       (error: unknown) =>
@@ -31,15 +34,19 @@ export function useGraphLayout(
     );
   }, [pending, dispatch]);
 
-  const latest = useRef(state.view);
+  const latest = useRef(state);
   useEffect(() => {
-    latest.current = state.view;
-  }, [state.view]);
+    latest.current = state;
+  }, [state]);
 
   const tidy = useCallback(() => {
     tidyGraph(
-      () => latest.current.current,
-      () => latest.current.columnGap,
+      () => {
+        const { view, testVisibility } = latest.current;
+        const graph = view.current;
+        return graph && visibleGraph(graph, hiddenIds(graph, testVisibility));
+      },
+      () => latest.current.view.columnGap,
     ).then(
       (outcome) => {
         if (outcome) dispatch({ type: "tidied", ...outcome });

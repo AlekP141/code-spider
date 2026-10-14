@@ -50,9 +50,14 @@ const EDGE_TYPES: Record<EdgeStyle, string> = {
 function toFlowEdge(
   edge: GraphEdge,
   source: GraphNode | undefined,
+  target: GraphNode | undefined,
   edgeStyle: EdgeStyle,
 ): SpiderFlowEdge {
-  const appearance = edgeAppearance(edge.kind, edge.resolved);
+  const appearance = edgeAppearance(
+    edge.kind,
+    edge.resolved,
+    source?.isTest === true || target?.isTest === true,
+  );
   const change = source?.change ? ` edge-change-${source.change}` : "";
   return {
     id: edge.id,
@@ -84,6 +89,8 @@ export function toFlow(
     nodes: Object.values(graph.nodes).map((node) =>
       toFlowNode(node, graph, labels),
     ),
-    edges: drawn.map((edge) => toFlowEdge(edge, graph.nodes[edge.from], edgeStyle)),
+    edges: drawn.map((edge) =>
+      toFlowEdge(edge, graph.nodes[edge.from], graph.nodes[edge.to], edgeStyle),
+    ),
   };
 }

@@ -4,6 +4,7 @@ import { revealRect } from "../graph/viewport/reveal.js";
 import type { ExtensionToWebview } from "../host/protocol.js";
 import { acceptExpansion } from "../view/expansion.js";
 import { collapseNode, unpinNode } from "../view/graph-state.js";
+import { forgetHidden } from "../view/test-visibility.js";
 import { replaceCurrent } from "../view/view-state.js";
 
 type SliceMessage = Extract<ExtensionToWebview, { type: "slice" }>;
@@ -42,6 +43,7 @@ export function acceptAnswer(state: AppState, message: SliceMessage): AppState {
     state.view,
     { slice: message.slice, project: message.project, mode },
     state.view.current?.columnGap ?? state.view.columnGap,
+    state.testVisibility,
   );
   if (view === state.view) return state;
   const loading = state.loading.filter((id) => id !== mode.nodeId);
@@ -102,8 +104,9 @@ export function expireEntering(state: AppState, token: number): AppState {
 export function collapseExpanded(state: AppState, nodeId: NodeId): AppState {
   const current = state.view.current;
   if (!current) return state;
-  const collapsed = collapseNode(current, nodeId);
-  if (collapsed === current) return state;
+  const cut = collapseNode(current, nodeId);
+  if (cut === current) return state;
+  const collapsed = forgetHidden(cut, state.testVisibility);
   const stays = (id: NodeId) => Object.hasOwn(collapsed.nodes, id);
   return {
     ...state,

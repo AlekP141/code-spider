@@ -16,6 +16,7 @@ import { useDelayedFlag } from "./app/use-delayed-flag.js";
 import { usePersistedView } from "./app/use-persisted-view.js";
 import { useWalkTimers } from "./app/use-walk-timers.js";
 import { getSavedState, postToExtension } from "./host/vscode-api.js";
+import { hiddenIds, visibleGraph } from "./view/test-visibility.js";
 import type { Point } from "./view/types.js";
 import { canGoBack } from "./view/view-state.js";
 
@@ -34,6 +35,14 @@ export function App() {
   const spinner = useDelayedFlag(working, SPINNER_DELAY_MS);
   const edgeStyle = state.view.edgeStyle ?? DEFAULT_EDGE_STYLE;
   const graph = state.view.current;
+  const hidden = useMemo(
+    () => (graph ? hiddenIds(graph, state.testVisibility) : undefined),
+    [graph, state.testVisibility],
+  );
+  const shown = useMemo(
+    () => (graph && hidden ? visibleGraph(graph, hidden) : undefined),
+    [graph, hidden],
+  );
   const project = graph?.project;
   const generation = graph?.generation;
 
@@ -117,9 +126,9 @@ export function App() {
         <div className="spinner" role="status" aria-label="Analysing" />
       ) : null}
       <section className="content">
-        {graph ? (
+        {shown ? (
           <GraphView
-            graph={graph}
+            graph={shown}
             columnGap={state.view.columnGap}
             edgeStyle={edgeStyle}
             fit={state.fit}

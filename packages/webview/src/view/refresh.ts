@@ -5,6 +5,10 @@ import { makeRoom } from "../graph/layout/make-room.js";
 import { hasCodeRegion, nodeHeight } from "../graph/nodes/node-size.js";
 import { placeExpansion } from "../graph/layout/placement.js";
 import type { ExtensionToWebview } from "../host/protocol.js";
+import {
+  DEFAULT_TEST_VISIBILITY,
+  type TestVisibility,
+} from "../settings/test-visibility.js";
 import { rectsOf } from "./expansion.js";
 import {
   graphFromSlice,
@@ -14,6 +18,7 @@ import {
 } from "./graph-state.js";
 import { freshPerSlice, restackPass, type Applied } from "./refresh-order.js";
 import { roomBoxes } from "./room-boxes.js";
+import { hiddenIds } from "./test-visibility.js";
 import type { GraphState, Point } from "./types.js";
 
 export type RefreshAnswer = Extract<ExtensionToWebview, { type: "refreshed" }>;
@@ -113,26 +118,30 @@ function placePass(input: {
  * The graph a refresh answer describes, with the user's positions and pins
  * kept, the boxes that grew given room, and the new nodes placed around the
  * box whose slice first listed them. `current` is the graph as the answer
- * arrives; the caller has checked the answer belongs to it.
+ * arrives; the caller has checked the answer belongs to it. While hiding, a
+ * box the new code hides loses its placement and gets none until it shows.
  */
 export function rebuildGraph(
   current: GraphState,
   answer: RefreshAnswer,
   columnGap: number,
+  visibility: TestVisibility = DEFAULT_TEST_VISIBILITY,
 ): Rebuilt {
   const { graph: sliced, applied } = rebuildSlices(current, answer);
-  const has = (nodeId: NodeId) => Object.hasOwn(sliced.nodes, nodeId);
+  const hidden = hiddenIds(sliced, visibility);
+  const shown = (nodeId: NodeId) =>
+    Object.hasOwn(sliced.nodes, nodeId) && !hidden.has(nodeId);
   const rebuilt: GraphState = {
     ...sliced,
     open: (current.open ?? []).filter((nodeId) => {
       const node = sliced.nodes[nodeId];
-      return node !== undefined && hasCodeRegion(node);
+      return node !== undefined && shown(nodeId) && hasCodeRegion(node);
     }),
   };
-  const pinned = current.pinned.filter(has);
+  const pinned = current.pinned.filter(shown);
   const pinnedIds = new Set(pinned);
   const kept = Object.fromEntries(
-    Object.entries(current.positions).filter(([nodeId]) => has(nodeId)),
+    Object.entries(current.positions).filter(([nodeId]) => shown(nodeId)),
   );
   const heights = Object.fromEntries(
     Object.values(rebuilt.nodes).map((node) => [
@@ -141,7 +150,11 @@ export function rebuildGraph(
     ]),
   );
   const owners = walkParents(rebuilt);
-  const fresh = freshPerSlice(applied, new Set(Object.keys(kept)), owners);
+  const fresh = freshPerSlice(
+    applied,
+    new Set(Object.keys(kept)),
+    owners,
+  ).map((ids) => ids.filter(shown));
 
   const restacked = restackPass({
     applied,
