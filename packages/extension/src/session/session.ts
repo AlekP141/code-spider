@@ -21,6 +21,7 @@ import {
   refreshFailedMessage,
 } from "./session-refresh.js";
 import type { FocusResult } from "../worker/protocol.js";
+import { postChangeMarks } from "./session-recolour.js";
 import { WorkerCrashedError } from "../worker/worker-client.js";
 
 export type FocusRequest = {
@@ -197,6 +198,16 @@ export class GraphSession {
         panel.post(refreshFailedMessage(generation, message));
         this.notifyCrash(error, message);
       }
+    });
+  }
+
+  /** Recolours what the panel shows; no busy state, no new graph. */
+  async recolour(): Promise<void> {
+    this.changeReader.resetWarning();
+    await postChangeMarks({
+      jumps: this.deps.jumps,
+      panel: this.deps.panel,
+      reader: this.changeReader,
     });
   }
 

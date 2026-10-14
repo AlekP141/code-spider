@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annotateSlice } from "../../src/diff/annotate.js";
+import { annotateSlice, changeMarks } from "../../src/diff/annotate.js";
 import { parseDiff } from "../../src/diff/parse-diff.js";
 import { resultFor, setup } from "../support/session-setup.js";
 
@@ -70,6 +70,37 @@ describe("annotateSlice", () => {
       [],
     );
     expect(annotateSlice(slice, far).nodes[0]?.change).toBeUndefined();
+  });
+});
+
+describe("changeMarks", () => {
+  const nodes = resultFor("src/a.ts#f", ["src/b.ts#g", "src/c.ts#h"]).slice
+    .nodes;
+  const changes = parseDiff(DIFF, ["src/c.ts"]);
+
+  it("lists added and modified nodes by the rule annotateSlice uses", () => {
+    const external = { ...nodes[1]!, id: "external:x#y", file: "" };
+    expect(changeMarks([...nodes, external], changes)).toEqual({
+      "src/a.ts#f": "modified",
+      "src/c.ts#h": "added",
+    });
+  });
+
+  it("ignores a change already set on a node", () => {
+    const stale = nodes.map((node) => ({ ...node, change: "added" as const }));
+    const far = parseDiff(
+      "--- a/src/a.ts\n+++ b/src/a.ts\n@@ -30 +30 @@\n",
+      [],
+    );
+    expect(changeMarks(stale, far)).toEqual({});
+    expect(changeMarks(stale, changes)).toEqual({
+      "src/a.ts#f": "modified",
+      "src/c.ts#h": "added",
+    });
+  });
+
+  it("is empty for an empty change map", () => {
+    expect(changeMarks(nodes, new Map())).toEqual({});
   });
 });
 

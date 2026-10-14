@@ -147,6 +147,51 @@ describe("JumpTable", () => {
     expect(table.files("/nope/tsconfig.json")).toEqual([]);
   });
 
+  it("lists each project with its repo root", () => {
+    const table = new JumpTable();
+    const other = "/other/tsconfig.json";
+    table.add(project, sent(golden));
+    table.add(other, { slice: golden, repoRoot: "/other", tsconfig: other });
+    expect(table.projects()).toEqual([
+      { project, repoRoot: basic },
+      { project: other, repoRoot: "/other" },
+    ]);
+  });
+
+  it("returns every node sent for a project, later slices overwriting earlier ones", () => {
+    const table = new JumpTable();
+    table.add(project, sent(golden));
+    const moved: GraphNode = {
+      ...nodeOf("src/signup.ts#createUser"),
+      range: { startLine: 21, startColumn: 3, endLine: 23, endColumn: 2 },
+    };
+    const added: GraphNode = {
+      ...moved,
+      id: "src/extra.ts#extra",
+      file: "src/extra.ts",
+    };
+    table.add(
+      project,
+      sent({
+        focusId: moved.id,
+        nodes: [moved, added],
+        edges: [],
+        truncated: false,
+      }),
+    );
+    const nodes = table.nodes(project);
+    expect(nodes.map((node) => node.id).sort()).toEqual(
+      [...golden.nodes.map((node) => node.id), added.id].sort(),
+    );
+    expect(nodes.find((node) => node.id === moved.id)).toEqual(moved);
+  });
+
+  it("returns no nodes for an unknown project", () => {
+    const table = new JumpTable();
+    table.add(project, sent(golden));
+    expect(table.nodes("/nope/tsconfig.json")).toEqual([]);
+  });
+
   it("forgets everything on clear", () => {
     const table = new JumpTable();
     table.add(project, sent(golden));

@@ -1,3 +1,4 @@
+import { isDiffMode } from "@code-spider/webview/diff-mode";
 import { isEdgeStyle } from "@code-spider/webview/edge-style";
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 
@@ -63,6 +64,10 @@ export function parseWebviewMessage(
     case "setEdgeStyle":
       return isEdgeStyle(message.value)
         ? { type: "setEdgeStyle", value: message.value }
+        : undefined;
+    case "setDiffMode":
+      return isDiffMode(message.value)
+        ? { type: "setDiffMode", value: message.value }
         : undefined;
     default:
       return undefined;

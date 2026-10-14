@@ -86,6 +86,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     session,
     columnGap,
     edgeStyle,
+    diffMode,
   });
   announce();
   const showGraph = async (uri?: vscode.Uri, position?: vscode.Position) => {

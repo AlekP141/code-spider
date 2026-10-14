@@ -1,4 +1,4 @@
-import type { NodeId } from "@code-spider/core";
+import type { GraphNode, NodeId } from "@code-spider/core";
 import type { DiffMode } from "@code-spider/webview/diff-mode";
 import type { ChangeMap } from "./diff/parse-diff.js";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
@@ -41,6 +41,9 @@ export interface JumpRegistry {
   has(project: string): boolean;
   /** Absolute paths of the files of every node known for the project. */
   files(project: string): string[];
+  projects(): { project: string; repoRoot: string }[];
+  /** Every node sent for the project, later slices overwriting earlier ones. */
+  nodes(project: string): GraphNode[];
 }
 
 /** `fellBack`: "pr" found no base branch and read the uncommitted changes. */

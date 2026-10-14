@@ -111,6 +111,24 @@ describe("parseWebviewMessage", () => {
     }
   });
 
+  it("accepts setDiffMode with a known mode", () => {
+    for (const value of ["uncommitted", "pr"]) {
+      expect(parseWebviewMessage({ type: "setDiffMode", value })).toEqual({
+        type: "setDiffMode",
+        value,
+      });
+    }
+  });
+
+  it("drops setDiffMode with an unknown, missing or non-string mode", () => {
+    expect(parseWebviewMessage({ type: "setDiffMode" })).toBeUndefined();
+    for (const value of ["PR", "main", "", 1, null, undefined, ["pr"]]) {
+      expect(
+        parseWebviewMessage({ type: "setDiffMode", value }),
+      ).toBeUndefined();
+    }
+  });
+
   it("drops anything malformed or unknown", () => {
     expect(parseWebviewMessage(null)).toBeUndefined();
     expect(parseWebviewMessage("ready")).toBeUndefined();

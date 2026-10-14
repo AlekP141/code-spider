@@ -1,5 +1,6 @@
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 import type { ColumnGapStore } from "../settings/column-gap.js";
+import type { DiffModeStore } from "../settings/diff-mode-store.js";
 import type { EdgeStyleStore } from "../settings/edge-style-store.js";
 import type { JumpMessage } from "./navigation.js";
 import type { GraphSession } from "./session.js";
@@ -13,9 +14,10 @@ export type Dispatch = (message: WebviewToExtension) => Promise<void>;
 /** `ready` belongs to the panel's gate. */
 export function createDispatcher(deps: {
   jumps: JumpPort;
-  session: Pick<GraphSession, "focusNode" | "expand" | "refresh">;
+  session: Pick<GraphSession, "focusNode" | "expand" | "refresh" | "recolour">;
   columnGap: Pick<ColumnGapStore, "set">;
   edgeStyle: Pick<EdgeStyleStore, "set">;
+  diffMode: Pick<DiffModeStore, "set">;
 }): Dispatch {
   return async (message) => {
     switch (message.type) {
@@ -44,6 +46,9 @@ export function createDispatcher(deps: {
         return deps.columnGap.set(message.value);
       case "setEdgeStyle":
         return deps.edgeStyle.set(message.value);
+      case "setDiffMode":
+        await deps.diffMode.set(message.value);
+        return deps.session.recolour();
       case "ready":
         return;
     }

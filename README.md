@@ -20,6 +20,7 @@ In the graph you can:
   - `Tidy` lines up the boxes again. Boxes you dragged stay where they are. It also removes the empty space left by boxes you closed.
   - `Refresh` reads the code again. A dot appears on it when a file has been saved since the graph was drawn.
   - `Stepped` and `Curved` change how the lines are drawn.
+  - `Uncommitted` and `PR` choose which functions are coloured as added or changed. `Uncommitted` colours what you have not committed yet. `PR` colours everything that is new or changed since your branch left the main branch, whether it is committed or not. If there is no main branch, `PR` shows the uncommitted changes instead and says so once.
   - `Spacing` changes how far apart the boxes are. Boxes you dragged stay where they are.
 
 ## Open a graph

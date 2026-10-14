@@ -7,7 +7,9 @@ function setup() {
     focusNode: vi.fn(async () => undefined),
     expand: vi.fn(async () => undefined),
     refresh: vi.fn(async () => undefined),
+    recolour: vi.fn(async () => undefined),
   };
+  const diffMode = { set: vi.fn(async () => undefined) };
   const columnGap = { set: vi.fn(async () => undefined) };
   const edgeStyle = { set: vi.fn(async () => undefined) };
   return {
@@ -15,7 +17,14 @@ function setup() {
     session,
     columnGap,
     edgeStyle,
-    dispatch: createDispatcher({ jumps, session, columnGap, edgeStyle }),
+    diffMode,
+    dispatch: createDispatcher({
+      jumps,
+      session,
+      columnGap,
+      edgeStyle,
+      diffMode,
+    }),
   };
 }
 
@@ -69,16 +78,19 @@ describe("createDispatcher", () => {
   });
 
   it("routes setColumnGap to the store and runs nothing else", async () => {
-    const { jumps, session, columnGap, dispatch } = setup();
+    const { jumps, session, columnGap, diffMode, dispatch } = setup();
     await dispatch({ type: "setColumnGap", value: 128 });
     expect(columnGap.set.mock.calls).toEqual([[128]]);
     expect(jumps.handle).not.toHaveBeenCalled();
     expect(session.focusNode).not.toHaveBeenCalled();
     expect(session.expand).not.toHaveBeenCalled();
+    expect(session.recolour).not.toHaveBeenCalled();
+    expect(diffMode.set).not.toHaveBeenCalled();
   });
 
   it("routes setEdgeStyle to its store and runs nothing else", async () => {
-    const { jumps, session, columnGap, edgeStyle, dispatch } = setup();
+    const { jumps, session, columnGap, edgeStyle, diffMode, dispatch } =
+      setup();
     await dispatch({ type: "setEdgeStyle", value: "curved" });
     expect(edgeStyle.set.mock.calls).toEqual([["curved"]]);
     expect(columnGap.set).not.toHaveBeenCalled();
@@ -86,10 +98,13 @@ describe("createDispatcher", () => {
     expect(session.focusNode).not.toHaveBeenCalled();
     expect(session.expand).not.toHaveBeenCalled();
     expect(session.refresh).not.toHaveBeenCalled();
+    expect(session.recolour).not.toHaveBeenCalled();
+    expect(diffMode.set).not.toHaveBeenCalled();
   });
 
   it("routes refresh to the session with its four fields and runs nothing else", async () => {
-    const { jumps, session, columnGap, edgeStyle, dispatch } = setup();
+    const { jumps, session, columnGap, edgeStyle, diffMode, dispatch } =
+      setup();
     await dispatch({
       type: "refresh",
       project: "/p/tsconfig.json",
@@ -112,10 +127,13 @@ describe("createDispatcher", () => {
     expect(session.expand).not.toHaveBeenCalled();
     expect(columnGap.set).not.toHaveBeenCalled();
     expect(edgeStyle.set).not.toHaveBeenCalled();
+    expect(session.recolour).not.toHaveBeenCalled();
+    expect(diffMode.set).not.toHaveBeenCalled();
   });
 
   it("ignores ready", async () => {
-    const { jumps, session, columnGap, edgeStyle, dispatch } = setup();
+    const { jumps, session, columnGap, edgeStyle, diffMode, dispatch } =
+      setup();
     await dispatch({ type: "ready" });
     expect(jumps.handle).not.toHaveBeenCalled();
     expect(session.focusNode).not.toHaveBeenCalled();
@@ -123,5 +141,37 @@ describe("createDispatcher", () => {
     expect(session.refresh).not.toHaveBeenCalled();
     expect(columnGap.set).not.toHaveBeenCalled();
     expect(edgeStyle.set).not.toHaveBeenCalled();
+    expect(session.recolour).not.toHaveBeenCalled();
+    expect(diffMode.set).not.toHaveBeenCalled();
+  });
+
+  it("routes setDiffMode to its store, then recolours, and runs nothing else", async () => {
+    const { jumps, session, columnGap, edgeStyle, diffMode, dispatch } =
+      setup();
+    const order: string[] = [];
+    diffMode.set.mockImplementation(async () => {
+      order.push("set");
+    });
+    session.recolour.mockImplementation(async () => {
+      order.push("recolour");
+    });
+    await dispatch({ type: "setDiffMode", value: "pr" });
+    expect(diffMode.set.mock.calls).toEqual([["pr"]]);
+    expect(order).toEqual(["set", "recolour"]);
+    expect(jumps.handle).not.toHaveBeenCalled();
+    expect(session.focusNode).not.toHaveBeenCalled();
+    expect(session.expand).not.toHaveBeenCalled();
+    expect(session.refresh).not.toHaveBeenCalled();
+    expect(columnGap.set).not.toHaveBeenCalled();
+    expect(edgeStyle.set).not.toHaveBeenCalled();
+  });
+
+  it("does not recolour when the store rejects", async () => {
+    const { session, diffMode, dispatch } = setup();
+    diffMode.set.mockRejectedValue(new Error("disk full"));
+    await expect(
+      dispatch({ type: "setDiffMode", value: "pr" }),
+    ).rejects.toThrow("disk full");
+    expect(session.recolour).not.toHaveBeenCalled();
   });
 });

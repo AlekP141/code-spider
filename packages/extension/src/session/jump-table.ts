@@ -21,25 +21,36 @@ type ProjectJumps = {
  * the project keeps two projects' ids apart.
  */
 export class JumpTable implements JumpRegistry, JumpLookup {
-  private readonly projects = new Map<string, ProjectJumps>();
+  private readonly byProject = new Map<string, ProjectJumps>();
 
   add(project: string, result: FocusResult): void {
-    const known = this.projects.get(project) ?? {
+    const known = this.byProject.get(project) ?? {
       repoRoot: result.repoRoot,
       nodes: new Map(),
       edges: new Map(),
     };
     for (const node of result.slice.nodes) known.nodes.set(node.id, node);
     for (const edge of result.slice.edges) known.edges.set(edge.id, edge);
-    this.projects.set(project, known);
+    this.byProject.set(project, known);
   }
 
   has(project: string): boolean {
-    return this.projects.has(project);
+    return this.byProject.has(project);
+  }
+
+  projects(): { project: string; repoRoot: string }[] {
+    return [...this.byProject].map(([project, { repoRoot }]) => ({
+      project,
+      repoRoot,
+    }));
+  }
+
+  nodes(project: string): GraphNode[] {
+    return [...(this.byProject.get(project)?.nodes.values() ?? [])];
   }
 
   files(project: string): string[] {
-    const known = this.projects.get(project);
+    const known = this.byProject.get(project);
     if (!known) return [];
     const files = new Set<string>();
     for (const { file } of known.nodes.values()) {
@@ -49,19 +60,19 @@ export class JumpTable implements JumpRegistry, JumpLookup {
   }
 
   nodeTarget(project: string, nodeId: NodeId): JumpTarget | undefined {
-    const known = this.projects.get(project);
+    const known = this.byProject.get(project);
     if (!known) return undefined;
     return nodeJumpTarget(known.repoRoot, known.nodes.get(nodeId));
   }
 
   callSiteTarget(project: string, edgeId: string): JumpTarget | undefined {
-    const known = this.projects.get(project);
+    const known = this.byProject.get(project);
     const edge = known?.edges.get(edgeId);
     if (!known || !edge) return undefined;
     return callSiteJumpTarget(known.repoRoot, edge, known.nodes.get(edge.to));
   }
 
   clear(): void {
-    this.projects.clear();
+    this.byProject.clear();
   }
 }
