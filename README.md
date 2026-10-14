@@ -26,7 +26,7 @@ In the graph you can:
 
 Put your cursor in a function in a TypeScript or JavaScript file, then do one of these:
 
-- Press `Shift+Alt+Q` (`Cmd+Shift+Q` on a Mac).
+- Press `Ctrl+Alt+S` (`Cmd+Ctrl+S` on a Mac).
 - Right-click in the editor and choose "Show in Code Spider".
 - Open the command palette (`Ctrl+Shift+P`, or `Cmd+Shift+P` on a Mac) and choose "Code Spider: Show Graph".
 

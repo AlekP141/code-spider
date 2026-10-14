@@ -50,12 +50,12 @@ describe("extension manifest", () => {
     expect([...activationEvents].sort()).toEqual([...expected].sort());
   });
 
-  it("binds Shift+Alt+Q, and Cmd+Shift+Q on a Mac, in TS/JS editors only", () => {
+  it("binds Ctrl+Alt+S, and Cmd+Ctrl+S on a Mac, in TS/JS editors only", () => {
     expect(contributes.keybindings).toEqual([
       {
         command: COMMAND_SHOW_GRAPH,
-        key: "shift+alt+q",
-        mac: "cmd+shift+q",
+        key: "ctrl+alt+s",
+        mac: "cmd+ctrl+s",
         when: `editorTextFocus && (${languageClause})`,
       },
     ]);

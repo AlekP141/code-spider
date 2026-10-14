@@ -1,11 +1,13 @@
-// Fails if Shift+Alt+Q is bound by default in the downloaded VS Code build.
-// A chord is Shift (1024) + Alt (512) + the key code; KeyQ is 47, KeyF is 36.
+// Fails if Ctrl+Alt+S or Cmd+Ctrl+S is bound by default in the downloaded VS Code build.
+// A chord is the modifiers + the key code: Ctrl/Cmd 2048, Shift 1024, Alt 512,
+// WinCtrl 256; KeyS is 49, KeyF is 36.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CACHE_PATH, VSCODE_VERSION } from "./vscode.mjs";
 
 const SHIFT_ALT = 1024 + 512;
-const SHIFT_ALT_Q = SHIFT_ALT + 47;
+const CTRL_ALT_S = 2048 + 512 + 49;
+const CMD_CTRL_S = 2048 + 256 + 49;
 const SHIFT_ALT_F = SHIFT_ALT + 36;
 
 const install = `vscode-linux-x64-${VSCODE_VERSION}`;
@@ -42,15 +44,24 @@ const builtIn = readdirSync(join(app, "extensions"), { withFileTypes: true })
   .map((entry) => join(app, "extensions", entry.name, "package.json"))
   .filter((path) => {
     try {
-      return /"key"\s*:\s*"shift\+alt\+q"/i.test(readFileSync(path, "utf8"));
+      return /"key"\s*:\s*"(ctrl\+alt\+s|cmd\+ctrl\+s)"/i.test(
+        readFileSync(path, "utf8"),
+      );
     } catch {
       return false;
     }
   });
 
-const conflicts = [...bindingsFor(SHIFT_ALT_Q), ...builtIn];
+const conflicts = [
+  ...bindingsFor(CTRL_ALT_S),
+  ...bindingsFor(CMD_CTRL_S),
+  ...builtIn,
+];
 if (conflicts.length > 0) {
-  console.error(`Shift+Alt+Q is already bound in ${install}:`, conflicts);
+  console.error(
+    `Ctrl+Alt+S or Cmd+Ctrl+S is already bound in ${install}:`,
+    conflicts,
+  );
   process.exit(1);
 }
-console.log(`Shift+Alt+Q is unbound by default in ${install}`);
+console.log(`Ctrl+Alt+S and Cmd+Ctrl+S are unbound by default in ${install}`);

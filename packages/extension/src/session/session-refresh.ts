@@ -5,7 +5,7 @@ import type { DocumentsPort, JumpRegistry, Notifier } from "../ports.js";
 import type { FocusResult, RefreshResult } from "../worker/protocol.js";
 
 export const CENTRE_GONE_MESSAGE =
-  "The function at the centre of this graph no longer exists. Put the cursor in a function and press Shift+Alt+Q.";
+  "The function at the centre of this graph no longer exists. Put the cursor in a function and press Ctrl+Alt+S.";
 
 export function refreshFailedMessage(
   generation: number,
