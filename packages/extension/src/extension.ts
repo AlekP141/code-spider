@@ -13,6 +13,7 @@ import { JumpTable } from "./session/jump-table.js";
 import { JumpHandler } from "./session/navigation.js";
 import { GraphPanel } from "./panel/graph-panel.js";
 import { GraphSession, type CurrentGraph } from "./session/session.js";
+import { gitDiff } from "./diff/git-diff.js";
 import { createSourceChanges } from "./changes/source-changes.js";
 import { WarmOnce } from "./changes/warm-once.js";
 import { workspaceDocuments } from "./vscode/documents.js";
@@ -66,6 +67,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     maxHeapMb: getMaxHeapMb,
     jumps: jumpTable,
     documents: workspaceDocuments,
+    diff: gitDiff,
   });
   const announce = () =>
     panel.post({

@@ -120,6 +120,7 @@ export function NodeBox({
   const showsCode = open && hasCodeRegion(node);
   const classes = ["node-box", `kind-${node.kind}`];
   if (isFocus) classes.push("is-focus");
+  if (node.change) classes.push(`change-${node.change}`);
   classes.push(showsCode ? "is-open" : "is-closed");
   const clipped = node.lineCount > MAX_CODE_LINES;
 

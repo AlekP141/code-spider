@@ -3,12 +3,14 @@ import type { NodeId } from "@code-spider/core";
 import type { ChangeTracker } from "../changes/changes.js";
 import type {
   AnalysisPort,
+  DiffPort,
   DocumentsPort,
   IndexingIndicator,
   JumpRegistry,
   Notifier,
   PanelPort,
 } from "../ports.js";
+import { annotateSlice } from "../diff/annotate.js";
 import {
   CENTRE_GONE_MESSAGE,
   noticeUnsavedEdits,
@@ -51,6 +53,7 @@ export type SessionDeps = {
   maxHeapMb: () => number;
   jumps: JumpRegistry;
   documents: DocumentsPort;
+  diff: DiffPort;
 };
 
 const UNKNOWN_PROJECT = "Unknown project";
@@ -122,10 +125,8 @@ export class GraphSession {
       return;
     }
     try {
-      const result = await worker.sliceForNode(
-        project,
-        nodeId,
-        changes.drain().files,
+      const result = await this.withChanges(
+        await worker.sliceForNode(project, nodeId, changes.drain().files),
       );
       if (!jumps.has(project)) return;
       jumps.add(result.tsconfig, result);
@@ -145,7 +146,8 @@ export class GraphSession {
 
   /** Rebuilds the graph on screen; never starts a newer centre request. */
   async refresh(request: RefreshGraphRequest): Promise<void> {
-    const { worker, panel, changes, jumps, documents, notifier } = this.deps;
+    const { worker, panel, changes, jumps, documents, notifier, diff } =
+      this.deps;
     const { project, generation, focusId, expanded } = request;
     if (!jumps.has(project)) {
       panel.post(refreshFailedMessage(generation, UNKNOWN_PROJECT));
@@ -156,7 +158,21 @@ export class GraphSession {
       try {
         noticeUnsavedEdits(project, jumps, documents, notifier);
         const { files, version } = changes.drain();
-        const result = await worker.refresh(project, focusId, expanded, files);
+        const analysed = await worker.refresh(
+          project,
+          focusId,
+          expanded,
+          files,
+        );
+        const marks = await diff.changes(analysed.repoRoot);
+        const result = {
+          ...analysed,
+          centre: analysed.centre && annotateSlice(analysed.centre, marks),
+          expansions: analysed.expansions.map(({ nodeId, slice }) => ({
+            nodeId,
+            slice: annotateSlice(slice, marks),
+          })),
+        };
         if (token !== this.latest || !panel.isOpen()) return;
         const { centre } = result;
         if (!centre) {
@@ -189,6 +205,11 @@ export class GraphSession {
     }
   }
 
+  private async withChanges(result: FocusResult): Promise<FocusResult> {
+    const changes = await this.deps.diff.changes(result.repoRoot);
+    return { ...result, slice: annotateSlice(result.slice, changes) };
+  }
+
   /** The newest centre request wins; older answers are dropped. */
   private async replaceGraph(
     analyse: () => Promise<{ result: FocusResult; version: number }>,
@@ -197,7 +218,9 @@ export class GraphSession {
     const token = ++this.latest;
     await this.withBusy(async () => {
       try {
-        const { result, version } = await analyse();
+        const analysed = await analyse();
+        const result = await this.withChanges(analysed.result);
+        const { version } = analysed;
         if (token !== this.latest || !panel.isOpen()) return;
         this.graph = result;
         jumps.add(result.tsconfig, result);

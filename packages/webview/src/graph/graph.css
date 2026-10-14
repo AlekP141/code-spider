@@ -56,6 +56,16 @@
   stroke: var(--vscode-editorWarning-foreground);
 }
 
+.react-flow__edge.edge-change-added .react-flow__edge-path {
+  opacity: 1;
+  stroke: var(--vscode-gitDecoration-addedResourceForeground);
+}
+
+.react-flow__edge.edge-change-modified .react-flow__edge-path {
+  opacity: 1;
+  stroke: var(--vscode-gitDecoration-modifiedResourceForeground);
+}
+
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: var(--vscode-focusBorder);
 }
@@ -81,6 +91,29 @@
 .node-box.is-focus {
   outline: 2px solid var(--vscode-focusBorder);
   outline-offset: -2px;
+}
+
+.node-box.change-added {
+  --change-colour: var(--vscode-gitDecoration-addedResourceForeground);
+}
+
+.node-box.change-modified {
+  --change-colour: var(--vscode-gitDecoration-modifiedResourceForeground);
+}
+
+.node-box.change-added,
+.node-box.change-modified {
+  background: color-mix(
+    in srgb,
+    var(--change-colour) 10%,
+    var(--vscode-editorWidget-background, var(--vscode-editor-background))
+  );
+  outline-color: var(--change-colour);
+}
+
+.node-box.change-added .node-name,
+.node-box.change-modified .node-name {
+  color: var(--change-colour);
 }
 
 .node-box.kind-unknown {

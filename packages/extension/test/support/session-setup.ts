@@ -1,6 +1,7 @@
 import type { GraphNode } from "@code-spider/core";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 import { vi } from "vitest";
+import type { ChangeMap } from "../../src/diff/parse-diff.js";
 import { ChangeTracker } from "../../src/changes/changes.js";
 import { JumpTable } from "../../src/session/jump-table.js";
 import type { AnalysisPort, PanelPort } from "../../src/ports.js";
@@ -83,6 +84,7 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
   const notifier = { warn: vi.fn(), error: vi.fn(), status: vi.fn() };
   const documents = { unsavedFiles: vi.fn((): string[] => []) };
   const indexing = { set: vi.fn() };
+  const diff = { changes: vi.fn(async (): Promise<ChangeMap> => new Map()) };
   const changes = new ChangeTracker();
   const jumps = new JumpTable();
   const session = new GraphSession({
@@ -94,6 +96,7 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     maxHeapMb: () => 4096,
     jumps,
     documents,
+    diff,
   });
   const types = () => posted.map((message) => message.type);
   return {
@@ -102,6 +105,7 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     worker,
     notifier,
     documents,
+    diff,
     indexing,
     changes,
     jumps,

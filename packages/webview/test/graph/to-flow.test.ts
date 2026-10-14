@@ -297,3 +297,28 @@ describe("toFlow open and closed boxes", () => {
     }
   });
 });
+
+describe("toFlow change marks", () => {
+  const slice = makeSlice(
+    "src/a.ts#f",
+    [
+      makeNode({ id: "src/a.ts#f", change: "added" }),
+      makeNode({ id: "src/a.ts#g", change: "modified" }),
+      makeNode({ id: "src/a.ts#h" }),
+    ],
+    [
+      makeEdge("src/a.ts#f", "src/a.ts#g"),
+      makeEdge("src/a.ts#g", "src/a.ts#h"),
+      makeEdge("src/a.ts#h", "src/a.ts#f"),
+    ],
+  );
+
+  it("colours each edge by the node it leaves", () => {
+    const { edges } = flowOf(slice);
+    expect(edges.map((edge) => edge.className)).toEqual([
+      "edge-call edge-change-added",
+      "edge-call edge-change-modified",
+      "edge-call",
+    ]);
+  });
+});

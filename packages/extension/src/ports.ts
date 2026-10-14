@@ -1,4 +1,5 @@
 import type { NodeId } from "@code-spider/core";
+import type { ChangeMap } from "./diff/parse-diff.js";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 import type {
   ExpandResult,
@@ -39,6 +40,11 @@ export interface JumpRegistry {
   has(project: string): boolean;
   /** Absolute paths of the files of every node known for the project. */
   files(project: string): string[];
+}
+
+export interface DiffPort {
+  /** Uncommitted changes, keyed by path relative to `repoRoot`. */
+  changes(repoRoot: string): Promise<ChangeMap>;
 }
 
 export interface DocumentsPort {

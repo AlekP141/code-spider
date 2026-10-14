@@ -47,14 +47,19 @@ const EDGE_TYPES: Record<EdgeStyle, string> = {
   curved: "default",
 };
 
-function toFlowEdge(edge: GraphEdge, edgeStyle: EdgeStyle): SpiderFlowEdge {
+function toFlowEdge(
+  edge: GraphEdge,
+  source: GraphNode | undefined,
+  edgeStyle: EdgeStyle,
+): SpiderFlowEdge {
   const appearance = edgeAppearance(edge.kind, edge.resolved);
+  const change = source?.change ? ` edge-change-${source.change}` : "";
   return {
     id: edge.id,
     source: edge.from,
     target: edge.to,
     type: EDGE_TYPES[edgeStyle],
-    className: appearance.className,
+    className: appearance.className + change,
     style: {
       strokeDasharray: appearance.strokeDasharray,
       strokeWidth: appearance.strokeWidth,
@@ -79,6 +84,6 @@ export function toFlow(
     nodes: Object.values(graph.nodes).map((node) =>
       toFlowNode(node, graph, labels),
     ),
-    edges: drawn.map((edge) => toFlowEdge(edge, edgeStyle)),
+    edges: drawn.map((edge) => toFlowEdge(edge, graph.nodes[edge.from], edgeStyle)),
   };
 }
