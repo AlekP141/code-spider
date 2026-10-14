@@ -1,5 +1,6 @@
 import { isDiffMode } from "../settings/diff-mode.js";
 import { isEdgeStyle } from "../settings/edge-style.js";
+import { isTestVisibility } from "../settings/test-visibility.js";
 import type { ExtensionToWebview, SliceMode } from "./protocol.js";
 
 function isFiniteNumber(value: unknown): value is number {
@@ -65,7 +66,8 @@ export function isExtensionMessage(
       return (
         isFiniteNumber(message.columnGap) &&
         isEdgeStyle(message.edgeStyle) &&
-        isDiffMode(message.diffMode)
+        isDiffMode(message.diffMode) &&
+        isTestVisibility(message.testVisibility)
       );
     case "refreshed":
       return (

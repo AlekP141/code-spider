@@ -1,6 +1,10 @@
 import { COLUMN_GAP } from "../settings/column-gap.js";
 import { DIFF_MODES, type DiffMode } from "../settings/diff-mode.js";
 import { EDGE_STYLES, type EdgeStyle } from "../settings/edge-style.js";
+import {
+  TEST_VISIBILITIES,
+  type TestVisibility,
+} from "../settings/test-visibility.js";
 
 export type ToolbarProps = {
   canBack: boolean;
@@ -10,12 +14,15 @@ export type ToolbarProps = {
   columnGap: number;
   edgeStyle: EdgeStyle;
   diffMode: DiffMode;
+  testVisibility: TestVisibility;
+  hiddenTests: number;
   onBack(): void;
   onTidy(): void;
   onRefresh(): void;
   onColumnGap(value: number): void;
   onEdgeStyle(value: EdgeStyle): void;
   onDiffMode(value: DiffMode): void;
+  onTestVisibility(value: TestVisibility): void;
 };
 
 const REFRESH_TITLE = "Re-read the code for this graph";
@@ -31,6 +38,14 @@ const DIFF_TITLES: Record<DiffMode, string> = {
   uncommitted:
     "Colour the functions you have added or changed since your last commit",
   pr: "Colour the functions added or changed since this branch left the main branch",
+};
+const TEST_LABELS: Record<TestVisibility, string> = {
+  show: "Show",
+  hide: "Hide",
+};
+const TEST_TITLES: Record<TestVisibility, string> = {
+  show: "Show test code faded, with dashed lines",
+  hide: "Hide test code and the boxes that only lead to it",
 };
 const CHANGED_LABEL = "Files changed since this graph was drawn";
 
@@ -98,6 +113,31 @@ export function Toolbar(props: ToolbarProps) {
               }}
             >
               {DIFF_LABELS[mode]}
+            </button>
+          );
+        })}
+      </div>
+      <div className="toolbar-tests" role="group" aria-label="Tests">
+        <span className="toolbar-group-label" aria-hidden="true">
+          Tests
+        </span>
+        {TEST_VISIBILITIES.map((visibility) => {
+          const pressed = visibility === props.testVisibility;
+          const count = pressed && visibility === "hide";
+          return (
+            <button
+              key={visibility}
+              type="button"
+              className="toolbar-button toolbar-toggle"
+              title={TEST_TITLES[visibility]}
+              aria-pressed={pressed}
+              onClick={() => {
+                if (!pressed) props.onTestVisibility(visibility);
+              }}
+            >
+              {count
+                ? `${TEST_LABELS[visibility]} (${props.hiddenTests})`
+                : TEST_LABELS[visibility]}
             </button>
           );
         })}

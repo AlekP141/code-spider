@@ -1,6 +1,7 @@
 import type { GraphNode, GraphSlice, NodeId } from "@code-spider/core/types";
 import type { DiffMode } from "../settings/diff-mode.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
+import type { TestVisibility } from "../settings/test-visibility.js";
 
 export type ChangeKind = NonNullable<GraphNode["change"]>;
 
@@ -24,6 +25,7 @@ export type ExtensionToWebview =
       columnGap: number;
       edgeStyle: EdgeStyle;
       diffMode: DiffMode;
+      testVisibility: TestVisibility;
     }
   | {
       type: "refreshed";
@@ -52,6 +54,7 @@ export type WebviewToExtension =
   | { type: "setColumnGap"; value: number }
   | { type: "setEdgeStyle"; value: EdgeStyle }
   | { type: "setDiffMode"; value: DiffMode }
+  | { type: "setTestVisibility"; value: TestVisibility }
   | {
       type: "refresh";
       project: string;

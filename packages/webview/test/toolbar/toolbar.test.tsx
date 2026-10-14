@@ -14,12 +14,15 @@ function props(overrides: Partial<ToolbarProps> = {}): ToolbarProps {
     columnGap: 192,
     edgeStyle: "stepped",
     diffMode: "uncommitted",
+    testVisibility: "show",
+    hiddenTests: 0,
     onBack: noop,
     onTidy: noop,
     onRefresh: noop,
     onColumnGap: noop,
     onEdgeStyle: noop,
     onDiffMode: noop,
+    onTestVisibility: noop,
     ...overrides,
   };
 }

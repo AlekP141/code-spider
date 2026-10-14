@@ -33,6 +33,7 @@ const settings = (
   columnGap,
   edgeStyle,
   diffMode: "uncommitted",
+  testVisibility: "show",
 });
 
 function setup() {

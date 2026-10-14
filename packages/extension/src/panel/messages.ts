@@ -1,5 +1,6 @@
 import { isDiffMode } from "@code-spider/webview/diff-mode";
 import { isEdgeStyle } from "@code-spider/webview/edge-style";
+import { isTestVisibility } from "@code-spider/webview/test-visibility";
 import type { WebviewToExtension } from "@code-spider/webview/protocol";
 
 function isStringArray(value: unknown): value is string[] {
@@ -68,6 +69,10 @@ export function parseWebviewMessage(
     case "setDiffMode":
       return isDiffMode(message.value)
         ? { type: "setDiffMode", value: message.value }
+        : undefined;
+    case "setTestVisibility":
+      return isTestVisibility(message.value)
+        ? { type: "setTestVisibility", value: message.value }
         : undefined;
     default:
       return undefined;

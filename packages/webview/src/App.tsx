@@ -5,6 +5,7 @@ import { createAppState, reduceApp } from "./app/app-state.js";
 import { isWorking } from "./app/app-working.js";
 import type { DiffMode } from "./settings/diff-mode.js";
 import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "./settings/edge-style.js";
+import type { TestVisibility } from "./settings/test-visibility.js";
 import { GraphView } from "./graph/GraphView.js";
 import { expandMessage, refreshMessage } from "./graph/jump.js";
 import type { NodeActions } from "./graph/nodes/node-context.js";
@@ -80,6 +81,11 @@ export function App() {
     postToExtension({ type: "setDiffMode", value });
   }, []);
 
+  const onTestVisibility = useCallback((value: TestVisibility) => {
+    dispatch({ type: "testVisibilityChanged", value });
+    postToExtension({ type: "setTestVisibility", value });
+  }, []);
+
   const onDragStop = useCallback(
     (positions: Record<NodeId, Point>) =>
       dispatch({ type: "dragStopped", positions }),
@@ -105,12 +111,15 @@ export function App() {
         columnGap={state.view.columnGap}
         edgeStyle={edgeStyle}
         diffMode={state.diffMode}
+        testVisibility={state.testVisibility}
+        hiddenTests={hidden?.size ?? 0}
         onBack={onBack}
         onTidy={tidy}
         onRefresh={onRefresh}
         onColumnGap={onColumnGap}
         onEdgeStyle={onEdgeStyle}
         onDiffMode={onDiffMode}
+        onTestVisibility={onTestVisibility}
       />
       {state.indexing ? (
         <div className="banner" role="status">

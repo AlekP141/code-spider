@@ -61,10 +61,16 @@
 }
 
 .toolbar-lines,
-.toolbar-changes {
+.toolbar-changes,
+.toolbar-tests {
   align-items: center;
   display: flex;
   margin-left: 8px;
+}
+
+.toolbar-group-label {
+  color: var(--vscode-foreground);
+  margin-right: 6px;
 }
 
 .toolbar-toggle {
@@ -95,7 +101,7 @@
   border-top-right-radius: 0;
 }
 
-.toolbar-toggle:not(:first-child) {
+.toolbar-toggle:not(:first-of-type) {
   border-bottom-left-radius: 0;
   border-top-left-radius: 0;
 }

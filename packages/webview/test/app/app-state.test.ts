@@ -183,6 +183,7 @@ describe("messages about the extension's work", () => {
       columnGap: 96,
       edgeStyle: "stepped",
       diffMode: "uncommitted",
+      testVisibility: "show",
     });
     expect(next.view.columnGap).toBe(96);
     expect(next.settingsApplied).toBe(true);

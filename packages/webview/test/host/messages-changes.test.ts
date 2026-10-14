@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { isExtensionMessage } from "../../src/host/messages.js";
 
-const settings = { type: "settings", columnGap: 192, edgeStyle: "stepped" };
+const settings = {
+  type: "settings",
+  columnGap: 192,
+  edgeStyle: "stepped",
+  testVisibility: "show",
+};
 
 describe("settings", () => {
   it("needs a known diffMode", () => {

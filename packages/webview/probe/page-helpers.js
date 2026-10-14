@@ -37,6 +37,10 @@ function pageHelpers() {
           change: /\bchange-(added|modified)\b/.exec(
             element.querySelector(".node-box")?.className ?? "",
           )?.[1],
+          test: element.querySelector(".node-box.is-test") !== null,
+          opacity: Number(
+            getComputedStyle(element.querySelector(".node-box")).opacity,
+          ),
         };
       }
       return boxes;
@@ -50,6 +54,8 @@ function pageHelpers() {
             d: path?.getAttribute("d"),
             length: path?.getTotalLength(),
             stroke: getComputedStyle(path).stroke,
+            test: element.classList.contains("edge-test"),
+            dash: getComputedStyle(path).strokeDasharray,
           };
         },
       );

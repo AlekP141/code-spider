@@ -21,6 +21,7 @@ In the graph you can:
   - `Refresh` reads the code again. A dot appears on it when a file has been saved since the graph was drawn.
   - `Stepped` and `Curved` change how the lines are drawn.
   - `Uncommitted` and `PR` choose which functions are coloured as added or changed. `Uncommitted` colours what you have not committed yet. `PR` colours everything that is new or changed since your branch left the main branch, whether it is committed or not. If there is no main branch, `PR` shows the uncommitted changes instead and says so once.
+  - `Tests` chooses what to do with test code. `Show` draws its functions faded, with dashed lines. `Hide` takes them off the graph, with any box that is only reached through them; the number on `Hide` is how many boxes it hides, and the function you started from is never hidden. Boxes that come back with `Show` are drawn afresh, not where they were. A file counts as test code when its name contains `.test.` or `.spec.`, or when it sits in a folder called `test`, `tests` or `__tests__`.
   - `Spacing` changes how far apart the boxes are. Boxes you dragged stay where they are.
 
 ## Open a graph

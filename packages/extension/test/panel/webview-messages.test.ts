@@ -129,6 +129,24 @@ describe("parseWebviewMessage", () => {
     }
   });
 
+  it("accepts setTestVisibility with a known value", () => {
+    for (const value of ["show", "hide"]) {
+      expect(parseWebviewMessage({ type: "setTestVisibility", value })).toEqual({
+        type: "setTestVisibility",
+        value,
+      });
+    }
+  });
+
+  it("drops setTestVisibility with an unknown, missing or non-string value", () => {
+    expect(parseWebviewMessage({ type: "setTestVisibility" })).toBeUndefined();
+    for (const value of ["Hide", "fade", "", 1, null, undefined, ["hide"]]) {
+      expect(
+        parseWebviewMessage({ type: "setTestVisibility", value }),
+      ).toBeUndefined();
+    }
+  });
+
   it("drops anything malformed or unknown", () => {
     expect(parseWebviewMessage(null)).toBeUndefined();
     expect(parseWebviewMessage("ready")).toBeUndefined();

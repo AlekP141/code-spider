@@ -28,6 +28,7 @@ const settings = (columnGap: number, edgeStyle: unknown) =>
     columnGap,
     edgeStyle: edgeStyle as EdgeStyle,
     diffMode: "uncommitted",
+    testVisibility: "show",
   }) as const;
 
 const pick = (state: AppState, value: EdgeStyle) =>

@@ -5,6 +5,7 @@ import { ColumnGapStore } from "./settings/column-gap.js";
 import { createDispatcher } from "./session/dispatch.js";
 import { DiffModeStore } from "./settings/diff-mode-store.js";
 import { EdgeStyleStore } from "./settings/edge-style-store.js";
+import { TestVisibilityStore } from "./settings/test-visibility-store.js";
 import {
   COMMAND_SHOW_GRAPH,
   COMMAND_SHOW_IN_CODE_SPIDER,
@@ -77,16 +78,22 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
       columnGap: columnGap.get(),
       edgeStyle: edgeStyle.get(),
       diffMode: diffMode.get(),
+      testVisibility: testVisibility.get(),
     });
   const columnGap = new ColumnGapStore(context.globalState, announce);
   const edgeStyle = new EdgeStyleStore(context.globalState, announce);
   const diffMode = new DiffModeStore(context.globalState, announce);
+  const testVisibility = new TestVisibilityStore(
+    context.globalState,
+    announce,
+  );
   const dispatch = createDispatcher({
     jumps: new JumpHandler(jumpTable, revealer),
     session,
     columnGap,
     edgeStyle,
     diffMode,
+    testVisibility,
   });
   announce();
   const showGraph = async (uri?: vscode.Uri, position?: vscode.Position) => {

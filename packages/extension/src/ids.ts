@@ -6,3 +6,4 @@ export const SETTING_MAX_HEAP_MB = "codeSpider.worker.maxHeapMb";
 export const STATE_COLUMN_GAP = "codeSpider.columnGap";
 export const STATE_EDGE_STYLE = "codeSpider.edgeStyle";
 export const STATE_DIFF_MODE = "codeSpider.diffMode";
+export const STATE_TEST_VISIBILITY = "codeSpider.testVisibility";

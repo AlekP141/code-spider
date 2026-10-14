@@ -28,6 +28,7 @@ const settings = (diffMode: unknown) =>
     columnGap: 192,
     edgeStyle: "stepped",
     diffMode: diffMode as DiffMode,
+    testVisibility: "show",
   }) as const;
 
 const pick = (state: AppState, value: DiffMode) =>

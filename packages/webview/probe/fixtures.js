@@ -4,7 +4,7 @@ const { THEME, fakeApiSource } = require("./fixtures-page.js");
 
 const RANGE = { startLine: 1, startColumn: 1, endLine: 3, endColumn: 2 };
 
-function node(id, code, lineCount) {
+function node(id, code, lineCount, isTest = false) {
   return {
     id,
     kind: "function",
@@ -16,6 +16,7 @@ function node(id, code, lineCount) {
     isAsync: false,
     lineCount,
     codePreview: code,
+    ...(isTest ? { isTest: true } : {}),
   };
 }
 
@@ -49,6 +50,8 @@ const ID = {
   validate: "src/validate.ts#validate",
   extra: "src/extra.ts#extra",
   late: "src/late.ts#late",
+  spec: "src/main.spec.ts#mainSpec",
+  fixture: "tests/fixture.ts#fixture",
 };
 
 const CODE = {
@@ -59,6 +62,8 @@ const CODE = {
   validate: "function validate() {\n  return 3;\n}",
   extra: "function extra() {\n  return 4;\n}",
   late: "function late() {\n  return 5;\n}",
+  spec: "function mainSpec() {\n  return main();\n}",
+  fixture: "function fixture() {\n  return 6;\n}",
 };
 
 const REFRESHED_MARKER = "refreshedMarker";
@@ -96,7 +101,7 @@ function mainNode(code, lineCount) {
 }
 
 function leaf(key) {
-  return node(ID[key], CODE[key], 3);
+  return node(ID[key], CODE[key], 3, key === "spec" || key === "fixture");
 }
 
 const CENTRE_SLICE = {
@@ -116,6 +121,24 @@ function helperEdges(helperAt) {
     edge(ID.validate, ID.helper, { callSite: AT.helperBody.validate }),
   ];
 }
+
+const TESTED_CENTRE = {
+  focusId: ID.main,
+  nodes: [
+    leaf("fixture"),
+    leaf("format"),
+    leaf("helper"),
+    mainNode(CODE.main, 3),
+    leaf("spec"),
+  ],
+  edges: [
+    edge(ID.fixture, ID.main, { callSite: site(2, 24) }),
+    edge(ID.format, ID.main, { callSite: AT.centre.format }),
+    edge(ID.helper, ID.main, { callSite: AT.centre.helper }),
+    edge(ID.main, ID.spec),
+  ],
+  truncated: false,
+};
 
 const HELPER_SLICE = {
   focusId: ID.helper,
@@ -193,11 +216,18 @@ const messages = {
     columnGap: 192,
     edgeStyle,
     diffMode: "uncommitted",
+    testVisibility: "show",
   }),
   changeMarks: (marks) => ({ type: "changeMarks", project: PROJECT, marks }),
   centre: (sourceVersion) => ({
     type: "slice",
     slice: CENTRE_SLICE,
+    project: PROJECT,
+    mode: { kind: "centre", sourceVersion },
+  }),
+  testedCentre: (sourceVersion) => ({
+    type: "slice",
+    slice: TESTED_CENTRE,
     project: PROJECT,
     mode: { kind: "centre", sourceVersion },
   }),

@@ -6,6 +6,7 @@ import {
   normaliseEdgeStyle,
 } from "../settings/edge-style.js";
 import type { ExtensionToWebview } from "../host/protocol.js";
+import { withTestVisibility } from "./app-test-visibility.js";
 
 type SettingsMessage = Extract<ExtensionToWebview, { type: "settings" }>;
 
@@ -34,8 +35,9 @@ export function applySettings(
   if (state.settingsApplied) return state;
   const gapApplied = withColumnGap(state, message.columnGap);
   const styleApplied = withEdgeStyle(gapApplied, message.edgeStyle);
+  const diffApplied = withDiffMode(styleApplied, message.diffMode);
   return {
-    ...withDiffMode(styleApplied, message.diffMode),
+    ...withTestVisibility(diffApplied, message.testVisibility),
     settingsApplied: true,
   };
 }
