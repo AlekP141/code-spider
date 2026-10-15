@@ -153,3 +153,12 @@ function isTypeOnly(node: Node): node is Node & { getExpression(): Node } {
     Node.isTypeAssertion(node)
   );
 }
+
+/** Whether calling `call` gives back a function, or a promise of one. */
+export function callReturnsFunction(call: Node): boolean {
+  const type = call.getType();
+  if (type.getCallSignatures().length > 0) return true;
+  const [resolved] =
+    type.getSymbol()?.getName() === "Promise" ? type.getTypeArguments() : [];
+  return (resolved?.getCallSignatures().length ?? 0) > 0;
+}

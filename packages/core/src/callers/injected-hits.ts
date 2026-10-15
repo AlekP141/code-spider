@@ -1,34 +1,36 @@
 import { Node, SyntaxKind, type ts } from "ts-morph";
+import { callReturnsFunction } from "../focus/bound-functions.js";
 import { outermostValueOf } from "../callees/passing.js";
-import {
-  belongsTo,
-  nameableTarget,
-  nearestNameableTarget,
-  type FocusTarget,
-} from "../focus/focus.js";
+import { nearestNameableTarget } from "../focus/focus.js";
 import { isExternalFile } from "../nodes/externals.js";
+import { isTestPath } from "../nodes/test-path.js";
 import type { CallerHit } from "./callers.js";
 import { callOf } from "./call-of.js";
 import { findReferenceNodes } from "./references.js";
 
 /**
  * The function value `ref` stands for where it is handed over: the function
- * itself, or the result of calling it when that result is itself a function
- * (`createX()`).
+ * itself, or the result of calling it when that result is itself a function,
+ * possibly behind a promise (`createX()`, `await createX()`).
  */
 function valueOf(ref: Node): Node {
   const value = outermostValueOf(ref);
-  const parent = value.getParent();
-  const isFactoryCall =
-    Node.isCallExpression(parent) &&
-    parent.getExpression() === value &&
-    parent.getType().getCallSignatures().length > 0;
-  return isFactoryCall ? parent : value;
+  const call = value.getParent();
+  if (
+    !Node.isCallExpression(call) ||
+    call.getExpression() !== value ||
+    !callReturnsFunction(call)
+  ) {
+    return value;
+  }
+  const awaited = call.getParent();
+  return Node.isAwaitExpression(awaited) ? awaited : call;
 }
 
 /**
- * The name of the parameter or property that receives `value`: `f(value)`,
- * `{ name: value }`, `{ name }` or `obj.name = value`.
+ * The name of the parameter, property or variable that receives `value`:
+ * `f(value)`, `{ name: value }`, `{ name }`, `obj.name = value` or
+ * `const name = value`.
  */
 function receiverOf(value: Node): Node | undefined {
   const parent = value.getParent();
@@ -55,6 +57,12 @@ function receiverOf(value: Node): Node | undefined {
     return parent.getInitializer() === value ? parent.getNameNode() : undefined;
   }
   if (Node.isShorthandPropertyAssignment(parent)) return parent.getNameNode();
+  if (Node.isVariableDeclaration(parent)) {
+    const name = parent.getNameNode();
+    return parent.getInitializer() === value && Node.isIdentifier(name)
+      ? name
+      : undefined;
+  }
   if (
     Node.isBinaryExpression(parent) &&
     parent.getRight() === value &&
@@ -68,23 +76,34 @@ function receiverOf(value: Node): Node | undefined {
   return undefined;
 }
 
-/** Calls of the received name, including through `const { name } = obj`. */
+/** How many hand-overs (argument, property, const) are followed from one function. */
+const MAX_FLOW_DEPTH = 8;
+
+/**
+ * Calls of the received name, followed on through `const { name } = obj`
+ * and wherever the name is handed over again.
+ */
 function* callsOf(
   receiver: Node,
   token: ts.CancellationToken | undefined,
+  seen = new Set<Node>(),
   depth = 0,
 ): Iterable<Node> {
+  if (seen.has(receiver) || depth > MAX_FLOW_DEPTH) return;
+  seen.add(receiver);
   for (const ref of findReferenceNodes(receiver, token)) {
     if (ref === receiver) continue;
-    const call = callOf(ref);
-    if (call) {
+    if (callOf(ref)) {
       yield ref;
       continue;
     }
     const binding = ref.getParent();
-    if (depth === 0 && Node.isBindingElement(binding)) {
-      yield* callsOf(binding.getNameNode(), token, 1);
+    if (Node.isBindingElement(binding)) {
+      yield* callsOf(binding.getNameNode(), token, seen, depth + 1);
+      continue;
     }
+    const next = receiverOf(valueOf(ref));
+    if (next) yield* callsOf(next, token, seen, depth + 1);
   }
 }
 
@@ -114,30 +133,13 @@ function* hitsReceiving(
 
 /**
  * The calls that may reach the function behind `ref` because it is handed to
- * a parameter or property and called there.
+ * a parameter or property and called there. Test code that wires a function
+ * in is skipped: it would make the production caller look like a user of it.
  */
 export function* injectedHitsFrom(
   ref: Node,
   token?: ts.CancellationToken,
 ): Iterable<CallerHit> {
+  if (isTestPath(ref.getSourceFile().getFilePath())) return;
   yield* hitsReceiving(valueOf(ref), token);
-}
-
-/**
- * The same for callbacks written inside the function: an inline arrow that
- * the function passes on runs when the receiver calls it, so the receiver's
- * callers reach the function that holds the arrow.
- */
-export function* hostedFunctionHits(
-  target: FocusTarget,
-  token?: ts.CancellationToken,
-): Iterable<CallerHit> {
-  const inline = [
-    ...target.declaration.getDescendantsOfKind(SyntaxKind.ArrowFunction),
-    ...target.declaration.getDescendantsOfKind(SyntaxKind.FunctionExpression),
-  ];
-  for (const fn of inline) {
-    if (nameableTarget(fn) || !belongsTo(fn, target)) continue;
-    yield* hitsReceiving(fn, token);
-  }
 }

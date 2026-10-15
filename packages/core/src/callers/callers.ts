@@ -26,7 +26,7 @@ import {
 } from "../nodes/node-builder.js";
 import { passSiteOf } from "../callees/passing.js";
 import { callOf } from "./call-of.js";
-import { hostedFunctionHits, injectedHitsFrom } from "./injected-hits.js";
+import { injectedHitsFrom } from "./injected-hits.js";
 import { findReferenceNodes } from "./references.js";
 import type { GraphEdge, GraphNode, NodeId } from "../types.js";
 
@@ -69,18 +69,6 @@ export function* callerHits(
   }
 }
 
-/**
- * callerHits plus the callbacks written inside the function, which are
- * called by whatever receives them (see hostedFunctionHits).
- */
-export function* allCallerHits(
-  target: FocusTarget,
-  token?: ts.CancellationToken,
-): Iterable<CallerHit> {
-  yield* callerHits(target.nameNode, token);
-  yield* hostedFunctionHits(target, token);
-}
-
 export function suppliesLabel(
   declaration: CallableDeclaration,
   kind: UseSite["kind"],
@@ -107,7 +95,7 @@ export function collectCallerEdges(
   let realKept = 0;
   let truncated = false;
 
-  for (const hit of allCallerHits(target)) {
+  for (const hit of callerHits(target.nameNode)) {
     const { caller, kind } = hit;
     const node = caller
       ? buildGraphNode(caller, classifyDeclaration(caller.declaration), ctx)

@@ -1,5 +1,5 @@
 import { Node, type ParameterDeclaration } from "ts-morph";
-import { skipTypeOnly } from "../focus/bound-functions.js";
+import { callReturnsFunction, skipTypeOnly } from "../focus/bound-functions.js";
 import { callerHits } from "../callers/callers.js";
 import { findReferenceNodes } from "../callers/references.js";
 import {
@@ -21,12 +21,58 @@ export const MAX_INJECTED = 10;
  */
 export function injectedTargetsOf(declaration: Node): FocusTarget[] {
   const targets = new Map<Node, FocusTarget>();
+  const seen = new Set<Node>([declaration]);
   for (const value of suppliedValuesOf(declaration)) {
-    const target = functionBehind(value);
-    if (target) targets.set(target.declaration, target);
-    if (targets.size >= MAX_INJECTED) break;
+    follow(value, targets, seen, 0);
   }
   return [...targets.values()];
+}
+
+/** How many hand-overs (argument, property, const) are followed from one call. */
+const MAX_FLOW_DEPTH = 8;
+
+/**
+ * Turns a supplied value into the function behind it. A value that is itself
+ * a name handed in or held elsewhere (`createTool(generateSchema)`,
+ * `const run = createX()`) is followed to what it was given.
+ */
+function follow(
+  value: Node,
+  targets: Map<Node, FocusTarget>,
+  seen: Set<Node>,
+  depth: number,
+): void {
+  if (targets.size >= MAX_INJECTED || depth > MAX_FLOW_DEPTH) return;
+  const expression = skipAwait(value);
+  const target = functionBehind(expression);
+  if (target) {
+    targets.set(target.declaration, target);
+    return;
+  }
+  if (
+    !Node.isIdentifier(expression) &&
+    !Node.isPropertyAccessExpression(expression)
+  ) {
+    return;
+  }
+  const declaration = resolveDeclaration(expression);
+  if (!declaration || seen.has(declaration)) return;
+  seen.add(declaration);
+  if (Node.isVariableDeclaration(declaration)) {
+    const initializer = declaration.getInitializer();
+    if (initializer) follow(initializer, targets, seen, depth + 1);
+    return;
+  }
+  for (const next of suppliedValuesOf(declaration)) {
+    follow(next, targets, seen, depth + 1);
+  }
+}
+
+function skipAwait(value: Node): Node {
+  const expression = skipTypeOnly(value);
+  return Node.isAwaitExpression(expression)
+    ? skipTypeOnly(expression.getExpression())
+    : expression;
 }
 
 function suppliedValuesOf(declaration: Node): Node[] {
@@ -111,7 +157,7 @@ function functionBehind(value: Node): FocusTarget | undefined {
     return nearestNameableTarget(expression);
   }
   if (Node.isCallExpression(expression)) {
-    if (expression.getType().getCallSignatures().length === 0) return undefined;
+    if (!callReturnsFunction(expression)) return undefined;
     return callableTarget(resolveDeclaration(expression.getExpression()));
   }
   if (

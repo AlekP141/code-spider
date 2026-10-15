@@ -61,11 +61,4 @@ describe("callers through parameters and properties", () => {
       ]),
     );
   });
-
-  it("finds who calls the callback an inline arrow was written for", () => {
-    expect(callersOf("src/wire.ts", "function wire")).toContainEqual([
-      "src/tool.ts#runDestructured",
-      "injected",
-    ]);
-  });
 });

@@ -215,9 +215,12 @@ the values written to the property in object literals and assignments. Each
 function found (a named function, a factory behind `createX(...)`, or the
 function holding an inline arrow) gets an edge of kind `injected`, drawn
 dash-dotted. It reads "may call", not "calls": the first ten matches are shown,
-and a name nothing is ever passed for stays an unresolved edge (§5.5). The same
-links are followed from the other side, so callers and path search climb
-through them.
+and a name nothing is ever passed for stays an unresolved edge (§5.5). A value
+that is itself a handed-in name, a `const`, or an `await`ed async factory is
+followed on to what it was given. The same links are followed from the other
+side, so callers and path search climb through them, except that an inline
+arrow only links to the function holding it in the callee view, and test code
+that wires a function in is ignored.
 
 ### 5.5 Unresolved edges are kept
 

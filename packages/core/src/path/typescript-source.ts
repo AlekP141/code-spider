@@ -1,5 +1,5 @@
 import { ts, type Project, type SourceFile } from "ts-morph";
-import { allCallerHits, type CallerHit } from "../callers/callers.js";
+import { callerHits, type CallerHit } from "../callers/callers.js";
 import type { CallableDeclaration, FocusTarget } from "../focus/focus.js";
 import {
   moduleIdOf,
@@ -39,7 +39,7 @@ export class TypeScriptSource implements CallerSource {
 
     const links = new Map<string, Link>();
     try {
-      for (const hit of allCallerHits(target, this.token)) {
+      for (const hit of callerHits(target.nameNode, this.token)) {
         this.addLink(links, id, hit);
         if (this.signal.isRequested()) throw new SearchStopped();
       }
@@ -86,9 +86,7 @@ export class TypeScriptSource implements CallerSource {
   private isDropped(consumer: NodeId): boolean {
     const { a, b } = this.ends;
     return (
-      consumer !== a &&
-      consumer !== b &&
-      isTestPath(parseNodeId(consumer).file)
+      consumer !== a && consumer !== b && isTestPath(parseNodeId(consumer).file)
     );
   }
 
