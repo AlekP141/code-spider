@@ -16,6 +16,7 @@ export type ToolbarProps = {
   diffMode: DiffMode;
   testVisibility: TestVisibility;
   hiddenTests: number;
+  pathSummary?: { text: string; title: string };
   onBack(): void;
   onTidy(): void;
   onRefresh(): void;
@@ -156,6 +157,15 @@ export function Toolbar(props: ToolbarProps) {
         />
         <span className="toolbar-value">{`${props.columnGap}px`}</span>
       </label>
+      {props.pathSummary ? (
+        <div
+          className="toolbar-summary"
+          role="status"
+          title={props.pathSummary.title}
+        >
+          {props.pathSummary.text}
+        </div>
+      ) : null}
     </div>
   );
 }

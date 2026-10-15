@@ -41,6 +41,12 @@ function pageHelpers() {
           opacity: Number(
             getComputedStyle(element.querySelector(".node-box")).opacity,
           ),
+          route: element.querySelector(".node-box.on-route") !== null,
+          shadow: getComputedStyle(element.querySelector(".node-box")).boxShadow,
+          tag: element.querySelector(".node-tag")?.textContent ?? "",
+          marked: element.querySelector(".node-box.is-marked") !== null,
+          outline: getComputedStyle(element.querySelector(".node-box"))
+            .outlineStyle,
         };
       }
       return boxes;
@@ -56,6 +62,8 @@ function pageHelpers() {
             stroke: getComputedStyle(path).stroke,
             test: element.classList.contains("edge-test"),
             dash: getComputedStyle(path).strokeDasharray,
+            route: element.classList.contains("edge-route"),
+            width: getComputedStyle(path).strokeWidth,
           };
         },
       );

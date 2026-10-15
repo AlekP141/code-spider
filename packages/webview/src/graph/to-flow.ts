@@ -1,5 +1,6 @@
 import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core/types";
 import type { Edge, Node } from "@xyflow/react";
+import type { PathMark } from "../host/protocol.js";
 import { DEFAULT_EDGE_STYLE, type EdgeStyle } from "../settings/edge-style.js";
 import { isOpen } from "../view/graph-state.js";
 import type { GraphState } from "../view/types.js";
@@ -14,14 +15,55 @@ export type SpiderNodeData = {
   pinned: boolean;
   open: boolean;
   labels: readonly LabelLine[];
+  /** The path fields are present only on a path graph or while a mark shows. */
+  onRoute?: boolean;
+  tag?: "A" | "B";
+  marked?: boolean;
+  routeHandles?: boolean;
 };
 export type SpiderFlowNode = Node<SpiderNodeData, "spider">;
 export type SpiderFlowEdge = Edge;
+
+export type FlowOptions = { mark?: PathMark };
+
+type RouteIndex = {
+  columns: ReadonlyMap<NodeId, number>;
+  edgeIds: ReadonlySet<string>;
+};
+
+function routeIndex(graph: GraphState): RouteIndex | undefined {
+  const { path } = graph;
+  if (!path) return undefined;
+  return {
+    columns: new Map(path.boxes.map((box) => [box.id, box.column])),
+    edgeIds: new Set(path.edgeIds),
+  };
+}
+
+function pathData(
+  node: GraphNode,
+  graph: GraphState,
+  route: RouteIndex | undefined,
+  mark: PathMark | undefined,
+): Partial<SpiderNodeData> {
+  if (!route && !mark) return {};
+  let tag: SpiderNodeData["tag"];
+  if (route && node.id === graph.focusId) tag = "A";
+  if (route && node.id === graph.path?.endId) tag = "B";
+  return {
+    onRoute: route?.columns.has(node.id) ?? false,
+    tag,
+    marked: mark?.project === graph.project && mark.nodeId === node.id,
+    routeHandles: route !== undefined,
+  };
+}
 
 function toFlowNode(
   node: GraphNode,
   graph: GraphState,
   labels: ReadonlyMap<NodeId, LabelLine[]>,
+  route: RouteIndex | undefined,
+  mark: PathMark | undefined,
 ): SpiderFlowNode {
   const open = isOpen(graph, node.id);
   const height = nodeHeight(node, open);
@@ -38,20 +80,43 @@ function toFlowNode(
       pinned: graph.pinned.includes(node.id),
       open,
       labels: labels.get(node.id) ?? [],
+      ...pathData(node, graph, route, mark),
     },
   };
 }
+
+const ROUTE_STROKE_WIDTH = 4;
 
 const EDGE_TYPES: Record<EdgeStyle, string> = {
   stepped: "smoothstep",
   curved: "default",
 };
 
+/** A route edge running back a column leaves left and enters on the right. */
+function routeEdge(
+  flow: SpiderFlowEdge,
+  edge: GraphEdge,
+  route: RouteIndex,
+): SpiderFlowEdge {
+  const from = route.columns.get(edge.from);
+  const to = route.columns.get(edge.to);
+  const backward = from !== undefined && to !== undefined && to < from;
+  return {
+    ...flow,
+    className: `${flow.className} edge-route`,
+    style: { ...flow.style, strokeWidth: ROUTE_STROKE_WIDTH },
+    ...(backward
+      ? { sourceHandle: "source-left", targetHandle: "target-right" }
+      : {}),
+  };
+}
+
 function toFlowEdge(
   edge: GraphEdge,
   source: GraphNode | undefined,
   target: GraphNode | undefined,
   edgeStyle: EdgeStyle,
+  route: RouteIndex | undefined,
 ): SpiderFlowEdge {
   const appearance = edgeAppearance(
     edge.kind,
@@ -59,7 +124,7 @@ function toFlowEdge(
     source?.isTest === true || target?.isTest === true,
   );
   const change = source?.change ? ` edge-change-${source.change}` : "";
-  return {
+  const flow: SpiderFlowEdge = {
     id: edge.id,
     source: edge.from,
     target: edge.to,
@@ -70,11 +135,13 @@ function toFlowEdge(
       strokeWidth: appearance.strokeWidth,
     },
   };
+  return route?.edgeIds.has(edge.id) ? routeEdge(flow, edge, route) : flow;
 }
 
 export function toFlow(
   graph: GraphState,
   edgeStyle: EdgeStyle = DEFAULT_EDGE_STYLE,
+  options: FlowOptions = {},
 ): {
   nodes: SpiderFlowNode[];
   edges: SpiderFlowEdge[];
@@ -85,12 +152,19 @@ export function toFlow(
       Object.hasOwn(graph.nodes, edge.to),
   );
   const labels = supplierLabels(drawn);
+  const route = routeIndex(graph);
   return {
     nodes: Object.values(graph.nodes).map((node) =>
-      toFlowNode(node, graph, labels),
+      toFlowNode(node, graph, labels, route, options.mark),
     ),
     edges: drawn.map((edge) =>
-      toFlowEdge(edge, graph.nodes[edge.from], graph.nodes[edge.to], edgeStyle),
+      toFlowEdge(
+        edge,
+        graph.nodes[edge.from],
+        graph.nodes[edge.to],
+        edgeStyle,
+        route,
+      ),
     ),
   };
 }

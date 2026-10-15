@@ -13,6 +13,9 @@ import { codeRegionHeight, hasCodeRegion } from "./node-size.js";
 export type NodeBoxProps = {
   node: GraphNode;
   isFocus: boolean;
+  onRoute?: boolean;
+  routeTag?: "A" | "B";
+  marked?: boolean;
   pinned?: boolean;
   open?: boolean;
   loading?: boolean;
@@ -21,6 +24,8 @@ export type NodeBoxProps = {
   onOpen?: NodeActions["onOpen"];
   onClose?: NodeActions["onClose"];
 };
+
+const TAG_TITLES = { A: "Start of the path", B: "End of the path" } as const;
 
 function nameTitle(node: GraphNode): string {
   return node.file === "" ? node.name : `${node.name} (${node.file})`;
@@ -109,6 +114,9 @@ function Markers({
 export function NodeBox({
   node,
   isFocus,
+  onRoute,
+  routeTag,
+  marked,
   pinned,
   open = false,
   loading,
@@ -122,14 +130,22 @@ export function NodeBox({
   if (isFocus) classes.push("is-focus");
   if (node.change) classes.push(`change-${node.change}`);
   if (node.isTest) classes.push("is-test");
+  if (onRoute) classes.push("on-route");
+  if (marked) classes.push("is-marked");
   classes.push(showsCode ? "is-open" : "is-closed");
   const clipped = node.lineCount > MAX_CODE_LINES;
+  const tag = routeTag ?? (marked ? "A" : undefined);
 
   return (
     <>
       {node.isAsync ? <span className="node-async">async</span> : null}
       <div className={classes.join(" ")}>
         <div className="node-header" style={{ height: HEADER_HEIGHT }}>
+          {tag ? (
+            <span className="node-tag" title={TAG_TITLES[tag]}>
+              {tag}
+            </span>
+          ) : null}
           <span className="node-name" title={nameTitle(node)}>
             {node.name}
           </span>

@@ -1,0 +1,67 @@
+.node-box.on-route {
+  box-shadow: 0 0 0 3px var(--vscode-charts-blue);
+}
+
+.node-box.is-marked {
+  outline: 2px dashed var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+
+.node-tag {
+  background: var(--vscode-charts-blue);
+  border-radius: 3px;
+  color: var(--vscode-editor-background);
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.react-flow__edge.edge-route .react-flow__edge-path {
+  opacity: 1;
+  stroke: var(--vscode-charts-blue);
+}
+
+.toolbar-summary {
+  color: var(--vscode-foreground);
+  flex: 1 1 24ch;
+  margin-left: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path-overlay {
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding-top: 8px;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 10;
+}
+
+.path-overlay-card {
+  align-items: center;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid
+    var(--vscode-editorWidget-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  display: flex;
+  gap: 12px;
+  max-width: calc(100% - 24px);
+  padding: 6px 12px;
+  pointer-events: auto;
+}
+
+.path-overlay-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

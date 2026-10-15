@@ -11,6 +11,8 @@ import { expandMessage, refreshMessage } from "./graph/jump.js";
 import type { NodeActions } from "./graph/nodes/node-context.js";
 import { useGraphLayout } from "./graph/layout/use-layout.js";
 import { isExtensionMessage } from "./host/messages.js";
+import { PathOverlay } from "./path/PathOverlay.js";
+import { pathSummaryText } from "./path/path-text.js";
 import { Toolbar } from "./toolbar/Toolbar.js";
 import { useSpacingControl } from "./toolbar/use-spacing-control.js";
 import { useDelayedFlag } from "./app/use-delayed-flag.js";
@@ -33,7 +35,8 @@ export function App() {
   usePersistedView(state.view);
   useWalkTimers(state, dispatch);
   const working = isWorking(state);
-  const spinner = useDelayedFlag(working, SPINNER_DELAY_MS);
+  const delayed = useDelayedFlag(working, SPINNER_DELAY_MS);
+  const spinner = delayed && state.pathSearch === undefined;
   const edgeStyle = state.view.edgeStyle ?? DEFAULT_EDGE_STYLE;
   const graph = state.view.current;
   const hidden = useMemo(
@@ -43,6 +46,10 @@ export function App() {
   const shown = useMemo(
     () => (graph && hidden ? visibleGraph(graph, hidden) : undefined),
     [graph, hidden],
+  );
+  const pathSummary = useMemo(
+    () => (graph ? pathSummaryText(graph) : undefined),
+    [graph],
   );
   const project = graph?.project;
   const generation = graph?.generation;
@@ -86,6 +93,11 @@ export function App() {
     postToExtension({ type: "setTestVisibility", value });
   }, []);
 
+  const onCancelPath = useCallback((id: number) => {
+    dispatch({ type: "pathCancelRequested" });
+    postToExtension({ type: "cancelPath", id });
+  }, []);
+
   const onDragStop = useCallback(
     (positions: Record<NodeId, Point>) =>
       dispatch({ type: "dragStopped", positions }),
@@ -113,6 +125,7 @@ export function App() {
         diffMode={state.diffMode}
         testVisibility={state.testVisibility}
         hiddenTests={hidden?.size ?? 0}
+        pathSummary={pathSummary}
         onBack={onBack}
         onTidy={tidy}
         onRefresh={onRefresh}
@@ -135,11 +148,19 @@ export function App() {
         <div className="spinner" role="status" aria-label="Analysing" />
       ) : null}
       <section className="content">
+        {state.pathSearch ? (
+          <PathOverlay
+            search={state.pathSearch}
+            cancelling={state.cancelling}
+            onCancel={onCancelPath}
+          />
+        ) : null}
         {shown ? (
           <GraphView
             graph={shown}
             columnGap={state.view.columnGap}
             edgeStyle={edgeStyle}
+            mark={state.pathStart}
             fit={state.fit}
             ui={{ ...state, busy: working }}
             actions={actions}

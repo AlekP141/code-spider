@@ -20,7 +20,7 @@ import {
 } from "react";
 import type { AppState, FitRequest } from "../app/app-state.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
-import type { WebviewToExtension } from "../host/protocol.js";
+import type { PathMark, WebviewToExtension } from "../host/protocol.js";
 import type { GraphState, Point } from "../view/types.js";
 import {
   codeLineAt,
@@ -73,6 +73,8 @@ export type GraphViewProps = {
   /** The view's gap, used for labels when the graph has none of its own. */
   columnGap: number;
   edgeStyle: EdgeStyle;
+  /** The extension's start mark; a box that is it shows tag A. */
+  mark?: PathMark;
   fit: FitRequest;
   ui: Pick<
     AppState,
@@ -106,6 +108,7 @@ function GraphCanvas({
   graph,
   columnGap,
   edgeStyle,
+  mark,
   fit,
   ui,
   actions,
@@ -113,7 +116,10 @@ function GraphCanvas({
   onDragStop,
 }: GraphViewProps) {
   const zoomedOut = useStore((state) => isZoomedOut(state.transform[2]));
-  const flow = useMemo(() => toFlow(graph, edgeStyle), [graph, edgeStyle]);
+  const flow = useMemo(
+    () => toFlow(graph, edgeStyle, { mark }),
+    [graph, edgeStyle, mark],
+  );
   const { generation, project } = graph;
   const { busy, loading, failures, entering, reveal, refreshing } = ui;
   const [live, setLive] = useState<LivePositions | undefined>(undefined);

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 import "./graph/graph.css";
 import "./graph/nodes/node-labels.css";
+import "./path/path.css";
 import "./styles.css";
 import "./toolbar/toolbar.css";
 

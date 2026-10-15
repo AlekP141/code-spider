@@ -11,6 +11,7 @@ const checks = [
   ...require("./checks-open.js"),
   ...require("./checks-changes.js"),
   ...require("./checks-tests.js"),
+  ...require("./checks-paths.js"),
 ];
 
 const emit = (event) => console.log(JSON.stringify(event));

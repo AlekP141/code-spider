@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type Dispatch } from "react";
 import type { AppAction, AppState } from "../../app/app-state.js";
 import { hiddenIds, visibleGraph } from "../../view/test-visibility.js";
-import { layoutGraph } from "./layout.js";
+import { layoutFor } from "./path-layout.js";
 import { tidyGraph } from "./tidy-graph.js";
 
 function messageOf(error: unknown): string {
@@ -9,8 +9,8 @@ function messageOf(error: unknown): string {
 }
 
 /**
- * Lays out each pending centre slice with ELK, and offers Tidy for the graph on
- * screen. Stale results are discarded by the reducer, which matches the id of
+ * Lays out each pending centre slice (a path graph by columns, any other with
+ * ELK), and offers Tidy for the graph on screen. Stale results are discarded by the reducer, which matches the id of
  * the pending slice and the generation of the graph.
  */
 export function useGraphLayout(
@@ -22,7 +22,7 @@ export function useGraphLayout(
     if (!pending) return;
     const { graph, columnGap, testVisibility } = pending;
     const shown = visibleGraph(graph, hiddenIds(graph, testVisibility));
-    layoutGraph(shown, columnGap).then(
+    layoutFor(shown, columnGap).then(
       (positions) =>
         dispatch({ type: "centreLaidOut", id: pending.id, positions }),
       (error: unknown) =>
@@ -47,6 +47,7 @@ export function useGraphLayout(
         return graph && visibleGraph(graph, hiddenIds(graph, testVisibility));
       },
       () => latest.current.view.columnGap,
+      layoutFor,
     ).then(
       (outcome) => {
         if (outcome) dispatch({ type: "tidied", ...outcome });
