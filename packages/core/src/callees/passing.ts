@@ -37,7 +37,7 @@ export function passSiteOf(ref: Node): Node | undefined {
 }
 
 /** `ref`, or `obj.ref` when `ref` is a member name, without type assertions. */
-function outermostValueOf(ref: Node): Node {
+export function outermostValueOf(ref: Node): Node {
   const parent = ref.getParent();
   let value =
     Node.isPropertyAccessExpression(parent) && parent.getNameNode() === ref

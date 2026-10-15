@@ -1,7 +1,7 @@
 import { MODULE_NAME } from "../nodes/node-builder.js";
 import type { NodeId, Range } from "../types.js";
 
-export type LinkKind = "call" | "jsx" | "passes";
+export type LinkKind = "call" | "jsx" | "passes" | "injected";
 
 export type Link = {
   supplier: NodeId;

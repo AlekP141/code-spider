@@ -20,6 +20,7 @@ import {
   resolveDeclaration,
   type Graph,
 } from "./graph-helpers.js";
+import { injectedTargetsOf } from "./injected.js";
 import { collectJsxEdges } from "./jsx-edges.js";
 import {
   buildGraphNode,
@@ -81,7 +82,9 @@ function addCallEdge(
     ? nameableTarget(declaration)
     : undefined;
   if (!calleeTarget) {
-    addUnknown(graph, displayName, focusId, callSite, "call");
+    if (!addInjectedEdges(graph, declaration, focusId, callSite, ctx)) {
+      addUnknown(graph, displayName, focusId, callSite, "call");
+    }
     return;
   }
 
@@ -91,4 +94,25 @@ function addCallEdge(
     ctx,
   );
   addNodeEdge(graph, node, focusId, "call", node.returnType, callSite);
+}
+
+function addInjectedEdges(
+  graph: Graph,
+  declaration: Node,
+  focusId: NodeId,
+  callSite: GraphEdge["callSite"],
+  ctx: BuildContext,
+): boolean {
+  let added = false;
+  for (const supplier of injectedTargetsOf(declaration)) {
+    const node = buildGraphNode(
+      supplier,
+      classifyDeclaration(supplier.declaration),
+      ctx,
+    );
+    if (node.id === focusId) continue;
+    addNodeEdge(graph, node, focusId, "injected", node.returnType, callSite);
+    added = true;
+  }
+  return added;
 }

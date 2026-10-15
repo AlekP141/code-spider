@@ -31,7 +31,7 @@ export type GraphNode = {
   change?: "added" | "modified";
 };
 
-export type EdgeType = "call" | "jsx" | "external" | "passes";
+export type EdgeType = "call" | "jsx" | "external" | "passes" | "injected";
 
 export type GraphEdge = {
   id: string;

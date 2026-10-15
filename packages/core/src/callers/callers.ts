@@ -1,8 +1,6 @@
 import {
   Node,
-  type CallExpression,
   type JsxOpeningElement,
-  type NewExpression,
   type JsxSelfClosingElement,
   type SourceFile,
   type ts,
@@ -27,13 +25,15 @@ import {
   type BuildContext,
 } from "../nodes/node-builder.js";
 import { passSiteOf } from "../callees/passing.js";
+import { callOf } from "./call-of.js";
+import { hostedFunctionHits, injectedHitsFrom } from "./injected-hits.js";
 import { findReferenceNodes } from "./references.js";
 import type { GraphEdge, GraphNode, NodeId } from "../types.js";
 
 /** Spec §6: a logging helper can have hundreds of callers; cap the slice. */
 export const MAX_CALLERS = 50;
 
-type UseSite = { kind: "call" | "jsx" | "passes"; node: Node };
+type UseSite = { kind: "call" | "jsx" | "passes" | "injected"; node: Node };
 
 export type CallerHit = {
   ref: Node;
@@ -65,14 +65,29 @@ export function* callerHits(
       caller: nearestNameableTarget(ref),
       sourceFile: ref.getSourceFile(),
     };
+    yield* injectedHitsFrom(ref, token);
   }
+}
+
+/**
+ * callerHits plus the callbacks written inside the function, which are
+ * called by whatever receives them (see hostedFunctionHits).
+ */
+export function* allCallerHits(
+  target: FocusTarget,
+  token?: ts.CancellationToken,
+): Iterable<CallerHit> {
+  yield* callerHits(target.nameNode, token);
+  yield* hostedFunctionHits(target, token);
 }
 
 export function suppliesLabel(
   declaration: CallableDeclaration,
   kind: UseSite["kind"],
 ): string {
-  if (kind === "call") return returnTypeLabel(declaration).text;
+  if (kind === "call" || kind === "injected") {
+    return returnTypeLabel(declaration).text;
+  }
   return kind === "jsx"
     ? propsTypeLabel(declaration)
     : signatureLabel(declaration);
@@ -92,7 +107,7 @@ export function collectCallerEdges(
   let realKept = 0;
   let truncated = false;
 
-  for (const hit of callerHits(target.nameNode)) {
+  for (const hit of allCallerHits(target)) {
     const { caller, kind } = hit;
     const node = caller
       ? buildGraphNode(caller, classifyDeclaration(caller.declaration), ctx)
@@ -193,43 +208,4 @@ function compareLocation(a: Node, b: Node): number {
   const fileB = b.getSourceFile().getFilePath();
   if (fileA !== fileB) return fileA < fileB ? -1 : 1;
   return a.getStart() - b.getStart();
-}
-
-const CALL_APPLY = new Set(["call", "apply"]);
-
-/**
- * The call a reference invokes: `f()`, `new F()`, `obj.f()`, `f.call(...)`,
- * `f.apply(...)` or `obj.f.call(...)`. Imports, type positions and other
- * members such as `f.toString()` are not calls.
- */
-function callOf(ref: Node): CallExpression | NewExpression | undefined {
-  const direct = invokerOf(ref) ?? callApplyOn(ref);
-  if (direct) return direct;
-  const parent = ref.getParent();
-  if (
-    Node.isPropertyAccessExpression(parent) &&
-    parent.getExpression() !== ref
-  ) {
-    return invokerOf(parent) ?? callApplyOn(parent);
-  }
-  return undefined;
-}
-
-/** The call that invokes `expr` directly, as in `expr()` or `new expr()`. */
-function invokerOf(expr: Node): CallExpression | NewExpression | undefined {
-  const parent = expr.getParent();
-  if (!Node.isCallExpression(parent) && !Node.isNewExpression(parent)) {
-    return undefined;
-  }
-  return parent.getExpression() === expr ? parent : undefined;
-}
-
-/** For `expr.call(...)` or `expr.apply(...)`, the call of that member. */
-function callApplyOn(
-  expr: Node,
-): CallExpression | NewExpression | undefined {
-  const parent = expr.getParent();
-  if (!Node.isPropertyAccessExpression(parent)) return undefined;
-  if (parent.getExpression() !== expr) return undefined;
-  return CALL_APPLY.has(parent.getName()) ? invokerOf(parent) : undefined;
 }

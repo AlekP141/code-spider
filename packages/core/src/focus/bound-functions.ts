@@ -140,7 +140,7 @@ function isArgumentOf(parent: Node, node: Node): boolean {
   );
 }
 
-function skipTypeOnly(node: Node): Node {
+export function skipTypeOnly(node: Node): Node {
   return isTypeOnly(node) ? skipTypeOnly(node.getExpression()) : node;
 }
 

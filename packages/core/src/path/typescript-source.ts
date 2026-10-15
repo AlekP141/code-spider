@@ -1,5 +1,5 @@
 import { ts, type Project, type SourceFile } from "ts-morph";
-import { callerHits, type CallerHit } from "../callers/callers.js";
+import { allCallerHits, type CallerHit } from "../callers/callers.js";
 import type { CallableDeclaration, FocusTarget } from "../focus/focus.js";
 import {
   moduleIdOf,
@@ -39,7 +39,7 @@ export class TypeScriptSource implements CallerSource {
 
     const links = new Map<string, Link>();
     try {
-      for (const hit of callerHits(target.nameNode, this.token)) {
+      for (const hit of allCallerHits(target, this.token)) {
         this.addLink(links, id, hit);
         if (this.signal.isRequested()) throw new SearchStopped();
       }
