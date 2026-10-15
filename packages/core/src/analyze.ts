@@ -1,17 +1,14 @@
-import { join } from "node:path";
 import type { Project } from "ts-morph";
-import { targetsQualifiedAs } from "./focus/callable-names.js";
 import { collectCalleeEdges } from "./callees/callees.js";
 import { collectCallerEdges } from "./callers/callers.js";
 import { classifyDeclaration } from "./nodes/classify.js";
-import { NodeNotFoundError } from "./errors.js";
 import { resolveFocus, type FocusTarget } from "./focus/focus.js";
 import {
   buildGraphNode,
   MODULE_NAME,
   type BuildContext,
 } from "./nodes/node-builder.js";
-import { parseNodeId } from "./nodes/node-id.js";
+import { targetFor } from "./path/ends.js";
 import { positionToOffset } from "./focus/position.js";
 import type { GraphSlice, NodeId } from "./types.js";
 
@@ -29,7 +26,7 @@ export function analyzeFocus(
   req: AnalyzeRequest,
 ): GraphSlice {
   const target = resolveFocus(project, req.file, req.offset);
-  return sliceFor(target, { repoRoot: req.repoRoot });
+  return sliceForTarget(target, { repoRoot: req.repoRoot });
 }
 
 export type AnalyzeAtRequest = {
@@ -74,20 +71,14 @@ export function expandNode(
     throw new Error(`Node is not expandable: ${nodeId}`);
   }
 
-  const { file, name, index } = parseNodeId(nodeId);
-  const sourceFile = project.getSourceFile(join(repoRoot, file));
-  if (!sourceFile) {
-    throw new NodeNotFoundError(`Node not found (missing file): ${nodeId}`);
-  }
-
-  const target = targetsQualifiedAs(sourceFile, name)[index];
-  if (!target) throw new NodeNotFoundError(`Node not found: ${nodeId}`);
-
-  return sliceFor(target, { repoRoot });
+  return sliceForTarget(targetFor(project, nodeId, repoRoot), { repoRoot });
 }
 
-/** The slice around a focus target; shared by analyzeFocus and expandNode. */
-function sliceFor(target: FocusTarget, ctx: BuildContext): GraphSlice {
+/** The slice around a focus target, as analyzeFocus and expandNode build it. */
+export function sliceForTarget(
+  target: FocusTarget,
+  ctx: BuildContext,
+): GraphSlice {
   const focusNode = buildGraphNode(
     target,
     classifyDeclaration(target.declaration),

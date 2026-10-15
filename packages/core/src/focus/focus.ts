@@ -50,11 +50,11 @@ export const isCallable = (node: Node): node is CallableDeclaration => {
   );
 };
 
-export const resolveFocus = (
+export const findFocus = (
   project: Project,
   filePath: string,
   offset: number,
-): FocusTarget => {
+): FocusTarget | undefined => {
   const sourceFile = project.getSourceFile(filePath);
   if (!sourceFile) throw new Error(`File is not in project: ${filePath}`);
 
@@ -64,8 +64,16 @@ export const resolveFocus = (
 
   // Spec §6 step 1: with no enclosing callable, fall back to the default export.
   const fallback = defaultExportCallable(sourceFile);
-  if (fallback) return toFocusTarget(fallback, sourceFile);
+  return fallback && toFocusTarget(fallback, sourceFile);
+};
 
+export const resolveFocus = (
+  project: Project,
+  filePath: string,
+  offset: number,
+): FocusTarget => {
+  const target = findFocus(project, filePath, offset);
+  if (target) return target;
   throw new Error(
     `No callable found at ${filePath}:${offset}, and no default export`,
   );

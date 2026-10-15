@@ -5,7 +5,7 @@ import type { FocusTarget } from "../focus/focus.js";
 import { inputTypeLabel, returnTypeLabel } from "./labels.js";
 import { makeNodeId, toPosixPath } from "./node-id.js";
 import { isTestPath } from "./test-path.js";
-import type { GraphNode, NodeKind, Range } from "../types.js";
+import type { GraphNode, NodeId, NodeKind, Range } from "../types.js";
 
 export const CODE_PREVIEW_MAX_LINES = 25;
 
@@ -39,7 +39,7 @@ export function buildModuleNode(
 ): GraphNode {
   const file = repoRelative(sourceFile, ctx);
   return {
-    id: makeNodeId(file, MODULE_NAME),
+    id: moduleIdOf(sourceFile, ctx),
     kind: "module",
     name: sourceFile.getBaseName(),
     file,
@@ -53,6 +53,16 @@ export function buildModuleNode(
   };
 }
 
+export function moduleIdOf(sourceFile: SourceFile, ctx: BuildContext): NodeId {
+  return makeNodeId(repoRelative(sourceFile, ctx), MODULE_NAME);
+}
+
+/** The id buildGraphNode gives the target, without reading any types. */
+export function nodeIdOf(target: FocusTarget, ctx: BuildContext): NodeId {
+  const { name, index } = nodeNameOf(target);
+  return makeNodeId(repoRelative(target.sourceFile, ctx), name, index);
+}
+
 export function buildGraphNode(
   target: FocusTarget,
   kind: NodeKind,
@@ -60,13 +70,12 @@ export function buildGraphNode(
 ): GraphNode {
   const file = repoRelative(target.sourceFile, ctx);
 
-  const { name, index } = nodeNameOf(target);
   const text = target.textNode.getText();
   const lines = text.split(/\r?\n/);
   const { text: returnType, isAsync } = returnTypeLabel(target.declaration);
 
   return {
-    id: makeNodeId(file, name, index),
+    id: nodeIdOf(target, ctx),
     kind,
     name: target.name,
     file,

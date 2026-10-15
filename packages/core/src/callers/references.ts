@@ -38,7 +38,10 @@ const NEVER_CANCELLED: ts.CancellationToken = {
  * Same result as ts-morph's `findReferencesAsNodes`, without its language
  * service.
  */
-export function findReferenceNodes(nameNode: Node): Node[] {
+export function findReferenceNodes(
+  nameNode: Node,
+  token: ts.CancellationToken = NEVER_CANCELLED,
+): Node[] {
   if (!finder) {
     throw new Error("This TypeScript version has no FindAllReferences API");
   }
@@ -47,7 +50,7 @@ export function findReferenceNodes(nameNode: Node): Node[] {
   const symbols =
     finder.findReferencedSymbols(
       program,
-      NEVER_CANCELLED,
+      token,
       program.getSourceFiles(),
       nameNode.getSourceFile().compilerNode,
       nameNode.getStart(),

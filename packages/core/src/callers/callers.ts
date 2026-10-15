@@ -4,10 +4,16 @@ import {
   type JsxOpeningElement,
   type NewExpression,
   type JsxSelfClosingElement,
+  type SourceFile,
+  type ts,
 } from "ts-morph";
 import { aliasDeclaredBy, MAX_ALIAS_DEPTH } from "../focus/bound-functions.js";
 import { classifyDeclaration } from "../nodes/classify.js";
-import { nearestNameableTarget, type FocusTarget } from "../focus/focus.js";
+import {
+  nearestNameableTarget,
+  type CallableDeclaration,
+  type FocusTarget,
+} from "../focus/focus.js";
 import {
   propsTypeLabel,
   returnTypeLabel,
@@ -29,39 +35,71 @@ export const MAX_CALLERS = 50;
 
 type UseSite = { kind: "call" | "jsx" | "passes"; node: Node };
 
+export type CallerHit = {
+  ref: Node;
+  kind: UseSite["kind"];
+  site: Node;
+  /** Undefined when the use sits outside every named function. */
+  caller: FocusTarget | undefined;
+  sourceFile: SourceFile;
+};
+
+/**
+ * Every use of the function behind `nameNode`, in reference order, one at a
+ * time so a consumer can stop early. A reference counts when it is a call
+ * target, a rendered JSX tag or the function passed as a value (see
+ * passSiteOf); the name itself is not a use.
+ */
+export function* callerHits(
+  nameNode: Node,
+  token?: ts.CancellationToken,
+): Iterable<CallerHit> {
+  for (const ref of referencesInOrder(nameNode, token)) {
+    if (ref === nameNode) continue;
+    const site = useSiteOf(ref);
+    if (!site) continue;
+    yield {
+      ref,
+      kind: site.kind,
+      site: site.node,
+      caller: nearestNameableTarget(ref),
+      sourceFile: ref.getSourceFile(),
+    };
+  }
+}
+
+export function suppliesLabel(
+  declaration: CallableDeclaration,
+  kind: UseSite["kind"],
+): string {
+  if (kind === "call") return returnTypeLabel(declaration).text;
+  return kind === "jsx"
+    ? propsTypeLabel(declaration)
+    : signatureLabel(declaration);
+}
+
 /**
  * Callers come from TypeScript's reference finder (the data behind Find All
- * References), not a whole-project index of our own. A reference counts
- * when it is a call target, a rendered JSX tag, or the function passed as a
- * value (see passSiteOf).
+ * References), not a whole-project index of our own.
  */
 export function collectCallerEdges(
   target: FocusTarget,
   focusId: NodeId,
   ctx: BuildContext,
 ): { nodes: GraphNode[]; edges: GraphEdge[]; truncated: boolean } {
-  const supplies = {
-    call: returnTypeLabel(target.declaration).text,
-    jsx: propsTypeLabel(target.declaration),
-    passes: signatureLabel(target.declaration),
-  };
-
+  const supplies: Partial<Record<UseSite["kind"], string>> = {};
   const entries = new Map<string, { node: GraphNode; edge: GraphEdge }>();
   let realKept = 0;
   let truncated = false;
 
-  for (const ref of referencesInOrder(target.nameNode)) {
-    if (ref === target.nameNode) continue;
-    const site = useSiteOf(ref);
-    if (!site) continue;
-
-    const caller = nearestNameableTarget(ref);
+  for (const hit of callerHits(target.nameNode)) {
+    const { caller, kind } = hit;
     const node = caller
       ? buildGraphNode(caller, classifyDeclaration(caller.declaration), ctx)
-      : buildModuleNode(ref.getSourceFile(), ctx);
+      : buildModuleNode(hit.sourceFile, ctx);
     if (node.id === focusId) continue;
 
-    const key = `${node.id}|${site.kind}`;
+    const key = `${node.id}|${kind}`;
     if (entries.has(key)) continue;
 
     if (!node.isTest && realKept >= MAX_CALLERS) {
@@ -73,12 +111,12 @@ export function collectCallerEdges(
     entries.set(key, {
       node,
       edge: {
-        id: edgeId(focusId, node.id, site.kind),
+        id: edgeId(focusId, node.id, kind),
         from: focusId,
         to: node.id,
-        kind: site.kind,
-        supplies: supplies[site.kind],
-        callSite: rangeOf(site.node),
+        kind,
+        supplies: (supplies[kind] ??= suppliesLabel(target.declaration, kind)),
+        callSite: rangeOf(hit.site),
         resolved: true,
       },
     });
@@ -130,16 +168,23 @@ function renderOf(
 }
 
 /** Sorted by path then position, so the kept callers are deterministic. */
-function referencesInOrder(nameNode: Node): Node[] {
-  return referencesThroughAliases(nameNode, 0).sort(compareLocation);
+function referencesInOrder(
+  nameNode: Node,
+  token?: ts.CancellationToken,
+): Node[] {
+  return referencesThroughAliases(nameNode, 0, token).sort(compareLocation);
 }
 
 /** References, with each `const alias = it` replaced by the alias's own. */
-function referencesThroughAliases(nameNode: Node, depth: number): Node[] {
-  return findReferenceNodes(nameNode).flatMap((ref) => {
+function referencesThroughAliases(
+  nameNode: Node,
+  depth: number,
+  token?: ts.CancellationToken,
+): Node[] {
+  return findReferenceNodes(nameNode, token).flatMap((ref) => {
     const alias = aliasDeclaredBy(ref);
     if (!alias || depth >= MAX_ALIAS_DEPTH) return [ref];
-    return referencesThroughAliases(alias.getNameNode(), depth + 1);
+    return referencesThroughAliases(alias.getNameNode(), depth + 1, token);
   });
 }
 
