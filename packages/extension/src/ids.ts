@@ -1,5 +1,9 @@
 export const COMMAND_SHOW_GRAPH = "codeSpider.showGraph";
 export const COMMAND_SHOW_IN_CODE_SPIDER = "codeSpider.showInCodeSpider";
+export const COMMAND_PATH_FROM = "codeSpider.pathFrom";
+export const COMMAND_PATH_TO = "codeSpider.pathTo";
+export const COMMAND_CLEAR_PATH_START = "codeSpider.clearPathStart";
+export const CONTEXT_PATH_START_MARKED = "codeSpider.pathStartMarked";
 export const PANEL_VIEW_TYPE = "codeSpider.graph";
 export const PANEL_TITLE = "Code Spider";
 export const SETTING_MAX_HEAP_MB = "codeSpider.worker.maxHeapMb";

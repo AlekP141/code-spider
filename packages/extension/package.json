@@ -35,6 +35,20 @@
           "default": 8192,
           "minimum": 512,
           "description": "Maximum heap, in megabytes, of the analysis worker. Raise it if Code Spider reports running out of memory on a very large project. Changing it restarts the worker."
+        },
+        "codeSpider.path.timeLimitSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 3600,
+          "description": "How many seconds a path search may run before it stops and shows what it found. Read at the start of every search."
+        },
+        "codeSpider.path.maxBoxes": {
+          "type": "integer",
+          "default": 200,
+          "minimum": 10,
+          "maximum": 2000,
+          "description": "How many functions a path search may visit before it stops and shows what it found. Read at the start of every search."
         }
       }
     },
@@ -45,15 +59,42 @@
         "category": "Code Spider"
       },
       {
+        "command": "codeSpider.pathFrom",
+        "title": "Path from here",
+        "category": "Code Spider"
+      },
+      {
+        "command": "codeSpider.pathTo",
+        "title": "Path to here",
+        "category": "Code Spider"
+      },
+      {
+        "command": "codeSpider.clearPathStart",
+        "title": "Clear Path Start",
+        "category": "Code Spider"
+      },
+      {
         "command": "codeSpider.showInCodeSpider",
         "title": "Show in Code Spider"
       }
     ],
     "keybindings": [
       {
+        "command": "codeSpider.pathFrom",
+        "key": "shift+alt+1",
+        "mac": "shift+alt+1",
+        "when": "editorTextFocus && (editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact)"
+      },
+      {
         "command": "codeSpider.showGraph",
-        "key": "ctrl+alt+s",
-        "mac": "cmd+ctrl+s",
+        "key": "shift+alt+2",
+        "mac": "shift+alt+2",
+        "when": "editorTextFocus && (editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact)"
+      },
+      {
+        "command": "codeSpider.pathTo",
+        "key": "shift+alt+3",
+        "mac": "shift+alt+3",
         "when": "editorTextFocus && (editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact)"
       }
     ],
@@ -73,6 +114,18 @@
         {
           "command": "codeSpider.showGraph",
           "when": "editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact"
+        },
+        {
+          "command": "codeSpider.pathFrom",
+          "when": "editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact"
+        },
+        {
+          "command": "codeSpider.pathTo",
+          "when": "editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact"
+        },
+        {
+          "command": "codeSpider.clearPathStart",
+          "when": "codeSpider.pathStartMarked"
         }
       ]
     }

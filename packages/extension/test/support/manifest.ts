@@ -24,7 +24,12 @@ export type Manifest = {
     configuration?: {
       properties: Record<
         string,
-        { type: string; default: unknown; minimum?: number }
+        {
+          type: string;
+          default: unknown;
+          minimum?: number;
+          maximum?: number;
+        }
       >;
     };
   };

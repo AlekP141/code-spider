@@ -85,6 +85,9 @@ describe("Code Spider", () => {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes("codeSpider.showGraph"));
     assert.ok(commands.includes("codeSpider.showInCodeSpider"));
+    assert.ok(commands.includes("codeSpider.pathFrom"));
+    assert.ok(commands.includes("codeSpider.pathTo"));
+    assert.ok(commands.includes("codeSpider.clearPathStart"));
   });
 
   it("opens the graph panel beside the editor and analyses the function", async () => {
@@ -251,5 +254,34 @@ describe("Code Spider", () => {
       await closeEditorsUnder(copy);
       fs.rmSync(copy, { recursive: true, force: true });
     }
+  });
+
+  it("finds the path from one function to another on the paths fixture", async () => {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    assert.ok(folder, "no workspace folder is open");
+    const report = vscode.Uri.file(
+      path.resolve(folder.uri.fsPath, "../paths/src/report.ts"),
+    );
+    const inside = async (needle: string) => {
+      const document = await vscode.workspace.openTextDocument(report);
+      await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+      return document.positionAt(document.getText().indexOf(needle) + 3);
+    };
+
+    await vscode.commands.executeCommand(
+      "codeSpider.pathFrom",
+      report,
+      await inside("loadRows"),
+    );
+    await vscode.commands.executeCommand(
+      "codeSpider.pathTo",
+      report,
+      await inside("renderCell"),
+    );
+
+    const slice = api.currentGraph()?.slice;
+    assert.ok(slice, "no graph is showing");
+    assert.equal(slice.focusId, "src/report.ts#loadRows");
+    assert.ok(slice.nodes.some((node) => node.id === "src/report.ts#readRows"));
   });
 });

@@ -50,15 +50,14 @@ describe("extension manifest", () => {
     expect([...activationEvents].sort()).toEqual([...expected].sort());
   });
 
-  it("binds Ctrl+Alt+S, and Cmd+Ctrl+S on a Mac, in TS/JS editors only", () => {
-    expect(contributes.keybindings).toEqual([
-      {
-        command: COMMAND_SHOW_GRAPH,
-        key: "ctrl+alt+s",
-        mac: "cmd+ctrl+s",
-        when: `editorTextFocus && (${languageClause})`,
-      },
-    ]);
+  it("binds Show Graph to Shift+Alt+2, repeated in mac, in TS/JS editors only", () => {
+    expect(contributes.keybindings).toContainEqual({
+      command: COMMAND_SHOW_GRAPH,
+      key: "shift+alt+2",
+      mac: "shift+alt+2",
+      when: `editorTextFocus && (${languageClause})`,
+    });
+    expect(contributes.keybindings).toHaveLength(3);
   });
 
   it("adds Show in Code Spider to the editor context menu for TS/JS only", () => {

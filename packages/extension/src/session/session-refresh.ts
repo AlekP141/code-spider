@@ -7,7 +7,7 @@ import type { ChangeMap } from "../diff/parse-diff.js";
 import type { FocusResult, RefreshResult } from "../worker/protocol.js";
 
 export const CENTRE_GONE_MESSAGE =
-  "The function at the centre of this graph no longer exists. Put the cursor in a function and press Ctrl+Alt+S.";
+  "The function at the centre of this graph no longer exists. Put the cursor in a function and press Shift+Alt+2.";
 
 export const PATH_ENDS_GONE_MESSAGE =
   "The start or the end of this path no longer exists. Put the cursor in a function and press Shift+Alt+2.";

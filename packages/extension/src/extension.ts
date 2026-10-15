@@ -23,6 +23,8 @@ import { workspaceDocuments } from "./vscode/documents.js";
 import { EditorRevealer } from "./vscode/editor.js";
 import { resolveFocusRequest } from "./vscode/focus-request.js";
 import { notifier } from "./vscode/notifier.js";
+import { registerPathCommands } from "./vscode/path-commands.js";
+import { PathStartIndicator } from "./vscode/path-start-indicator.js";
 import { getMaxHeapMb, getPathLimits } from "./vscode/settings.js";
 import { IndexingStatusBar } from "./vscode/status-bar.js";
 import { registerChangeWatchers } from "./vscode/watchers.js";
@@ -60,6 +62,8 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     },
   );
   const statusBar = new IndexingStatusBar();
+  const pathStart = new PathStart();
+  const pathIndicator = new PathStartIndicator();
   const { changes, dispose: disposeSourceChanges } = createSourceChanges(
     (message) => panel.post(message),
     SOURCE_CHANGED_DELAY_MS,
@@ -75,7 +79,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     documents: workspaceDocuments,
     diff: gitDiff,
     diffMode: () => diffMode.get(),
-    pathStart: new PathStart(),
+    pathStart,
     pathLimits: getPathLimits,
   });
   const announce = () =>
@@ -103,6 +107,10 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     testVisibility,
   });
   announce();
+  pathStart.onChange((mark) => {
+    pathIndicator.show(mark);
+    panel.post({ type: "pathStart", mark });
+  });
   const showGraph = async (uri?: vscode.Uri, position?: vscode.Position) => {
     const request = await resolveFocusRequest(uri, position);
     if (request) await session.showGraph(request);
@@ -115,6 +123,8 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     revealer,
     panel,
     statusBar,
+    pathIndicator,
+    registerPathCommands(session.paths, pathStart),
     { dispose: disposeSourceChanges },
     registerChangeWatchers((fsPath) => changes.mark(fsPath)),
     vscode.commands.registerCommand(COMMAND_SHOW_GRAPH, showGraph),
