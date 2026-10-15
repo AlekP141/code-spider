@@ -1,6 +1,7 @@
 import { isDiffMode } from "../settings/diff-mode.js";
 import { isEdgeStyle } from "../settings/edge-style.js";
 import { isTestVisibility } from "../settings/test-visibility.js";
+import { isOptionalRoute, isPathMessage } from "./path-messages.js";
 import type { ExtensionToWebview, SliceMode } from "./protocol.js";
 
 function isFiniteNumber(value: unknown): value is number {
@@ -77,7 +78,8 @@ export function isExtensionMessage(
         typeof message.centre === "object" &&
         message.centre !== null &&
         Array.isArray(message.expansions) &&
-        message.expansions.every(isExpansionAnswer)
+        message.expansions.every(isExpansionAnswer) &&
+        isOptionalRoute(message)
       );
     case "refreshFailed":
       return (
@@ -90,6 +92,10 @@ export function isExtensionMessage(
       return (
         typeof message.project === "string" && isChangeMarks(message.marks)
       );
+    case "pathStart":
+    case "pathSearch":
+    case "pathFound":
+      return isPathMessage(message);
     default:
       return false;
   }

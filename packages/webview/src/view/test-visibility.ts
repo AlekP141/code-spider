@@ -30,8 +30,11 @@ export function hiddenIds(
     return new Set();
   }
   const around = neighbours(graph);
-  const reached = new Set<NodeId>([graph.focusId]);
-  const pending = [graph.focusId];
+  const seeds = [graph.focusId, graph.path?.endId].filter(
+    (id): id is NodeId => id !== undefined && Object.hasOwn(graph.nodes, id),
+  );
+  const reached = new Set<NodeId>(seeds);
+  const pending = [...seeds];
   for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
     for (const next of around.get(id) ?? []) {
       if (reached.has(next) || graph.nodes[next]?.isTest) continue;

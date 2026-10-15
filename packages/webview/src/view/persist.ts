@@ -2,6 +2,7 @@ import type { EdgeType, NodeKind } from "@code-spider/core/types";
 import { normaliseColumnGap } from "../settings/column-gap.js";
 import { isEdgeStyle } from "../settings/edge-style.js";
 import type { GraphState, ViewState } from "./types.js";
+import { isPathInfo, pathInfoMatches } from "./path-info.js";
 import { HISTORY_LIMIT } from "./view-state.js";
 
 type Record_ = Record<string, unknown>;
@@ -125,6 +126,13 @@ function isConsistent(graph: GraphState): boolean {
   );
 }
 
+function isValidPath(graph: GraphState): boolean {
+  const path: unknown = graph.path;
+  return (
+    path === undefined || (isPathInfo(path) && pathInfoMatches(graph, path))
+  );
+}
+
 export function isGraphState(value: unknown): value is GraphState {
   return (
     isRecord(value) &&
@@ -140,7 +148,8 @@ export function isGraphState(value: unknown): value is GraphState {
     isNumber(value.revision) &&
     (value.sourceVersion === undefined || isNumber(value.sourceVersion)) &&
     (value.columnGap === undefined || isNormalisedGap(value.columnGap)) &&
-    isConsistent(value as GraphState)
+    isConsistent(value as GraphState) &&
+    isValidPath(value as GraphState)
   );
 }
 

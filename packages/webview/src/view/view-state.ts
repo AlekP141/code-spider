@@ -26,9 +26,14 @@ function hasExpansions(graph: GraphState): boolean {
   return Object.keys(graph.slices).some((key) => key !== graph.focusId);
 }
 
-/** Re-centring on the same node would rebuild it, so Back need not keep it. */
+/**
+ * Re-centring on the same node would rebuild it, so Back need not keep it.
+ * A path graph cannot be rebuilt that way, and replacing one must keep it.
+ */
 function isRecoverable(previous: GraphState, next: GraphState): boolean {
   return (
+    !previous.path &&
+    !next.path &&
     previous.project === next.project &&
     previous.focusId === next.focusId &&
     !hasExpansions(previous) &&

@@ -1,6 +1,17 @@
 import type { NodeId } from "@code-spider/core/types";
-import type { ExtensionToWebview } from "../host/protocol.js";
+import type {
+  ExtensionToWebview,
+  PathMark,
+  PathSearch,
+} from "../host/protocol.js";
 import { applyChangeMarks } from "./app-change-marks.js";
+import { refit, relayoutPending, startCentre } from "./app-centre.js";
+import {
+  requestPathCancel,
+  startPathCentre,
+  withPathSearch,
+  withPathStart,
+} from "./app-path.js";
 import {
   applyRefreshed,
   failRefresh,
@@ -78,6 +89,12 @@ export type AppState = {
   testVisibility: TestVisibility;
   /** Only the first `settings` message after each load is applied. */
   settingsApplied: boolean;
+  /** The extension's start mark; never persisted. */
+  pathStart: PathMark | undefined;
+  /** A path search or refresh is running; never persisted. */
+  pathSearch: PathSearch | undefined;
+  /** Cancel was pressed for the running search; never persisted. */
+  cancelling: boolean;
 };
 
 export type LocalAction =
@@ -100,7 +117,8 @@ export type LocalAction =
   | { type: "columnGapChanged"; value: number }
   | { type: "edgeStyleChanged"; value: EdgeStyle }
   | { type: "diffModeChanged"; value: DiffMode }
-  | { type: "testVisibilityChanged"; value: TestVisibility };
+  | { type: "testVisibilityChanged"; value: TestVisibility }
+  | { type: "pathCancelRequested" };
 
 export type AppAction = ExtensionToWebview | LocalAction;
 
@@ -125,47 +143,9 @@ export function createAppState(saved: unknown): AppState {
     diffMode: DEFAULT_DIFF_MODE,
     testVisibility: DEFAULT_TEST_VISIBILITY,
     settingsApplied: false,
-  };
-}
-
-type SliceMessage = Extract<ExtensionToWebview, { type: "slice" }>;
-
-function startCentre(
-  state: AppState,
-  message: SliceMessage,
-  sourceVersion: number,
-): AppState {
-  return {
-    ...state,
-    error: undefined,
-    pending: {
-      id: state.nextPending,
-      graph: {
-        ...graphFromSlice(message.slice, message.project),
-        sourceVersion,
-      },
-      columnGap: state.view.columnGap,
-      testVisibility: state.testVisibility,
-    },
-    nextPending: state.nextPending + 1,
-  };
-}
-
-function refit(state: AppState, duration: number): FitRequest {
-  return { token: state.fit.token + 1, duration };
-}
-
-/** A setting moved while ELK ran, so lay the same centre out again. */
-function relayoutPending(state: AppState, pending: PendingCentre): AppState {
-  return {
-    ...state,
-    pending: {
-      ...pending,
-      id: state.nextPending,
-      columnGap: state.view.columnGap,
-      testVisibility: state.testVisibility,
-    },
-    nextPending: state.nextPending + 1,
+    pathStart: undefined,
+    pathSearch: undefined,
+    cancelling: false,
   };
 }
 
@@ -183,7 +163,10 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "slice":
       return action.mode.kind === "centre"
-        ? startCentre(state, action, action.mode.sourceVersion)
+        ? startCentre(state, {
+            ...graphFromSlice(action.slice, action.project),
+            sourceVersion: action.mode.sourceVersion,
+          })
         : acceptAnswer(state, action);
     case "analysisError":
       return { ...state, error: action.message };
@@ -278,5 +261,13 @@ export function reduceApp(state: AppState, action: AppAction): AppState {
       return withTestVisibility(state, action.value);
     case "changeMarks":
       return applyChangeMarks(state, action);
+    case "pathStart":
+      return withPathStart(state, action.mark);
+    case "pathSearch":
+      return withPathSearch(state, action.search);
+    case "pathFound":
+      return startPathCentre(state, action);
+    case "pathCancelRequested":
+      return requestPathCancel(state);
   }
 }

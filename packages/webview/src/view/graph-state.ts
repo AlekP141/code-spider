@@ -15,7 +15,10 @@ function sliceRecord(
   };
 }
 
-function joinsNodes(edge: GraphEdge, nodes: Record<NodeId, unknown>): boolean {
+export function joinsNodes(
+  edge: GraphEdge,
+  nodes: Record<NodeId, unknown>,
+): boolean {
   return Object.hasOwn(nodes, edge.from) && Object.hasOwn(nodes, edge.to);
 }
 
@@ -95,13 +98,17 @@ export function mergeExpansion(
   };
 }
 
-/** The nodes reachable from the centre through the recorded slices. */
-function reachableFromCentre(
-  focusId: NodeId,
+export function collapseRoots(graph: GraphState): NodeId[] {
+  return [graph.focusId, ...(graph.path?.boxes.map((box) => box.id) ?? [])];
+}
+
+/** The nodes reachable from the roots through the recorded slices. */
+function reachableFrom(
+  roots: readonly NodeId[],
   slices: Record<NodeId, SliceRecord>,
 ): Set<NodeId> {
-  const reached = new Set<NodeId>([focusId]);
-  const pending = [focusId];
+  const reached = new Set<NodeId>(roots);
+  const pending = [...reached];
   for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
     for (const member of slices[id]?.members ?? []) {
       if (reached.has(member)) continue;
@@ -114,19 +121,21 @@ function reachableFromCentre(
 
 /**
  * Forgets the node's slice, then everything no longer reachable from the
- * centre. Pinned nodes stay; an edge stays only while both ends do and a
- * remaining slice lists it.
+ * roots (the centre, and every route box on a path graph). Pinned nodes stay;
+ * an edge stays only while both ends do and a remaining slice or the route
+ * lists it.
  */
 export function collapseNode(graph: GraphState, nodeId: NodeId): GraphState {
   if (!isExpanded(graph, nodeId)) return graph;
   const withoutNode = keepEntries(graph.slices, (key) => key !== nodeId);
-  const reachable = reachableFromCentre(graph.focusId, withoutNode);
+  const reachable = reachableFrom(collapseRoots(graph), withoutNode);
   const slices = keepEntries(withoutNode, (key) => reachable.has(key));
   const keptNode = (id: NodeId) =>
     reachable.has(id) || graph.pinned.includes(id);
-  const listed = new Set(
-    Object.values(slices).flatMap((record) => record.edgeIds),
-  );
+  const listed = new Set([
+    ...Object.values(slices).flatMap((record) => record.edgeIds),
+    ...(graph.path?.edgeIds ?? []),
+  ]);
   const nodes = keepEntries(graph.nodes, keptNode);
   const edges = Object.fromEntries(
     Object.entries(graph.edges).filter(

@@ -1,4 +1,9 @@
-import type { GraphEdge, GraphNode, NodeId } from "@code-spider/core/types";
+import type {
+  GraphEdge,
+  GraphNode,
+  NodeId,
+  PathInfo,
+} from "@code-spider/core/types";
 import type { EdgeStyle } from "../settings/edge-style.js";
 
 export type Point = { x: number; y: number };
@@ -29,6 +34,8 @@ export type GraphState = {
   columnGap?: number;
   /** The change counter when this graph's data was read; absent in older saves. */
   sourceVersion?: number;
+  /** On a path graph: the routes from the centre (A) to `path.endId` (B). */
+  path?: PathInfo;
 };
 
 export type ViewState = {

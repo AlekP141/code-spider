@@ -1,6 +1,12 @@
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 
-type Replayed = "settings" | "indexing" | "busy" | "sourceChanged";
+type Replayed =
+  | "settings"
+  | "indexing"
+  | "busy"
+  | "sourceChanged"
+  | "pathStart"
+  | "pathSearch";
 type Kind = Replayed | "content" | "ephemeral";
 
 function kindOf(message: ExtensionToWebview): Kind {
@@ -8,6 +14,7 @@ function kindOf(message: ExtensionToWebview): Kind {
     case "slice":
       return message.mode.kind === "centre" ? "content" : "ephemeral";
     case "analysisError":
+    case "pathFound":
       return "content";
     case "expandFailed":
     case "refreshed":
@@ -18,6 +25,8 @@ function kindOf(message: ExtensionToWebview): Kind {
     case "indexing":
     case "busy":
     case "sourceChanged":
+    case "pathStart":
+    case "pathSearch":
       return message.type;
   }
 }
@@ -27,6 +36,8 @@ const REPLAY_ORDER: Replayed[] = [
   "indexing",
   "busy",
   "sourceChanged",
+  "pathStart",
+  "pathSearch",
 ];
 
 const isReplayed = (kind: Kind): kind is Replayed =>
@@ -36,13 +47,13 @@ const isReplayed = (kind: Kind): kind is Replayed =>
  * The webview cannot receive messages until its script has run and posted
  * `ready`, and it restores its own graph from saved state. So the gate keeps
  * three kinds apart:
- * - content (a centre slice, an error) waits for the first `ready` and is
- *   delivered once;
+ * - content (a centre slice, a found path, an error) waits for the first
+ *   `ready` and is delivered once;
  * - ephemeral messages (an expansion slice, a failed expansion, a refresh
  *   answer, change marks) are sent when ready and dropped otherwise, so a
  *   late answer never reaches a new panel;
- * - settings, indexing, busy and sourceChanged are state: the latest of each
- *   replays on every `ready`.
+ * - settings, indexing, busy, sourceChanged, pathStart and pathSearch are
+ *   state: the latest of each replays on every `ready`.
  */
 export class MessageGate {
   private ready = false;

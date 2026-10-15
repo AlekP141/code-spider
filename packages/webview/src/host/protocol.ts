@@ -1,7 +1,23 @@
-import type { GraphNode, GraphSlice, NodeId } from "@code-spider/core/types";
+import type {
+  GraphNode,
+  GraphSlice,
+  NodeId,
+  PathInfo,
+  PathRoute,
+} from "@code-spider/core/types";
 import type { DiffMode } from "../settings/diff-mode.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
 import type { TestVisibility } from "../settings/test-visibility.js";
+import type {
+  PathExtensionMessage,
+  PathWebviewMessage,
+} from "./path-protocol.js";
+
+export type {
+  PathFoundMessage,
+  PathMark,
+  PathSearch,
+} from "./path-protocol.js";
 
 export type ChangeKind = NonNullable<GraphNode["change"]>;
 
@@ -34,10 +50,13 @@ export type ExtensionToWebview =
       sourceVersion: number;
       centre: GraphSlice;
       expansions: { nodeId: NodeId; slice: GraphSlice }[];
+      route?: PathRoute;
+      path?: PathInfo;
     }
   | { type: "refreshFailed"; generation: number; message: string }
   | { type: "sourceChanged"; version: number }
-  | { type: "changeMarks"; project: string; marks: Record<NodeId, ChangeKind> };
+  | { type: "changeMarks"; project: string; marks: Record<NodeId, ChangeKind> }
+  | PathExtensionMessage;
 
 export type WebviewToExtension =
   | { type: "ready" }
@@ -61,4 +80,6 @@ export type WebviewToExtension =
       generation: number;
       focusId: NodeId;
       expanded: NodeId[];
-    };
+      pathEndId?: NodeId;
+    }
+  | PathWebviewMessage;
