@@ -1,7 +1,11 @@
 import type { NodeId, PathBox } from "../types.js";
 import { byId } from "./links.js";
 import { countRoutes, FINAL_COUNT_LIMITS } from "./route-count.js";
-import { successorsOf, type RouteSelection, type RouteStep } from "./routes.js";
+import {
+  successorsOf,
+  type RouteSelection,
+  type RouteStep,
+} from "./routes.js";
 
 export type ArrangedRoutes = {
   boxes: PathBox[];
