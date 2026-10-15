@@ -43,5 +43,6 @@ export function refreshMessage(graph: GraphState): WebviewToExtension {
     generation: graph.generation,
     focusId: graph.focusId,
     expanded: Object.keys(graph.slices).filter((key) => key !== graph.focusId),
+    ...(graph.path ? { pathEndId: graph.path.endId } : {}),
   };
 }

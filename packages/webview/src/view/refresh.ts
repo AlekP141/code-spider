@@ -16,6 +16,7 @@ import {
   isOpen,
   mergeExpansion,
 } from "./graph-state.js";
+import { rebuildPathGraph } from "./refresh-path.js";
 import { freshPerSlice, restackPass, type Applied } from "./refresh-order.js";
 import { roomBoxes } from "./room-boxes.js";
 import { hiddenIds } from "./test-visibility.js";
@@ -42,18 +43,19 @@ function applySlice(
   return { ...merged, nodes, edges };
 }
 
+export type Sliced = { graph: GraphState; applied: Applied[] };
+
 /**
  * Each pass applies the expansions that qualify against the graph as the pass
  * began, in the order the user expanded them, so the answer's order is moot.
  */
-function rebuildSlices(
+export function applyExpansions(
   current: GraphState,
   answer: RefreshAnswer,
-): { graph: GraphState; applied: Applied[] } {
-  let graph = graphFromSlice(answer.centre, current.project);
-  const applied: Applied[] = [
-    { key: answer.centre.focusId, slice: answer.centre },
-  ];
+  start: Sliced,
+): Sliced {
+  let { graph } = start;
+  const { applied } = start;
   const done = new Set<NodeId>([answer.centre.focusId]);
   const recorded = Object.keys(current.slices);
   for (;;) {
@@ -127,7 +129,26 @@ export function rebuildGraph(
   columnGap: number,
   visibility: TestVisibility = DEFAULT_TEST_VISIBILITY,
 ): Rebuilt {
-  const { graph: sliced, applied } = rebuildSlices(current, answer);
+  if (current.path) {
+    return rebuildPathGraph(current, answer, columnGap, visibility);
+  }
+  const start = {
+    graph: graphFromSlice(answer.centre, current.project),
+    applied: [{ key: answer.centre.focusId, slice: answer.centre }],
+  };
+  const sliced = applyExpansions(current, answer, start);
+  return settleRebuild(current, answer, sliced, columnGap, visibility);
+}
+
+/** A path graph skips the call-order restack: its columns are route order. */
+export function settleRebuild(
+  current: GraphState,
+  answer: RefreshAnswer,
+  { graph: sliced, applied }: Sliced,
+  columnGap: number,
+  visibility: TestVisibility,
+): Rebuilt {
+  const restack = current.path === undefined;
   const hidden = hiddenIds(sliced, visibility);
   const shown = (nodeId: NodeId) =>
     Object.hasOwn(sliced.nodes, nodeId) && !hidden.has(nodeId);
@@ -149,22 +170,24 @@ export function rebuildGraph(
       nodeHeight(node, isOpen(rebuilt, node.id)),
     ]),
   );
-  const owners = walkParents(rebuilt);
+  const owners = restack ? walkParents(rebuilt) : new Map();
   const fresh = freshPerSlice(
     applied,
     new Set(Object.keys(kept)),
     owners,
   ).map((ids) => ids.filter(shown));
 
-  const restacked = restackPass({
-    applied,
-    fresh,
-    positions: kept,
-    owners,
-    pinned: pinnedIds,
-    heights,
-    columnGap,
-  });
+  const restacked = restack
+    ? restackPass({
+        applied,
+        fresh,
+        positions: kept,
+        owners,
+        pinned: pinnedIds,
+        heights,
+        columnGap,
+      })
+    : { positions: kept, chains: [], added: [] };
   const room = makeRoom(
     roomBoxes(rebuilt, restacked.positions),
     pinnedIds,

@@ -278,4 +278,5 @@ module.exports = [
     name: "the start mark tags a box A with a dashed outline and clears",
     run: startMarkShowsAndClears,
   },
+  ...require("./checks-paths-actions.js"),
 ];

@@ -46,7 +46,8 @@ export function applyRefreshed(
   if (
     current?.generation !== answer.generation ||
     current.project !== answer.project ||
-    current.focusId !== answer.centre.focusId
+    current.focusId !== answer.centre.focusId ||
+    current.path?.endId !== answer.path?.endId
   ) {
     return state;
   }

@@ -103,20 +103,22 @@ class Harness {
     return this.input({ type: "mouseMove", ...at, modifiers });
   }
 
-  async press(at, clickCount = 1) {
-    await this.input({ type: "mouseDown", ...at, button: "left", clickCount });
+  async press(at, clickCount = 1, modifiers = []) {
+    const event = { type: "mouseDown", ...at, button: "left", clickCount };
+    await this.input({ ...event, modifiers });
   }
 
-  async release(at, clickCount = 1) {
-    await this.input({ type: "mouseUp", ...at, button: "left", clickCount });
+  async release(at, clickCount = 1, modifiers = []) {
+    const event = { type: "mouseUp", ...at, button: "left", clickCount };
+    await this.input({ ...event, modifiers });
   }
 
-  async click(at, travel = 0) {
+  async click(at, travel = 0, modifiers = []) {
     await this.move(at);
-    await this.press(at);
+    await this.press(at, 1, modifiers);
     const end = { x: at.x + travel, y: at.y };
     if (travel > 0) await this.move(end, true);
-    await this.release(end);
+    await this.release(end, 1, modifiers);
   }
 
   async doubleClick(at) {

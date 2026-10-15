@@ -22,11 +22,8 @@ import type { AppState, FitRequest } from "../app/app-state.js";
 import type { EdgeStyle } from "../settings/edge-style.js";
 import type { PathMark, WebviewToExtension } from "../host/protocol.js";
 import type { GraphState, Point } from "../view/types.js";
-import {
-  codeLineAt,
-  edgeClickMessage,
-  nodeClickMessage,
-} from "./jump.js";
+import { classifyNodeClick, ignoresDoubleClick } from "./click-rules.js";
+import { codeLineAt, edgeClickMessage, nodeClickMessage } from "./jump.js";
 import {
   applyLive,
   recordLive,
@@ -186,8 +183,13 @@ function GraphCanvas({
   const onNodeClick = useCallback(
     (event: ReactMouseEvent, node: SpiderFlowNode) => {
       if (justUnpinned(lastUnpin.current, node.id, performance.now())) return;
-      const line = clickedCodeLine(event, node.data.node.codePreview);
       clearTimeout(pendingClick.current);
+      const click = classifyNodeClick(event.shiftKey, node.data.node, project);
+      if (click.kind === "path") {
+        if (click.message) onPost(click.message);
+        return;
+      }
+      const line = clickedCodeLine(event, node.data.node.codePreview);
       pendingClick.current = setTimeout(() => {
         if (line === undefined && node.data.open) return onClose(node.id);
         const message = nodeClickMessage(node.data.node, project, line);
@@ -199,8 +201,9 @@ function GraphCanvas({
   );
 
   const onNodeDoubleClick = useCallback(
-    (_event: unknown, node: SpiderFlowNode) => {
+    (event: ReactMouseEvent, node: SpiderFlowNode) => {
       clearTimeout(pendingClick.current);
+      if (ignoresDoubleClick(event.shiftKey)) return;
       if (justUnpinned(lastUnpin.current, node.id, performance.now())) return;
       const action = doubleClickAction(node.data.node, graph, nodeUi);
       if (action === "expand") onExpand(node.id);

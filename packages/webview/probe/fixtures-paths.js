@@ -13,6 +13,7 @@ const ID = {
   callee: "src/net.ts#request",
   caller: "src/cache.ts#warmUp",
   inner: "src/avatar.ts#decode",
+  footer: "src/page.ts#renderFooter",
 };
 
 function node(id) {
@@ -98,6 +99,18 @@ const END_SLICE = {
   truncated: false,
 };
 
+const WIDER_ROUTE = {
+  nodes: [...ROUTE.nodes, node(ID.footer)],
+  edges: [...ROUTE_EDGES, edge(ID.footer, ID.page), edge(ID.end, ID.footer)],
+};
+
+const WIDER_PATH = {
+  endId: ID.end,
+  boxes: [...PATH.boxes, { id: ID.footer, column: 3 }],
+  edgeIds: WIDER_ROUTE.edges.map((each) => each.id),
+  summary: { routes: 2, routesCapped: false, leftOut: 0, checked: 8 },
+};
+
 const messages = {
   oldCentre: (sourceVersion) => ({
     type: "slice",
@@ -112,6 +125,16 @@ const messages = {
     route: ROUTE,
     path: PATH,
     sourceVersion,
+  }),
+  refreshedWider: (generation, sourceVersion) => ({
+    type: "refreshed",
+    project: PROJECT,
+    generation,
+    sourceVersion,
+    centre: START_SLICE,
+    expansions: [],
+    route: WIDER_ROUTE,
+    path: WIDER_PATH,
   }),
   endExpansion: (generation) => ({
     type: "slice",

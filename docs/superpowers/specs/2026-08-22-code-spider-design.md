@@ -320,16 +320,19 @@ webview → ext:  ready()
                 | focus(project, nodeId)
                 | expand(project, nodeId, generation)
                 | setColumnGap(value) | setEdgeStyle(value)
-                | refresh(project, generation, focusId, expanded)
+                | refresh(project, generation, focusId, expanded, pathEndId?)
+                | pathClick(project, nodeId) | cancelPath(id)
 
 ext → webview:  slice(GraphSlice, project, mode)
                 | expandFailed(nodeId, generation, message)
                 | analysisError(message) | busy(boolean) | indexing(boolean)
                 | settings(columnGap, edgeStyle)
                 | refreshed(project, generation, sourceVersion,
-                            centre, expansions)
+                            centre, expansions, route?, path?)
                 | refreshFailed(generation, message)
                 | sourceChanged(version)
+                | pathStart(mark) | pathSearch(search)
+                | pathFound(project, slice, route, path, sourceVersion)
 ```
 
 `project` names the tsconfig a slice came from, so a request reaches the right
@@ -342,6 +345,15 @@ banner. `sourceChanged` carries the extension's change counter, which the
 webview compares with the `sourceVersion` of the graph on screen. The webview
 does not send `focus`, since re-centring is done from the editor; the extension
 still handles it.
+
+The paths messages are described in the paths spec
+(`2026-10-14-code-spider-paths-design.md`, §7). `pathClick` is a Shift+click on a
+box; `cancelPath` carries the id of the search to stop. `pathStart` carries the
+extension's start mark (or nothing) and `pathSearch` the search in progress (or
+nothing), both replayed when the panel loads. `pathFound` is a new centre: the
+start's ordinary slice, the route (the functions and links on every route) and
+the path summary. `refresh` carries `pathEndId` when the graph on screen is a
+path graph, and `refreshed` then carries the new `route` and `path`.
 
 ### 7.5 Rendering
 
@@ -477,13 +489,27 @@ a hover tooltip would duplicate it and add a positioning problem for no gain.
 VS Code extensions **cannot** bind modifier-plus-left-click in the text editor.
 There is no mouse event API for the editor: extensions observe selection
 *changes*, not clicks, and cannot read modifier state. `Ctrl+Click`, `Alt+Click`
-and `Shift+Click` are owned by the editor core. Two native gestures are
-provided instead, both firing the same command:
+and `Shift+Click` are owned by the editor core. Native gestures are provided
+instead:
 
-- **`Shift+Alt+Q`** with the cursor inside a function or component. Primary
-  gesture. (Verify this is unbound in VS Code's defaults before shipping;
-  `Shift+Alt+F`, `O` and `A` are taken.)
+- **`Shift+Alt+2`** (`Shift+Option+2` on a Mac) with the cursor inside a function
+  or component. Primary gesture for a graph. It replaced `Ctrl+Alt+S`, which had
+  replaced the `Shift+Alt+Q` this section first named; `Ctrl+Alt+S` is bound
+  twice by default in VS Code 1.141.
 - **Right-click → "Show in Code Spider"** in the editor context menu.
+- **`Shift+Alt+1`** marks the function under the cursor as the start of a path and
+  **`Shift+Alt+3`** names it as the end and runs the search ("Path from here" and
+  "Path to here"; "Clear Path Start" is in the palette while a start is marked).
+  On Windows and Linux `Shift+Alt+1` is VS Code's own "Move Editor into First
+  Group"; the extension's binding wins while a TypeScript or JavaScript editor has
+  focus. This is a recorded, accepted clash. The commands are in the palette for
+  keyboards that cannot type the chords.
+
+Inside the graph, **Shift+click on a box** sends `pathClick`: with no start
+marked it marks the box (a dashed `A` tag, and the status bar shows the mark);
+on the marked box it clears the mark; on another box it runs the search with that
+box as the end. It never jumps, opens or pins, and does nothing on a module,
+external or unknown box. A plain click is unchanged.
 
 A `⧉ Graph` CodeLens above every declaration shipped in M2 and was removed: it
 cluttered the editor, and parsing every open file for it put the whole
@@ -501,7 +527,10 @@ in its header closes it again; boxes start closed except the one in the middle. 
 20 graphs), **Tidy**, **Refresh**, a **Lines** switch (Stepped or Curved) and a
 **Spacing** slider for the column gap; the column gap and the line style are
 stored in the extension's global state. Refresh shows a dot when a source file
-changed since the graph was drawn. The view (graph, positions, pins and
+changed since the graph was drawn. On a path graph the toolbar also shows a
+summary line such as `Paths fetchUser → renderAvatar: 3 routes`, with
+`stopped early (time limit)` and `nearest 200 route boxes shown, 41 left out`
+joined on when they apply. The view (graph, positions, pins and
 history) survives a webview reload. The M3a spec
 (`2026-10-10-code-spider-m3a-design.md`) and the M3b spec
 (`2026-10-11-code-spider-m3b-design.md`) have the detail.
@@ -518,6 +547,7 @@ can show a dot; nothing re-analyses on its own.
 | Focus command | Changes | Discarded | Fresh slice |
 | Expand (double-click) | Unchanged | Grows | Slice for expanded node |
 | Refresh button | Unchanged | **Preserved** | Re-runs focus and all expansions |
+| Refresh on a path graph | Unchanged | **Preserved** | Also re-runs the search from the start to the end |
 
 The refresh button exists so that after changing code you do not have to click
 back into the editor to update the panel. It re-reads the centre and every
@@ -535,6 +565,18 @@ box sideways does not stop its called boxes being reordered, but a function
 dragged to the left of its called boxes, or onto them, does not have them
 reordered, because the column is looked for to the left of the function; a called
 box in a different column from the rest of its group is left alone.
+
+Refresh on a path graph (paths spec §13) sends the end as well, and the worker
+refreshes the start's ordinary slice and every expansion and re-runs the search
+in one request. The webview rebuilds the graph in place: the start's slice, then
+the route, then the expansions; a box still in the graph keeps its place, a box
+that grew gets room, and new boxes are placed around the start. The call-order
+restack is skipped, because a route's columns are route order. A box that is no
+longer on any route is removed unless it is pinned; a pinned one stays as a plain
+box without its lines or expansions. A neighbour of the start that vanished is
+removed even when pinned. If the start or the end no longer exists, there is no
+route any more, or the refresh is cancelled, the refresh fails with a message and
+the graph stays as it was.
 
 If a refresh finds that an expanded node no longer exists, that node is dropped
 along with anything reachable only through it. A pinned box that the rebuilt
@@ -644,6 +686,14 @@ button, and zoom-based level of detail in node code regions. Added after M2:
   the one in the middle; a click jumps to the code and opens the box, pushing the
   boxes below it down; a small arrow in the header opens and closes it; the
   header text is larger.
+- Done after M4 (2026-10-15): paths. Mark a start function (`Shift+Alt+1`, or
+  Shift+click a box), name an end (`Shift+Alt+3`, or Shift+click another box) and
+  Code Spider finds every route between them by climbing callers from both ends,
+  stopped by a time limit or Cancel, and opens a path graph: the route boxes in
+  columns from the start on the left to the end on the right, with a blue outline,
+  and the start's own neighbours around it. Refresh re-runs the search; a reload
+  restores the path graph. Show Graph moved to `Shift+Alt+2`. The detail is in
+  the paths spec (`2026-10-14-code-spider-paths-design.md`).
 
 **M4 — Polish and package.** Theming, truncation and unknown-node states, error
 handling, `.vsix`.
@@ -680,6 +730,10 @@ Ordered roughly by expected value:
 - **Live updates.** Re-analysing and redrawing as code changes, with graph
   diffing. The M3b watcher only records which files changed and lights a dot on
   Refresh.
+- **Path follow-ups.** Searching across two TypeScript projects, following values
+  rather than calls, a way to name a third function the routes must pass through,
+  several start marks at once, and re-running a search from an old graph in the
+  history (the paths spec, §18).
 - **A second-language analyser** behind the same `GraphSlice` contract.
 - **Graph-to-code editing** — the bidirectional vision.
 
