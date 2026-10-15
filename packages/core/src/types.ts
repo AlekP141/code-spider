@@ -49,3 +49,36 @@ export type GraphSlice = {
   edges: GraphEdge[];
   truncated: boolean;
 };
+
+export type PathBox = { id: NodeId; column: number };
+
+export type PathSummary = {
+  routes: number;
+  /** Counting stopped early: routes is a lower bound. */
+  routesCapped: boolean;
+  /** Route boxes the box cap cut. */
+  leftOut: number;
+  stoppedBy?: "time";
+  /** Climbs finished. */
+  checked: number;
+};
+
+export type PathInfo = {
+  /** B; A is the graph's focusId. */
+  endId: NodeId;
+  /** Route boxes, nearest first. */
+  boxes: PathBox[];
+  /** Route links. */
+  edgeIds: string[];
+  summary: PathSummary;
+};
+
+export type PathRoute = { nodes: GraphNode[]; edges: GraphEdge[] };
+
+export type PathProgress = {
+  checked: number;
+  routes: number;
+  routesCapped: boolean;
+};
+
+export type PathLimits = { timeLimitMs: number; maxBoxes: number };
