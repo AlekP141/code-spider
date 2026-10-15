@@ -4,6 +4,8 @@ import type { ExtensionToWebview } from "@code-spider/webview/protocol";
 import { vi } from "vitest";
 import { ChangeTracker } from "../../src/changes/changes.js";
 import { JumpTable } from "../../src/session/jump-table.js";
+import { PathStart } from "../../src/session/path-start.js";
+import { pathLimits } from "../../src/settings/path-limits.js";
 import type { AnalysisPort, DiffReading, PanelPort } from "../../src/ports.js";
 import { GraphSession } from "../../src/session/session.js";
 import type { FocusResult } from "../../src/worker/protocol.js";
@@ -102,6 +104,8 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
   };
   const changes = new ChangeTracker();
   const jumps = new JumpTable();
+  const pathStart = new PathStart();
+  const limits = { value: pathLimits(undefined, undefined) };
   const session = new GraphSession({
     worker,
     panel,
@@ -113,6 +117,8 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     documents,
     diff,
     diffMode: () => mode.value,
+    pathStart,
+    pathLimits: () => limits.value,
   });
   const types = () => posted.map((message) => message.type);
   return {
@@ -126,6 +132,8 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
     indexing,
     changes,
     jumps,
+    pathStart,
+    limits,
     posted,
     types,
   };

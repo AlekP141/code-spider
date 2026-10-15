@@ -13,6 +13,7 @@ import {
 } from "./ids.js";
 import { JumpTable } from "./session/jump-table.js";
 import { JumpHandler } from "./session/navigation.js";
+import { PathStart } from "./session/path-start.js";
 import { GraphPanel } from "./panel/graph-panel.js";
 import { GraphSession, type CurrentGraph } from "./session/session.js";
 import { gitDiff } from "./diff/git-diff.js";
@@ -22,7 +23,7 @@ import { workspaceDocuments } from "./vscode/documents.js";
 import { EditorRevealer } from "./vscode/editor.js";
 import { resolveFocusRequest } from "./vscode/focus-request.js";
 import { notifier } from "./vscode/notifier.js";
-import { getMaxHeapMb } from "./vscode/settings.js";
+import { getMaxHeapMb, getPathLimits } from "./vscode/settings.js";
 import { IndexingStatusBar } from "./vscode/status-bar.js";
 import { registerChangeWatchers } from "./vscode/watchers.js";
 import { spawnAnalysisWorker } from "./worker/spawn.js";
@@ -53,7 +54,10 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
         );
       });
     },
-    () => jumpTable.clear(),
+    () => {
+      session.paths.cancelActive();
+      jumpTable.clear();
+    },
   );
   const statusBar = new IndexingStatusBar();
   const { changes, dispose: disposeSourceChanges } = createSourceChanges(
@@ -71,6 +75,8 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     documents: workspaceDocuments,
     diff: gitDiff,
     diffMode: () => diffMode.get(),
+    pathStart: new PathStart(),
+    pathLimits: getPathLimits,
   });
   const announce = () =>
     panel.post({
@@ -90,6 +96,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
   const dispatch = createDispatcher({
     jumps: new JumpHandler(jumpTable, revealer),
     session,
+    paths: session.paths,
     columnGap,
     edgeStyle,
     diffMode,

@@ -1,5 +1,4 @@
-import { basename } from "node:path";
-import type { NodeId } from "@code-spider/core";
+import type { NodeId, PathLimits } from "@code-spider/core";
 import type { DiffMode } from "@code-spider/webview/diff-mode";
 import type { ChangeTracker } from "../changes/changes.js";
 import type {
@@ -14,6 +13,7 @@ import type {
 import { annotateSlice } from "../diff/annotate.js";
 import { ChangeReader } from "../diff/change-reader.js";
 import {
+  annotateRefresh,
   CENTRE_GONE_MESSAGE,
   noticeUnsavedEdits,
   recordRefresh,
@@ -21,8 +21,12 @@ import {
   refreshFailedMessage,
 } from "./session-refresh.js";
 import type { FocusResult } from "../worker/protocol.js";
+import { PathSearcher } from "./path-search.js";
+import type { PathStart } from "./path-start.js";
 import { postChangeMarks } from "./session-recolour.js";
-import { WorkerCrashedError } from "../worker/worker-client.js";
+import { CentreRequests } from "./centre-requests.js";
+import { FailureReporter } from "./failures.js";
+import { savedFirstWarning } from "./warnings.js";
 
 export type FocusRequest = {
   /** Absolute path of the document. */
@@ -43,6 +47,7 @@ export type RefreshGraphRequest = {
   generation: number;
   focusId: NodeId;
   expanded: NodeId[];
+  pathEndId?: NodeId;
 };
 
 export type CurrentGraph = FocusResult;
@@ -58,18 +63,20 @@ export type SessionDeps = {
   documents: DocumentsPort;
   diff: DiffPort;
   diffMode: () => DiffMode;
+  pathStart: PathStart;
+  pathLimits: () => PathLimits;
 };
 
 const UNKNOWN_PROJECT = "Unknown project";
 
 export class GraphSession {
   private graph: CurrentGraph | undefined;
-  private latest = 0;
-  private outstanding = 0;
   private warming = 0;
-  private lastNotifiedCrash: WorkerCrashedError | undefined;
 
   private readonly changeReader: ChangeReader;
+  private readonly requests: CentreRequests;
+  private readonly failures: FailureReporter;
+  readonly paths: PathSearcher;
 
   constructor(private readonly deps: SessionDeps) {
     this.changeReader = new ChangeReader(
@@ -77,6 +84,17 @@ export class GraphSession {
       deps.diffMode,
       deps.notifier,
     );
+    this.requests = new CentreRequests(deps.panel);
+    this.failures = new FailureReporter(deps.notifier, deps.maxHeapMb);
+    this.paths = new PathSearcher({
+      ...deps,
+      requests: this.requests,
+      failures: this.failures,
+      reader: this.changeReader,
+      remember: (graph) => {
+        this.graph = graph;
+      },
+    });
   }
 
   currentGraph(): CurrentGraph | undefined {
@@ -86,9 +104,7 @@ export class GraphSession {
   async showGraph(request: FocusRequest): Promise<void> {
     const { worker, panel, notifier, changes } = this.deps;
     if (request.isDirty) {
-      notifier.warn(
-        `Save ${basename(request.file)} first. Code Spider reads files from disk, so an unsaved edit would be analysed at the wrong position.`,
-      );
+      notifier.warn(savedFirstWarning(request.file));
       return;
     }
 
@@ -150,9 +166,9 @@ export class GraphSession {
       });
     } catch (error) {
       if (!jumps.has(project)) return;
-      const message = this.describeFailure(error);
+      const message = this.failures.describe(error);
       panel.post({ type: "expandFailed", nodeId, generation, message });
-      this.notifyCrash(error, message);
+      this.failures.notifyCrash(error, message);
     }
   }
 
@@ -164,8 +180,11 @@ export class GraphSession {
       panel.post(refreshFailedMessage(generation, UNKNOWN_PROJECT));
       return;
     }
-    const token = this.latest;
-    await this.withBusy(async () => {
+    if (request.pathEndId !== undefined) {
+      return this.paths.refresh({ ...request, endId: request.pathEndId });
+    }
+    const token = this.requests.latest();
+    await this.requests.busy(async () => {
       try {
         noticeUnsavedEdits(project, jumps, documents, notifier);
         const { files, version } = changes.drain();
@@ -176,15 +195,8 @@ export class GraphSession {
           files,
         );
         const marks = await this.changeReader.read(analysed.repoRoot);
-        const result = {
-          ...analysed,
-          centre: analysed.centre && annotateSlice(analysed.centre, marks),
-          expansions: analysed.expansions.map(({ nodeId, slice }) => ({
-            nodeId,
-            slice: annotateSlice(slice, marks),
-          })),
-        };
-        if (token !== this.latest || !panel.isOpen()) return;
+        const result = annotateRefresh(analysed, marks);
+        if (!this.requests.isCurrent(token) || !panel.isOpen()) return;
         const { centre } = result;
         if (!centre) {
           panel.post(refreshFailedMessage(generation, CENTRE_GONE_MESSAGE));
@@ -193,10 +205,10 @@ export class GraphSession {
         this.graph = recordRefresh(jumps, result, centre);
         panel.post(refreshedMessage(generation, version, result, centre));
       } catch (error) {
-        if (token !== this.latest || !panel.isOpen()) return;
-        const message = this.describeFailure(error);
+        if (!this.requests.isCurrent(token) || !panel.isOpen()) return;
+        const message = this.failures.describe(error);
         panel.post(refreshFailedMessage(generation, message));
-        this.notifyCrash(error, message);
+        this.failures.notifyCrash(error, message);
       }
     });
   }
@@ -219,7 +231,7 @@ export class GraphSession {
     try {
       await worker.warm(file, changes.drain().files);
     } catch (error) {
-      this.notifyCrash(error, this.describeFailure(error));
+      this.failures.notifyCrash(error, this.failures.describe(error));
     } finally {
       this.warming -= 1;
       if (this.warming === 0) this.setIndexing(false);
@@ -236,13 +248,13 @@ export class GraphSession {
     analyse: () => Promise<{ result: FocusResult; version: number }>,
   ): Promise<void> {
     const { panel, jumps } = this.deps;
-    const token = ++this.latest;
-    await this.withBusy(async () => {
+    const token = this.requests.next();
+    await this.requests.busy(async () => {
       try {
         const analysed = await analyse();
         const result = await this.withChanges(analysed.result);
         const { version } = analysed;
-        if (token !== this.latest || !panel.isOpen()) return;
+        if (!this.requests.isCurrent(token) || !panel.isOpen()) return;
         this.graph = result;
         jumps.add(result.tsconfig, result);
         panel.post({
@@ -252,46 +264,16 @@ export class GraphSession {
           mode: { kind: "centre", sourceVersion: version },
         });
       } catch (error) {
-        if (token !== this.latest || !panel.isOpen()) return;
-        const message = this.describeFailure(error);
+        if (!this.requests.isCurrent(token) || !panel.isOpen()) return;
+        const message = this.failures.describe(error);
         panel.post({ type: "analysisError", message });
-        this.notifyCrash(error, message);
+        this.failures.notifyCrash(error, message);
       }
     });
-  }
-
-  /** Busy stays on until every centre request and refresh has settled. */
-  private async withBusy(work: () => Promise<void>): Promise<void> {
-    const { panel } = this.deps;
-    this.outstanding += 1;
-    panel.post({ type: "busy", busy: true });
-    try {
-      await work();
-    } finally {
-      this.outstanding -= 1;
-      if (this.outstanding === 0) panel.post({ type: "busy", busy: false });
-    }
-  }
-
-  /** A crash rejects every waiting request with one error: notify once. */
-  private notifyCrash(error: unknown, message: string): void {
-    if (!(error instanceof WorkerCrashedError)) return;
-    if (error === this.lastNotifiedCrash) return;
-    this.lastNotifiedCrash = error;
-    this.deps.notifier.error(message);
   }
 
   private setIndexing(active: boolean): void {
     this.deps.indexing.set(active);
     this.deps.panel.post({ type: "indexing", indexing: active });
-  }
-
-  private describeFailure(error: unknown): string {
-    if (error instanceof WorkerCrashedError) {
-      return error.outOfMemory
-        ? `Code Spider ran out of memory analysing this project (limit ${this.deps.maxHeapMb()} MB). Raise "codeSpider.worker.maxHeapMb" in settings and try again.`
-        : `${error.message}. The next request starts a fresh worker.`;
-    }
-    return error instanceof Error ? error.message : String(error);
   }
 }

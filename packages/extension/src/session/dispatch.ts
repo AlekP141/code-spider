@@ -4,6 +4,7 @@ import type { DiffModeStore } from "../settings/diff-mode-store.js";
 import type { EdgeStyleStore } from "../settings/edge-style-store.js";
 import type { TestVisibilityStore } from "../settings/test-visibility-store.js";
 import type { JumpMessage } from "./navigation.js";
+import type { PathSearcher } from "./path-search.js";
 import type { GraphSession } from "./session.js";
 
 export interface JumpPort {
@@ -16,6 +17,7 @@ export type Dispatch = (message: WebviewToExtension) => Promise<void>;
 export function createDispatcher(deps: {
   jumps: JumpPort;
   session: Pick<GraphSession, "focusNode" | "expand" | "refresh" | "recolour">;
+  paths: Pick<PathSearcher, "click" | "cancel">;
   columnGap: Pick<ColumnGapStore, "set">;
   edgeStyle: Pick<EdgeStyleStore, "set">;
   diffMode: Pick<DiffModeStore, "set">;
@@ -43,7 +45,17 @@ export function createDispatcher(deps: {
           generation: message.generation,
           focusId: message.focusId,
           expanded: message.expanded,
+          ...(message.pathEndId !== undefined && {
+            pathEndId: message.pathEndId,
+          }),
         });
+      case "pathClick":
+        return deps.paths.click({
+          project: message.project,
+          nodeId: message.nodeId,
+        });
+      case "cancelPath":
+        return deps.paths.cancel(message.id);
       case "setColumnGap":
         return deps.columnGap.set(message.value);
       case "setEdgeStyle":

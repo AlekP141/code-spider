@@ -9,6 +9,7 @@ function setup() {
     refresh: vi.fn(async () => undefined),
     recolour: vi.fn(async () => undefined),
   };
+  const paths = { click: vi.fn(async () => undefined), cancel: vi.fn() };
   const diffMode = { set: vi.fn(async () => undefined) };
   const columnGap = { set: vi.fn(async () => undefined) };
   const edgeStyle = { set: vi.fn(async () => undefined) };
@@ -23,6 +24,7 @@ function setup() {
     dispatch: createDispatcher({
       jumps,
       session,
+      paths,
       columnGap,
       edgeStyle,
       diffMode,

@@ -24,14 +24,27 @@ export function parseWebviewMessage(
         typeof message.generation === "number" &&
         Number.isInteger(message.generation) &&
         typeof message.focusId === "string" &&
-        isStringArray(message.expanded)
+        isStringArray(message.expanded) &&
+        (message.pathEndId === undefined ||
+          typeof message.pathEndId === "string")
         ? {
             type: "refresh",
             project,
             generation: message.generation,
             focusId: message.focusId,
             expanded: message.expanded,
+            ...(message.pathEndId !== undefined && {
+              pathEndId: message.pathEndId,
+            }),
           }
+        : undefined;
+    case "pathClick":
+      return typeof project === "string" && typeof nodeId === "string"
+        ? { type: "pathClick", project, nodeId }
+        : undefined;
+    case "cancelPath":
+      return typeof message.id === "number" && Number.isInteger(message.id)
+        ? { type: "cancelPath", id: message.id }
         : undefined;
     case "openInEditor": {
       if (typeof project !== "string" || typeof nodeId !== "string") {
