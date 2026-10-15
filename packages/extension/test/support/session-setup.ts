@@ -53,6 +53,10 @@ export function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+function neverSettling() {
+  return { result: new Promise<never>(() => undefined), cancel: vi.fn() };
+}
+
 export function setup(overrides: Partial<AnalysisPort> = {}) {
   const posted: ExtensionToWebview[] = [];
   const panel: PanelPort & { shown: number; open: boolean } = {
@@ -79,6 +83,9 @@ export function setup(overrides: Partial<AnalysisPort> = {}) {
       centre: resultFor(focusId).slice,
       expansions: [],
     })),
+    resolveEnd: vi.fn(async () => undefined),
+    findPath: vi.fn(neverSettling),
+    refreshPath: vi.fn(neverSettling),
     ...overrides,
   };
   const notifier = { warn: vi.fn(), error: vi.fn(), status: vi.fn() };

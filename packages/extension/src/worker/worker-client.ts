@@ -1,8 +1,11 @@
-import type { NodeId } from "@code-spider/core";
+import type { NodeId, PathLimits, PathProgress } from "@code-spider/core";
+import { startPathRun, type FindPathArgs, type PathRun } from "./path-run.js";
 import type {
   ExpandResult,
+  FindPathResult,
   FocusResult,
   RefreshResult,
+  ResolvedEnd,
   WorkerRequest,
   WorkerRequestBody,
   WorkerResponse,
@@ -30,6 +33,7 @@ export class WorkerCrashedError extends Error {
 type Waiting = {
   resolve: (response: WorkerResponse) => void;
   reject: (error: Error) => void;
+  onProgress?: (progress: PathProgress) => void;
 };
 
 export class WorkerClient {
@@ -99,6 +103,75 @@ export class WorkerClient {
     return response.result;
   }
 
+  async resolveEnd(
+    file: string,
+    line: number,
+    character: number,
+    changedFiles: string[],
+  ): Promise<ResolvedEnd | undefined> {
+    const response = await this.request({
+      kind: "resolveEnd",
+      file,
+      line,
+      character,
+      changedFiles,
+    });
+    if (response.kind !== "resolved") {
+      throw new Error(`Unexpected worker response: ${response.kind}`);
+    }
+    return response.result;
+  }
+
+  findPath(
+    args: FindPathArgs,
+    onProgress: (progress: PathProgress) => void,
+  ): PathRun<FindPathResult> {
+    return startPathRun(
+      async (cancel) => {
+        const response = await this.request(
+          { kind: "findPath", ...args, cancel },
+          onProgress,
+        );
+        if (response.kind !== "pathDone") {
+          throw new Error(`Unexpected worker response: ${response.kind}`);
+        }
+        return response.result;
+      },
+      (result) => result.outcome.status === "cancelled",
+    );
+  }
+
+  refreshPath(
+    tsconfig: string,
+    focusId: NodeId,
+    endId: NodeId,
+    expanded: NodeId[],
+    changedFiles: string[],
+    limits: PathLimits,
+    onProgress: (progress: PathProgress) => void,
+  ): PathRun<RefreshResult> {
+    return startPathRun(
+      async (cancel) => {
+        const response = await this.request(
+          {
+            kind: "refresh",
+            tsconfig,
+            focusId,
+            expanded,
+            changedFiles,
+            path: { endId, limits, cancel },
+          },
+          onProgress,
+        );
+        if (response.kind !== "refreshed") {
+          throw new Error(`Unexpected worker response: ${response.kind}`);
+        }
+        return response.result;
+      },
+      (result) => result.pathStatus === "cancelled",
+    );
+  }
+
   /** Drops the current worker; the next request starts a fresh one. */
   recycle(): void {
     const worker = this.worker;
@@ -112,7 +185,10 @@ export class WorkerClient {
     this.recycle();
   }
 
-  private request(body: WorkerRequestBody): Promise<WorkerResponse> {
+  private request(
+    body: WorkerRequestBody,
+    onProgress?: (progress: PathProgress) => void,
+  ): Promise<WorkerResponse> {
     if (this.disposed) {
       return Promise.reject(
         new Error("The Code Spider analysis worker was disposed."),
@@ -121,7 +197,7 @@ export class WorkerClient {
     const worker = this.worker ?? this.start();
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.waiting.set(id, { resolve, reject });
+      this.waiting.set(id, { resolve, reject, onProgress });
       worker.postMessage({ ...body, id });
     });
   }
@@ -141,6 +217,14 @@ export class WorkerClient {
     if (worker !== this.worker) return;
     const waiting = this.waiting.get(response.id);
     if (!waiting) return;
+    if (response.kind === "pathProgress") {
+      try {
+        waiting.onProgress?.(response.progress);
+      } catch {
+        // a failing progress callback must not stop the run
+      }
+      return;
+    }
     this.waiting.delete(response.id);
     if (response.kind === "failed") waiting.reject(new Error(response.message));
     else waiting.resolve(response);

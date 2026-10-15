@@ -1,11 +1,19 @@
-import type { GraphNode, NodeId } from "@code-spider/core";
+import type {
+  GraphNode,
+  NodeId,
+  PathLimits,
+  PathProgress,
+} from "@code-spider/core";
 import type { DiffMode } from "@code-spider/webview/diff-mode";
 import type { ChangeMap } from "./diff/parse-diff.js";
 import type { ExtensionToWebview } from "@code-spider/webview/protocol";
+import type { FindPathArgs, PathRun } from "./worker/path-run.js";
 import type {
   ExpandResult,
+  FindPathResult,
   FocusResult,
   RefreshResult,
+  ResolvedEnd,
 } from "./worker/protocol.js";
 
 export interface AnalysisPort {
@@ -27,6 +35,25 @@ export interface AnalysisPort {
     expanded: NodeId[],
     changedFiles: string[],
   ): Promise<RefreshResult>;
+  resolveEnd(
+    file: string,
+    line: number,
+    character: number,
+    changedFiles: string[],
+  ): Promise<ResolvedEnd | undefined>;
+  findPath(
+    args: FindPathArgs,
+    onProgress: (progress: PathProgress) => void,
+  ): PathRun<FindPathResult>;
+  refreshPath(
+    tsconfig: string,
+    focusId: NodeId,
+    endId: NodeId,
+    expanded: NodeId[],
+    changedFiles: string[],
+    limits: PathLimits,
+    onProgress: (progress: PathProgress) => void,
+  ): PathRun<RefreshResult>;
 }
 
 export interface PanelPort {
