@@ -48,7 +48,7 @@
           "default": 200,
           "minimum": 10,
           "maximum": 2000,
-          "description": "How many functions a path search may visit before it stops and shows what it found. Read at the start of every search."
+          "description": "The most route boxes a path graph draws. If there are more, the nearest routes are kept and the line above the graph says how many were left out. Read at the start of every search."
         }
       }
     },

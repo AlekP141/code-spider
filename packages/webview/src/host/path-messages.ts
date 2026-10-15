@@ -30,7 +30,7 @@ function isSearch(value: unknown): boolean {
   );
 }
 
-export function isRoute(value: unknown): boolean {
+function isRoute(value: unknown): boolean {
   return (
     isRecord(value) &&
     Array.isArray(value.nodes) &&

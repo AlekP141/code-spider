@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import type { ExtensionToWebview } from "@code-spider/webview/protocol";
+import { describe, expect, it, vi } from "vitest";
+import { MessageGate } from "../../src/panel/message-gate.js";
+import type { DiffReading } from "../../src/ports.js";
 import { WorkerCrashedError } from "../../src/worker/worker-client.js";
 import { foundResult, pathEnv, startSearch } from "../support/path-run.js";
-import { PROJECT, resultFor } from "../support/session-setup.js";
+import { deferred, PROJECT, resultFor } from "../support/session-setup.js";
 
 const ended = { type: "pathSearch", search: undefined };
 const focusRequest = {
@@ -105,5 +108,50 @@ describe("stopping a path search", () => {
     await search;
     expect(env.types()).toEqual(["busy", "pathSearch", "pathSearch", "busy"]);
     expect(env.notifier.warn).not.toHaveBeenCalled();
+  });
+
+  it("posts no pathFound and ends the state when a cancel lands while change marks are read", async () => {
+    const env = pathEnv();
+    const reading = deferred<DiffReading>();
+    env.diff.changes.mockReturnValue(reading.promise);
+    const { search } = await startSearch(env);
+    env.finds.runs[0]?.done(foundResult());
+    await vi.waitFor(() => expect(env.diff.changes).toHaveBeenCalled());
+    env.session.paths.cancel(1);
+    reading.resolve({ changes: new Map(), fellBack: false });
+    await search;
+    expect(env.types()).toEqual(["busy", "pathSearch", "pathSearch", "busy"]);
+    expect(env.posted.at(-2)).toEqual(ended);
+    expect(env.jumps.callSiteTarget(PROJECT, "a->b")).toBeUndefined();
+    expect(env.session.currentGraph()).toBeUndefined();
+  });
+
+  it("does not replay a searching state when the panel is closed mid-search and reopened", async () => {
+    const env = pathEnv();
+    const sent: ExtensionToWebview[] = [];
+    const gate = new MessageGate((message) => sent.push(message));
+    const post = env.panel.post;
+    env.panel.post = (message) => {
+      post(message);
+      gate.post(message);
+    };
+    const { search } = await startSearch(env);
+    gate.markReady();
+    expect(sent.some((m) => m.type === "pathSearch" && m.search)).toBe(true);
+
+    env.panel.open = false;
+    gate.reset();
+    env.session.paths.panelClosed();
+    expect(env.finds.runs[0]?.cancel).toHaveBeenCalledOnce();
+
+    env.panel.show();
+    gate.reset();
+    sent.length = 0;
+    gate.markReady();
+    expect(sent.filter((m) => m.type === "pathSearch" && m.search)).toEqual([]);
+
+    env.finds.runs[0]?.cancelled();
+    await search;
+    expect(env.types().filter((t) => t === "pathSearch")).toHaveLength(2);
   });
 });

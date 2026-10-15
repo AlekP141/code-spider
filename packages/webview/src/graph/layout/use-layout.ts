@@ -10,8 +10,9 @@ function messageOf(error: unknown): string {
 
 /**
  * Lays out each pending centre slice (a path graph by columns, any other with
- * ELK), and offers Tidy for the graph on screen. Stale results are discarded by the reducer, which matches the id of
- * the pending slice and the generation of the graph.
+ * ELK), and offers Tidy for the graph on screen. Stale results are discarded
+ * by the reducer, which matches the id of the pending slice and the generation
+ * of the graph.
  */
 export function useGraphLayout(
   state: AppState,

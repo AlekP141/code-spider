@@ -16,17 +16,24 @@ import type { GraphState } from "./types.js";
 
 const NO_ROUTE: PathRoute = { nodes: [], edges: [] };
 
-/** A pinned box that left the route stays, plain and with the data it had. */
+/**
+ * A pinned box that left the route stays, plain and with the data it had. It
+ * is a former route box if it was on the route, or if it is a pinned box with
+ * no link left: that is what an earlier refresh left behind.
+ */
 function withPinnedFormerRoute(
   graph: GraphState,
   current: GraphState,
 ): GraphState {
+  const onRoute = new Set(current.path?.boxes.map((box) => box.id));
+  const linked = new Set(
+    Object.values(current.edges).flatMap((edge) => [edge.from, edge.to]),
+  );
   const nodes = { ...graph.nodes };
-  for (const { id } of current.path?.boxes ?? []) {
+  for (const id of current.pinned) {
     const node = current.nodes[id];
-    if (node && current.pinned.includes(id) && !Object.hasOwn(nodes, id)) {
-      nodes[id] = node;
-    }
+    const former = onRoute.has(id) || !linked.has(id);
+    if (node && former && !Object.hasOwn(nodes, id)) nodes[id] = node;
   }
   return { ...graph, nodes };
 }

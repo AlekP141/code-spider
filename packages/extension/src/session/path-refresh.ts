@@ -48,9 +48,9 @@ export async function refreshPath(
           limits,
           onProgress,
         ),
-      settle: async (outcome, live) => {
+      settle: async (outcome, live, cancelledByUser) => {
         if (outcome.status === "cancelled") {
-          return failed(REFRESH_CANCELLED_MESSAGE, live);
+          return failed(REFRESH_CANCELLED_MESSAGE, cancelledByUser);
         }
         const analysed = outcome.value;
         const { centre, pathStatus } = analysed;

@@ -12,12 +12,18 @@ export type Job<T> = {
   to: string;
   token: number;
   start: (onProgress: (progress: PathProgress) => void) => PathRun<T>;
-  settle: (outcome: Cancellable<T>, live: Live) => Promise<void>;
+  settle: (
+    outcome: Cancellable<T>,
+    live: Live,
+    cancelledByUser: Live,
+  ) => Promise<void>;
   fail: (error: unknown) => void;
 };
 
 export class PathTracker {
-  private active: { id: number; cancel: () => void } | undefined;
+  private active:
+    | { id: number; cancel: () => void; userCancelled: boolean }
+    | undefined;
   private lastId = 0;
 
   constructor(
@@ -28,7 +34,18 @@ export class PathTracker {
   }
 
   cancel(id: number): void {
-    if (this.active?.id === id) this.active.cancel();
+    if (this.active?.id !== id) return;
+    this.active.userCancelled = true;
+    this.active.cancel();
+  }
+
+  /** The panel closed: cancel and end the state now, so a reopened panel replays none. */
+  abandon(): void {
+    const active = this.active;
+    if (!active) return;
+    active.cancel();
+    this.active = undefined;
+    this.panel.post({ type: "pathSearch", search: undefined });
   }
 
   cancelActive(): void {
@@ -43,10 +60,13 @@ export class PathTracker {
     const { panel, requests } = this;
     const id = ++this.lastId;
     let run: PathRun<T> | undefined;
-    this.active = { id, cancel: () => run?.cancel() };
-    const owns = () => this.active?.id === id;
-    const live = () =>
+    const entry = { id, cancel: () => run?.cancel(), userCancelled: false };
+    this.active = entry;
+    const owns = () => this.active === entry;
+    const current = () =>
       owns() && requests.isCurrent(job.token) && panel.isOpen();
+    const live = () => current() && !entry.userCancelled;
+    const cancelledByUser = () => current() && entry.userCancelled;
     const post = (search: PathSearch | undefined) =>
       panel.post({ type: "pathSearch", search });
     const state: PathSearch = {
@@ -63,7 +83,7 @@ export class PathTracker {
       run = job.start((progress) => {
         if (owns()) post({ ...state, ...progress });
       });
-      await job.settle(await run.result, live);
+      await job.settle(await run.result, live, cancelledByUser);
     } catch (error) {
       if (live()) job.fail(error);
     } finally {

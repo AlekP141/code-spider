@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { DiffReading } from "../../src/ports.js";
 import { WorkerCrashedError } from "../../src/worker/worker-client.js";
 import { pathLimits } from "../../src/settings/path-limits.js";
 import {
@@ -11,6 +12,7 @@ import {
   route,
 } from "../support/path-run.js";
 import {
+  deferred,
   FOCUS,
   PROJECT,
   request,
@@ -277,5 +279,19 @@ describe("PathSearcher.refresh", () => {
       ["src/a.ts#h", "added"],
       ["src/c.ts#only", undefined],
     ]);
+  });
+
+  it("posts nothing but the end of the state when a cancel lands while change marks are read", async () => {
+    const env = pathEnv();
+    const reading = deferred<DiffReading>();
+    env.diff.changes.mockReturnValue(reading.promise);
+    const { refreshing } = await startRefresh(env);
+    env.refreshes.runs[0]?.done(refreshedResult());
+    await vi.waitFor(() => expect(env.diff.changes).toHaveBeenCalled());
+    env.session.paths.cancel(1);
+    reading.resolve({ changes: new Map(), fellBack: false });
+    await refreshing;
+    expect(env.types()).toEqual(["busy", "pathSearch", "pathSearch", "busy"]);
+    expect(env.jumps.callSiteTarget(PROJECT, "a->b")).toBeUndefined();
   });
 });

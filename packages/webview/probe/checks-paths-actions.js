@@ -23,6 +23,26 @@ function allDrawn(ids) {
   };
 }
 
+function ordinaryGraph(nodes) {
+  return allDrawn(SEVEN)(nodes) && SEVEN.every((id) => !nodes[id].route);
+}
+
+/** The ids are drawn as wanted and two frames later nothing has moved. */
+async function stableNodes(h, ready, description) {
+  await h.until(() => h.nodes(), ready, description);
+  return h.until(
+    async () => {
+      const first = JSON.stringify(await h.nodes());
+      await h.frame();
+      await h.frame();
+      const second = await h.nodes();
+      return JSON.stringify(second) === first ? second : undefined;
+    },
+    (found) => found !== undefined,
+    `${description} to stop moving`,
+  );
+}
+
 function summaryText(h) {
   return h.evaluate(
     'document.querySelector(".toolbar-summary")?.textContent ?? null',
@@ -31,11 +51,7 @@ function summaryText(h) {
 
 async function shiftClickMarks(h) {
   await h.send(messages.oldCentre(SOURCE_VERSION));
-  const before = await h.until(
-    () => h.nodes(),
-    allDrawn(SEVEN),
-    "the ordinary graph",
-  );
+  const before = await stableNodes(h, ordinaryGraph, "the ordinary graph");
   assert(!before[ID.caller].open, "the box to click starts open");
   const header = () => h.call("centreOfNode", ID.caller, ".node-header");
   const jumps = (await h.posted("openInEditor")).length;
@@ -81,8 +97,8 @@ async function shiftClickMarks(h) {
 async function refreshRebuildsInPlace(h) {
   await h.send(messages.oldCentre(SOURCE_VERSION));
   await h.send(messages.pathFound(SOURCE_VERSION));
-  const before = await h.until(
-    () => h.nodes(),
+  const before = await stableNodes(
+    h,
     (found) => allDrawn(SEVEN)(found) && found[ID.end].route,
     "the path graph",
   );

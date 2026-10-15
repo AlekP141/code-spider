@@ -114,6 +114,10 @@ export class PathSearcher {
     this.tracker.cancelActive();
   }
 
+  panelClosed(): void {
+    this.tracker.abandon();
+  }
+
   refresh(request: PathRefreshRequest): Promise<void> {
     return refreshPath(this.deps, this.tracker, request);
   }

@@ -68,6 +68,31 @@ describe("rebuildPathGraph and the boxes that leave", () => {
     expect(graph.path?.boxes.some((box) => box.id === id("m"))).toBe(false);
   });
 
+  it("keeps a pinned former route box through two refreshes", () => {
+    const base = withExpandedM();
+    const current: GraphState = { ...base, pinned: [id("m")] };
+    const first = rebuildPathGraph(
+      current,
+      pathAnswer(current, viaQ(), EXPAND_M),
+      GAP,
+    ).graph;
+    const second = rebuildPathGraph(
+      first,
+      pathAnswer(first, viaQ()),
+      GAP,
+    ).graph;
+    for (const graph of [first, second]) {
+      expect(graph.nodes[id("m")]).toEqual(current.nodes[id("m")]);
+      expect(graph.positions[id("m")]).toEqual(current.positions[id("m")]);
+      expect(graph.pinned).toEqual([id("m")]);
+      const links = Object.values(graph.edges).filter(
+        (edge) => edge.from === id("m") || edge.to === id("m"),
+      );
+      expect(links).toEqual([]);
+      expect(graph.path?.boxes.some((box) => box.id === id("m"))).toBe(false);
+    }
+  });
+
   it("removes a vanished neighbour of A even when it is pinned", () => {
     const base = placed(pathGraph());
     const current: GraphState = { ...base, pinned: [id("s")] };

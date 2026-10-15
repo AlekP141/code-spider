@@ -57,7 +57,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
       });
     },
     () => {
-      session.paths.cancelActive();
+      session.paths.panelClosed();
       jumpTable.clear();
     },
   );
