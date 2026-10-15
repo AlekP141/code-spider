@@ -3,6 +3,7 @@ import {
   DASHED,
   DOTTED,
   edgeAppearance,
+  INFERRED_DASH,
 } from "../../src/graph/edge-appearance.js";
 
 describe("edgeAppearance", () => {
@@ -29,6 +30,15 @@ describe("edgeAppearance", () => {
       strokeDasharray: DOTTED,
     });
     expect(DOTTED).not.toBe(DASHED);
+  });
+
+  it("draws injected edges dash-dotted, apart from unresolved and passes", () => {
+    expect(edgeAppearance("injected", true)).toMatchObject({
+      className: "edge-injected",
+      strokeDasharray: INFERRED_DASH,
+    });
+    expect(INFERRED_DASH).not.toBe(DASHED);
+    expect(INFERRED_DASH).not.toBe(DOTTED);
   });
 
   it("draws external edges solid with their own class", () => {

@@ -207,6 +207,18 @@ functions get one. Calls, renders and passes made inside a named function nested
 in the focus belong to that nested function, so a component links to its
 handlers and each handler to what it calls, from whichever side is focused.
 
+**A call on something handed in gets an `injected` edge.** `generate(...)` where
+`generate` is a parameter, a property of a deps or services object, or a
+destructured name has no declaration to link to. The analyser instead looks at
+what the code passes for it: the arguments of every call to the function, and
+the values written to the property in object literals and assignments. Each
+function found (a named function, a factory behind `createX(...)`, or the
+function holding an inline arrow) gets an edge of kind `injected`, drawn
+dash-dotted. It reads "may call", not "calls": the first ten matches are shown,
+and a name nothing is ever passed for stays an unresolved edge (§5.5). The same
+links are followed from the other side, so callers and path search climb
+through them.
+
 ### 5.5 Unresolved edges are kept
 
 When a call target cannot be resolved statically — dynamic dispatch, a handler

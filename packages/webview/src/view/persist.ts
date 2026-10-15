@@ -47,6 +47,7 @@ const EDGE_KINDS: Record<EdgeType, true> = {
   jsx: true,
   external: true,
   passes: true,
+  injected: true,
 };
 
 function isRange(value: unknown): boolean {

@@ -52,6 +52,10 @@
   stroke-linecap: round;
 }
 
+.react-flow__edge.edge-injected .react-flow__edge-path {
+  stroke: var(--vscode-charts-orange);
+}
+
 .react-flow__edge.edge-unresolved .react-flow__edge-path {
   stroke: var(--vscode-editorWarning-foreground);
 }
